@@ -4,7 +4,8 @@
 > 编制日期：2026-07-16  
 > 前置版本：当前 Java Chat MVP（README 中的 V0.2）  
 > 前端策略：继续复用现有 FastClaw Next.js 前端，仅做协议兼容和工具过程展示  
-> 关联文档：[OPENAGENT_JAVA_V1_PLAN.md](OPENAGENT_JAVA_V1_PLAN.md)、[PROJECT_REFACTORING_PLAN.md](PROJECT_REFACTORING_PLAN.md)
+> 关联文档：[OPENAGENT_JAVA_V1_PLAN.md](OPENAGENT_JAVA_V1_PLAN.md)、[PROJECT_REFACTORING_PLAN.md](PROJECT_REFACTORING_PLAN.md)  
+> 评审状态：已对照 FastClaw/ragent 源码及当前代码库核查（2026-07-16），发现的问题与未完成重构的衔接见 [第 20 章](#20-评审发现的问题与重构衔接必读)，实施前必须先阅读该章
 
 ## 1. 版本定位
 
@@ -86,7 +87,7 @@ V2 开发前应阅读以下代表性 Java 文件：
 
 | 规范 | ragent 参考文件 | OpenAgent 应用方式 |
 |---|---|---|
-| 统一返回 | framework/.../convention/Result.java、framework/.../web/Results.java | 普通 JSON API 使用统一泛型返回；SSE 保留流式响应豁免 |
+| 统一返回 | framework/.../convention/Result.java、framework/.../web/Results.java | ~~普通 JSON API 使用统一泛型返回~~ **已被 Phase 2 决策否决，见 20.2 问题 6：REST 直接返回 VO（fastclaw 形状），Result 不上 wire**；SSE 保留流式响应豁免 |
 | 全局异常 | framework/.../web/GlobalExceptionHandler.java | 统一映射业务异常，Controller 不拼装异常响应 |
 | Controller | bootstrap/.../admin/controller/DashboardController.java、knowledge/controller/* | 构造注入、薄 Controller、request/vo 独立类型 |
 | Service | bootstrap/.../user/service/UserService.java、service/impl/UserServiceImpl.java | 接口与实现分离，校验和事务下沉 |
@@ -128,7 +129,7 @@ V2 开发前应阅读以下代表性 Java 文件：
 
 ### 2.2 工程目标
 
-1. 让 `agent-core`、`infra-ai` 和 `runtime-integration` 成为被真实业务消费的模块，而不是仅保留接口的空壳。
+1. 让 `agent-core`、`infra-ai` 成为被真实业务消费的模块，而不是仅保留接口的空壳（`runtime-integration` 已在 Phase 0 删除，内置工具承载位置见 20.2 问题 1 待决策）。
 2. Agent 循环不放在 Controller 或 SSE 线程中，由独立协调器和线程池管理生命周期。
 3. 模型事件、Agent 事件和工具结果使用强类型对象，不继续扩大 `Map<String, Object>` 的使用范围。
 4. 工具实现遵循统一注册、参数校验、超时、结果截断、审计和错误映射规范。
@@ -142,7 +143,7 @@ V2 开发前应阅读以下代表性 Java 文件：
 
 - 默认 Agent 支持系统提示词；
 - 支持配置模型、temperature、max tokens；
-- 支持配置 `maxToolIterations`，默认 8，允许范围 1-20；
+- 支持配置 `maxToolIterations`，默认 8（**有意偏离 FastClaw 默认 20**，理由见 20.2 问题 4），允许范围 1-20；
 - 支持配置单次 Agent 运行总超时；
 - 支持为 Agent 启用或禁用具体工具；
 - 启动时为默认 Agent 写入可直接运行的默认配置。
@@ -341,11 +342,13 @@ CREATED
 5. 数据库或协议解析失败属于运行失败，必须产生 `error` 和 `done`。
 6. 达到工具迭代上限进入 LIMIT_REACHED，不再执行工具，但必须参考 FastClaw 追加系统提示并进行一次不携带 tools 的最终总结调用。
 7. SSE 订阅断开不改变 Agent 状态。
+8. 每个 assistant tool call 必须产生相同 ID 的 tool result；执行器漏返回时由 AgentKernel 合成失败结果。
+9. 连续 3 次相同工具和 arguments 触发循环保护；连续 3 轮工具全部失败时禁用工具并尽力回答。
 
 ### 6.2 迭代计数
 
 - 一次包含一个或多个 tool calls 的模型响应计为一次工具迭代；
-- 同一响应中的多个工具调用按顺序执行，V2 暂不并行；
+- 同一响应中的多个工具调用按顺序执行，V2 暂不并行；这是相对 FastClaw 可配置并行调用的有意收缩，用于避免写工具竞争同一 workspace；
 - 工具参数校验失败也计入本轮迭代；
 - 默认最大 8 轮，最大可配置为 20 轮。
 
@@ -441,13 +444,13 @@ V2 保留现有外层结构：
 
 | type | 是否持久化 | data 主要字段 |
 |---|---:|---|
-| `run_started` | 是 | `runId` |
+| `run_started` | 是 | `runId`（**OpenAgent 自增事件，非 FastClaw 基线**，见 20.2 问题 3） |
 | `content_delta` | 否 | `delta` |
-| `tool_call` | 是 | `runId`、`toolCallId`、`name`、`arguments` |
-| `tool_result` | 是 | `runId`、`toolCallId`、`name`、`success`、`content`、`errorCode`、`durationMs` |
-| `content` | 是 | `runId`、`content` |
-| `error` | 是 | `runId`、`code`、`message` |
-| `done` | 是 | `runId`、`status` |
+| tool_call | 是 | id、name、arguments；字段名与 FastClaw 前端完全一致 |
+| tool_result | 是 | id、name、result、metadata；字段名与 FastClaw 前端完全一致 |
+| content | 是 | content、可选 metadata |
+| error | 是 | message，可增补 code |
+| done | 是 | 可选 runId、status；旧前端忽略未知字段 |
 
 ### 8.2 发布顺序
 
@@ -478,7 +481,7 @@ V2 使用 Flyway 增量迁移，建议新增以下表。
 | `user_id` | 当前固定为 `local-user`，为后续认证预留 |
 | `agent_id` | Agent ID |
 | `session_id` | 会话 ID |
-| `status` | CREATED/RUNNING/COMPLETED/FAILED/TIMED_OUT/LIMIT_EXCEEDED |
+| `status` | CREATED/RUNNING/COMPLETED/FAILED/TIMED_OUT/LIMIT_REACHED |
 | `tool_iterations` | 已执行工具迭代数 |
 | `error_code` | 终态错误码，可空 |
 | `error_message` | 清理后的错误信息，可空 |
@@ -547,11 +550,11 @@ V2 使用 Flyway 增量迁移，建议新增以下表。
 - `GET /api/chat/history`
 - `GET /api/chat/sessions`
 
-V2 新增最小工具配置 API：
+V2 新增最小工具配置 API（**注意 `/api/tools` 路径冲突，见 20.2 问题 2**）：
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| GET | `/api/tools` | 返回内置工具及默认启用状态 |
+| GET | `/api/tools` | ~~返回内置工具及默认启用状态~~ **V2 暂不实现或必须对齐 fastclaw ToolsConfig 形状（见 20.2 问题 2）** |
 | GET | `/api/agents/{agentId}/tools` | 返回 Agent 的有效工具配置 |
 | PUT | `/api/agents/{agentId}/tools/{toolName}` | 启用、禁用或更新非敏感工具配置 |
 | GET | `/api/agent-runs/{runId}` | 查询运行状态和工具执行摘要 |
@@ -667,6 +670,9 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 
 ### M1：领域模型与数据库（1-2 天）
 
+> 前置：先完成 PROJECT_REFACTORING_PLAN 的 Phase 3（OpenAgentStore 按聚合拆 Repository、
+> 种子数据剥离、seq 竞态修正），M1 的新 Repository 直接按拆分后的结构落地（见 20.1）。
+
 - 先阅读 FastClaw session/message/event 持久化实现，以及 ragent Service/DAO 分层样例；
 
 - 增加 Agent run、Tool Call、Tool Result 强类型模型；
@@ -678,6 +684,10 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 退出条件：迁移可从空库和现有库执行；运行与工具记录可以独立增删查改；所有 Repository 测试通过。
 
 ### M2：模型 Tool Calling（2-3 天）
+
+> 本里程碑吸收 PROJECT_REFACTORING_PLAN Phase 4：现有 bootstrap 内的
+> OpenAiCompatibleChatModelGateway 迁移/重写到 infra-ai，接口按第 7 章定义
+> 替换既有占位骨架（见 20.2 问题 5），同时解决两模块 ToolCall 同名类冲突。
 
 - 先阅读 FastClaw internal/provider/openai.go、provider 测试和 tool recovery 测试，并保存真实 Kimi 流式响应 fixture；
 
@@ -824,3 +834,95 @@ V2 完成后建议按以下顺序演进：
 - V4：多 Agent、分布式运行、Redis/S3 和云部署能力。
 
 在 V2 完成前不提前引入上述能力，优先保证单机 Agent 工具闭环稳定、清晰且可演示。
+
+## 20. 评审发现的问题与重构衔接（必读）
+
+> 本章为 2026-07-16 对照 FastClaw / ragent 源码及当前代码库的核查结论。
+> 实施 V2 前必须先处理本章内容；各里程碑执行时以本章修正为准，与正文冲突处以本章为准。
+
+### 20.1 规范化重构的完成情况
+
+`PROJECT_REFACTORING_PLAN.md` 的六个 Phase 中，V2 开工时的状态如下：
+
+| Phase | 内容 | 状态 |
+|---|---|---|
+| Phase 0 | 修编译 / 仓库卫生 / Lombok / 删空壳模块（cli、runtime-integration） | ✅ 已完成（commit 52fa3a7） |
+| Phase 1 | framework 打底：Result / 错误码 / 三层异常 / GlobalExceptionHandler / SseStreamWriter | ✅ 已完成（commit c119a84） |
+| Phase 2 | 业务域分包 + Controller/Service 规范化 + SSE 对齐 fastclaw | ✅ 已完成（commit b528ad7） |
+| Phase 3 | **持久层拆分**：OpenAgentStore 按聚合拆 Repository、种子数据剥离 DataSeeder、修正 synchronized+@Transactional 的 seq 竞态 | ❌ 未做，**V2 M1 的直接前置**，先做 Phase 3 再进 M1 |
+| Phase 4 | 网关落位 infra-ai + 事件模型强类型化 | ❌ 未做，**不再单独实施**：与 V2 M2（infra-ai Tool Calling 流式解析）高度重合，单独做会把网关重写两遍，并入 M1/M2 一起交付 |
+| Phase 5/6 | 前端统一请求层 / 契约对账 / chat-screen 拆分 / 测试补齐 | ❌ 未做，与 V2 无依赖关系，可并行或延后 |
+
+**结论：V2 的实施顺序为 Phase 3 → M1（吸收 Phase 4 的 Repository 部分）→ M2（吸收 Phase 4 的网关部分）→ M3 → M4 → M5。**
+
+Phase 2 已落地、V2 必须遵守的既成约定（记录于项目记忆与 commit b528ad7）：
+
+- **wire 协议保持 fastclaw 裸 JSON**：不用 `Result<T>` 包装，错误为 HTTP 状态码 + `{"error": msg}`，由 `GlobalExceptionHandler` 从三层异常映射（NOT_FOUND→404、CONFLICT→409、UNAVAILABLE→503、Client→400、Remote→502）；
+- 业务域垂直分包已就位：`agent/`、`chat/`、`identity/`、`status/`、`web/`，V2 新增代码沿用该结构；
+- SSE 已对齐 fastclaw：`id: <seq>` 行、30s `: ping` 心跳、subscribe 初始 `: ok`、Last-Event-ID 优先于 ?since、丢弃 seq<=cursor 与 content_delta；
+- 三层异常 + 错误码、`@ConfigurationProperties`（ChatProperties/PlatformProperties）、`@RequiredArgsConstructor` + `@Slf4j` 中文日志已是现行规范。
+
+### 20.2 评审发现的事实性问题（实施时按此修正）
+
+#### 问题 1【与现状冲突】`runtime-integration` 模块已被删除
+
+正文 2.2 节、第 5 章架构图、5.1 模块职责表引用的 `runtime-integration` 模块已在 Phase 0 作为空壳删除（连同 `cli`）。两个方案待决策：
+
+- **方案 A**：V2 M4 时恢复 `runtime-integration` 模块，按正文的端口/适配器分层承载内置工具与 workspace 适配器；
+- **方案 B**：内置工具适配器放入 bootstrap 的 `tool/` 业务域（`tool/adapter/` 实现 agent-core 端口），少维护一个模块，V2 范围内更简单，后续工具规模扩大再抽模块。
+
+未决策前正文第 5 章的架构图按方案 A 阅读；**开工 M4 前必须定案**。
+
+#### 问题 2【协议冲突】`GET /api/tools` 与前端现有消费不兼容
+
+正文第 10 章将 `GET /api/tools` 定义为"返回内置工具及默认启用状态"，但前端 `api.ts` 的 `getTools()`（约 1606 行）期望 fastclaw 的 `ToolsConfig { categories, toolProviders, tools }` 结构，且存在 `PUT /api/tools`（保存整份配置）与 `GET /api/agents/{id}/tools/registered`（约 1336 行）。若同一路径返回自定义形状，前端工具设置页会损坏。修正：
+
+- `GET/PUT /api/tools` 若在 V2 实现，**必须对齐 fastclaw 的 `ToolsConfig` 形状**；V2 若不做工具设置页，则不实现该路径（前端页面报 404 属于已知的前后端契约缺口，见 PROJECT_REFACTORING_PLAN Phase 5.2）；
+- V2 最小工具配置 API 保留 `GET /api/agents/{agentId}/tools`、`PUT /api/agents/{agentId}/tools/{toolName}`、`GET /api/agent-runs/{runId}`（前端现有代码不消费这些路径，无冲突）；
+- 若实现 `GET /api/agents/{id}/tools/registered`，返回形状以前端 `AgentRegisteredTool` 接口定义为准。
+
+#### 问题 3【自创事件】`run_started` 不是 FastClaw 基线事件
+
+FastClaw 实际事件类型为 `content_delta / content / tool_call / tool_result / error / done / steer / turn_pending / subagent_progress`，**不存在 `run_started`**（已 grep `loop.go`、`events.go` 确认）。前端事件 switch 无 default 分支，未知类型被静默忽略，因此不会破坏前端。按 1.1 节"有意偏离必须记录"规则在此声明：
+
+- `run_started` 为 OpenAgent 自增事件（用于 run 可观测与 `agent_runs` 关联），非 FastClaw 兼容行为；
+- 风险：无（前端忽略未知类型）；测试要求：验证旧前端在收到 `run_started` 时无渲染异常。
+
+#### 问题 4【默认值偏离】`maxToolIterations` 默认 8 vs FastClaw 默认 20
+
+FastClaw `internal/config/config.go:717` 的默认值为 20。正文 3.1 的"默认 8"是**有意收缩**，原因：本地单机模式 + 首批以只读工具为主，8 轮足够覆盖核心用例且减少失控消耗；允许配置到 20 与 FastClaw 上限对齐。此偏离已按 1.1 节规则在此记录。
+
+#### 问题 5【接口签名不一致】第 7 章接口与 agent-core / infra-ai 现有骨架不同
+
+当前代码库中的既有骨架（零消费的占位代码）与正文第 7 章定义不一致：
+
+| 位置 | 现有骨架 | 正文定义 |
+|---|---|---|
+| `agent-core` AgentKernel | `AgentRunHandle run(command, eventSink)` | `AgentRunResult run(command, eventSink)` |
+| `agent-core` AgentRunCommand | `(runId, RequestIdentity identity, agentId, sessionKey, input, Map effectiveConfig)` | `(runId, userId, agentId, sessionId, userMessage, AgentRuntimeConfig config)` |
+| `infra-ai` LLMService | `ModelCallHandle streamChat(request, listener)` | `ModelResponse stream(request, listener)`（sealed ModelResponse） |
+
+**修正：现有 agent-core / infra-ai 接口为占位骨架，M1/M2 实施时按正文第 7 章定义直接替换，不做兼容**。同时解决两模块的 `ToolCall` 同名类冲突（`ai.openagent.agent.tool.ToolCall` vs `ai.openagent.infra.ai.model.ToolCall`，保留 infra-ai 一份，agent-core 引用之或按第 7 章重新定义）。
+
+#### 问题 6【正文过时表述】1.3 节"统一返回"与 Phase 2 决策冲突
+
+1.3 节表格"统一返回：普通 JSON API 使用统一泛型返回"已被 Phase 2 的 wire 协议决策否决（见 20.1）。以 20.1 为准：**REST 接口直接返回 VO（fastclaw 形状），`Result`/`Results` 保留在 framework 但不上 wire**；ragent 该行仅参考其"Controller 不拼装异常响应"的精神。
+
+### 20.3 核查中确认无误的关键基线（可放心依赖）
+
+以下正文断言已对照源码逐条验证属实，实施时可直接引用：
+
+- 循环保护：连续 3 次相同工具 + 相同 arguments 触发（`loop.go:2194` `consecutiveCount >= 3`）；
+- 连续 3 轮工具全部失败后禁用工具尽力回答（`loop.go:2075-2082`）；
+- 迭代上限后不携带 tools 做最终总结，总结失败才用固定兜底文本（`loop.go:2392-2411`）；
+- 前端 `tool_call` 消费 `data.id / data.name / data.arguments`（arguments 为 JSON 字符串）、`tool_result` 消费 `data.id / data.result / data.metadata`（`chat-screen.tsx:1554-1623`）；前端还依赖 `write_file` 结果文本形如 `Written N bytes` 来刷新文件面板（1607 行）——**write_file 工具的结果文本格式必须与 FastClaw 逐字一致**；
+- 事件先持久化后发布、订阅先于回放、按 seq 去重（`handlers.go handleChatSubscribe`）；
+- 1.2 节引用的全部 FastClaw 文件与 1.3 节引用的全部 ragent 文件均存在（注：`apply_patch.go` 在 `internal/agent/tools/` 目录下）。
+
+### 20.4 待用户决策清单
+
+| # | 决策项 | 选项 | 影响里程碑 |
+|---|---|---|---|
+| 1 | 内置工具承载位置 | A 恢复 runtime-integration / B bootstrap 内 tool 域 | M4 |
+| 2 | `/api/tools` 冲突处理 | 对齐 fastclaw ToolsConfig / V2 不实现该路径 | M1（API 设计） |
+| 3 | Phase 3 是否先行 | 建议先行（M1 直接按拆分后的 Repository 落地） | M1 |
