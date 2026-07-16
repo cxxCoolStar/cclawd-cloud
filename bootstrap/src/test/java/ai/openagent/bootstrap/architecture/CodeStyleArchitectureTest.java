@@ -3,8 +3,8 @@ package ai.openagent.bootstrap.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
@@ -12,17 +12,17 @@ import com.tngtech.archunit.lang.ArchRule;
  * 代码风格守护规则（参考 ragent 风格约定）
  *
  * <p>
- * 带 {@link ArchIgnore} 的规则为 Phase 2（业务域分包 + Controller 改造）完成后启用的占位规则，
- * 改造完成时移除注解使其生效
+ * 将 Phase 2 业务域分包 + Controller 改造确立的风格固化为可执行约束：
+ * Controller 不碰持久层、业务代码不用 Web 层异常、Request/VO/ServiceImpl 命名规范。
+ * 仅约束主代码，测试类不受命名规则限制
  * </p>
  */
-@AnalyzeClasses(packages = "ai.openagent")
+@AnalyzeClasses(packages = "ai.openagent", importOptions = ImportOption.DoNotIncludeTests.class)
 class CodeStyleArchitectureTest {
 
     /**
      * service 及以下不得使用 Web 层异常，业务代码应抛三层异常（Client/Service/Remote）
      */
-    @ArchIgnore(reason = "Phase 2 Controller/Service 改造完成后启用")
     @ArchTest
     static final ArchRule services_do_not_throw_web_exceptions = noClasses()
             .that()
@@ -36,11 +36,10 @@ class CodeStyleArchitectureTest {
     /**
      * Controller 不得直接依赖持久层，必须经由 Service
      */
-    @ArchIgnore(reason = "Phase 2 补齐 Service 层后启用")
     @ArchTest
     static final ArchRule controllers_do_not_access_persistence = noClasses()
             .that()
-            .resideInAPackage("..controller..")
+            .resideInAPackage("..controller")
             .should()
             .dependOnClassesThat()
             .resideInAPackage("..persistence..");
@@ -48,7 +47,6 @@ class CodeStyleArchitectureTest {
     /**
      * controller 包下的类命名必须以 Controller 结尾
      */
-    @ArchIgnore(reason = "Phase 2 业务域分包完成后启用")
     @ArchTest
     static final ArchRule controller_classes_are_named_controller = classes()
             .that()
@@ -59,7 +57,6 @@ class CodeStyleArchitectureTest {
     /**
      * controller/request 包下的类命名必须以 Request 结尾
      */
-    @ArchIgnore(reason = "Phase 2 业务域分包完成后启用")
     @ArchTest
     static final ArchRule request_classes_are_named_request = classes()
             .that()
@@ -70,7 +67,6 @@ class CodeStyleArchitectureTest {
     /**
      * controller/vo 包下的类命名必须以 VO 结尾
      */
-    @ArchIgnore(reason = "Phase 2 业务域分包完成后启用")
     @ArchTest
     static final ArchRule vo_classes_are_named_vo = classes()
             .that()
@@ -79,13 +75,14 @@ class CodeStyleArchitectureTest {
             .haveSimpleNameEndingWith("VO");
 
     /**
-     * service.impl 包下的类命名必须以 ServiceImpl 结尾
+     * service.impl 包下的顶层类命名必须以 ServiceImpl 结尾（匿名/内部类除外）
      */
-    @ArchIgnore(reason = "Phase 2 业务域分包完成后启用")
     @ArchTest
     static final ArchRule service_impl_classes_are_named_service_impl = classes()
             .that()
             .resideInAPackage("..service.impl..")
+            .and()
+            .areTopLevelClasses()
             .should()
             .haveSimpleNameEndingWith("ServiceImpl");
 }

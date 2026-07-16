@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ai.openagent.bootstrap.OpenAgentApplication;
-import ai.openagent.bootstrap.chat.ChatModelGateway;
-import ai.openagent.bootstrap.chat.ChatTurnCoordinator;
+import ai.openagent.bootstrap.chat.gateway.ChatModelGateway;
+import ai.openagent.bootstrap.chat.service.ChatTurnCoordinator;
 import ai.openagent.bootstrap.persistence.OpenAgentStore;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;

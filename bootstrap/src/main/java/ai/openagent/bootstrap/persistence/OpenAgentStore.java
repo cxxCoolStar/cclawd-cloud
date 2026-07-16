@@ -83,6 +83,25 @@ public class OpenAgentStore {
         }
     }
 
+    /**
+     * 按 ID 查询用户
+     */
+    public Optional<UserRecord> findUser(String id) {
+        return jdbc.query(
+                        "SELECT id, username, email, role, display_name, status, created_at FROM users WHERE id = ?",
+                        (rs, row) -> new UserRecord(
+                                rs.getString("id"),
+                                rs.getString("username"),
+                                rs.getString("email"),
+                                rs.getString("role"),
+                                rs.getString("display_name"),
+                                rs.getString("status"),
+                                rs.getLong("created_at")),
+                        id)
+                .stream()
+                .findFirst();
+    }
+
     public List<AgentRecord> listAgents(String userId) {
         return jdbc.query(
                 "SELECT id, user_id, name, description, provider_id, model, system_prompt, created_at, updated_at FROM agents WHERE user_id = ? ORDER BY created_at",

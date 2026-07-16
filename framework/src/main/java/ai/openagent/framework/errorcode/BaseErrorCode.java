@@ -49,6 +49,11 @@ public enum BaseErrorCode implements IErrorCode {
      */
     SERVICE_TIMEOUT_ERROR("B000100", "系统执行超时"),
 
+    /**
+     * 系统繁忙或依赖未就绪，暂不可用（映射 HTTP 503）
+     */
+    SERVICE_UNAVAILABLE_ERROR("B000200", "服务暂不可用"),
+
     // ========== C 类错误：第三方服务错误 ==========
 
     /**
