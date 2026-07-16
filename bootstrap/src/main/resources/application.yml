@@ -34,6 +34,16 @@ openagent:
     system-prompt: ${OPENAGENT_SYSTEM_PROMPT:You are OpenAgent, a helpful AI assistant.}
   sandbox:
     docker-enabled: ${OPENAGENT_SANDBOX_DOCKER_ENABLED:false}
+  agent:
+    max-tool-iterations: ${OPENAGENT_AGENT_MAX_TOOL_ITERATIONS:8}
+    run-timeout: ${OPENAGENT_AGENT_RUN_TIMEOUT:10m}
+  tools:
+    execution-timeout: ${OPENAGENT_TOOL_TIMEOUT:30s}
+    max-result-chars: ${OPENAGENT_TOOL_MAX_RESULT_CHARS:65536}
+    workspace-root: ${OPENAGENT_WORKSPACE_ROOT:./workspace}
+    read-file-max-bytes: ${OPENAGENT_READ_FILE_MAX_BYTES:1048576}
+    web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:false}
+    web-fetch-max-bytes: ${OPENAGENT_WEB_FETCH_MAX_BYTES:1048576}
 
 management:
   endpoints:

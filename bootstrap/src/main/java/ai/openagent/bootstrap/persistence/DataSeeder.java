@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.persistence;
 
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.tool.ToolCatalog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -14,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>
  * 应用启动时保证本地单用户模式的默认数据就位：本地用户、默认供应商、
- * 默认智能体。供应商与智能体的模型配置每次启动按环境变量刷新，
- * 使 {@code OPENAGENT_MODEL_*} 的变更无需手动改库即可生效
+ * 默认智能体、默认工具配置。供应商与智能体的模型配置每次启动按环境变量
+ * 刷新，使 {@code OPENAGENT_MODEL_*} 的变更无需手动改库即可生效；
+ * 工具配置只做缺失补种（不覆盖用户显式启停），并将遗留的活跃运行标记为
+ * INTERRUPTED（V2 不做进程级断点续跑）
  * </p>
  */
 @Slf4j
@@ -36,6 +39,8 @@ public class DataSeeder implements ApplicationRunner {
     private final UserRepository userRepository;
     private final ProviderRepository providerRepository;
     private final AgentRepository agentRepository;
+    private final AgentToolRepository agentToolRepository;
+    private final AgentRunRepository agentRunRepository;
     private final ModelSettings modelSettings;
 
     @Override
@@ -49,6 +54,8 @@ public class DataSeeder implements ApplicationRunner {
         seedLocalUser(now);
         seedDefaultProvider(now);
         seedDefaultAgent(now);
+        seedDefaultAgentTools();
+        recoverStaleRuns();
         log.info("[seed] 种子数据就绪，model={}, modelReady={}", modelSettings.name(), modelSettings.ready());
     }
 
@@ -106,6 +113,27 @@ public class DataSeeder implements ApplicationRunner {
                 modelSettings.name(),
                 modelSettings.systemPrompt(),
                 now);
+    }
+
+    /**
+     * 为默认 Agent 补种内置工具配置：只补缺失项，不覆盖用户显式启停
+     */
+    private void seedDefaultAgentTools() {
+        for (ToolCatalog tool : ToolCatalog.BUILTIN_TOOLS) {
+            if (!agentToolRepository.exists(DEFAULT_AGENT_ID, tool.name())) {
+                agentToolRepository.upsert(DEFAULT_AGENT_ID, tool.name(), tool.enabledDefault(), "{}");
+            }
+        }
+    }
+
+    /**
+     * 启动恢复：进程退出时遗留的活跃运行标记为 INTERRUPTED
+     */
+    private void recoverStaleRuns() {
+        int interrupted = agentRunRepository.markStaleRunsInterrupted();
+        if (interrupted > 0) {
+            log.warn("[seed] 发现 {} 个上次进程遗留的活跃运行，已标记为 INTERRUPTED", interrupted);
+        }
     }
 
     private static String value(String value) {

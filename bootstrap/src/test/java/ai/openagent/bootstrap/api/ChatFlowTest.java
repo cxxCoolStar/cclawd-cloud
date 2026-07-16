@@ -70,6 +70,10 @@ class ChatFlowTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
+        // 推模式下回合在独立线程池执行，emitter 收到 done 事件后才 complete
+        // ——等待异步结果就绪再 dispatch，避免与回合线程竞态
+        pending.getAsyncResult(5_000);
+
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
@@ -93,12 +97,12 @@ class ChatFlowTest {
     }
 
     @Test
-    void persistsCompletedTurnAfterClientSubscriptionCloses() throws Exception {
+    void persistsCompletedTurnWithoutAnySubscriber() throws Exception {
         String sessionId = "disconnected-session-" + UUID.randomUUID();
 
-        ChatTurnCoordinator.TurnStream turn = turnCoordinator.start("default", sessionId, "Stay running");
-        turn.subscription().close();
-        turn.completion().get(5, TimeUnit.SECONDS);
+        // 不建立任何 SSE 订阅直接开启回合，等价于客户端在回合开始后立刻
+        // 断开——回合必须照常完成并落库（fastclaw detached-context 语义）
+        turnCoordinator.start("default", sessionId, "Stay running").get(5, TimeUnit.SECONDS);
 
         var messages = sessionRepository.listMessages(IdentityConstant.LOCAL_USER_ID, "default", sessionId);
         assertEquals(2, messages.size());

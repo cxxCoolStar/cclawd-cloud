@@ -13,7 +13,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * openagent:
  *   chat:
  *     heartbeat-interval: 30s
- *     stream-poll-interval: 1s
  *     executor:
  *       core-pool-size: 4
  *       max-pool-size: 16
@@ -22,15 +21,14 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * </pre>
  * </p>
  *
- * @param heartbeatInterval  SSE 空闲保活心跳间隔（对齐 fastclaw 的 30s，防止
- *                           nginx/Cloudflare/ELB 掐断空闲连接）
- * @param streamPollInterval stream 端点轮询事件队列的间隔
- * @param executor           聊天回合线程池参数
+ * @param heartbeatInterval SSE 空闲保活心跳间隔（对齐 fastclaw 的 30s，防止
+ *                          nginx/Cloudflare/ELB 掐断空闲连接；同时兼任死连接
+ *                          探测——ping 写失败即回收连接）
+ * @param executor          聊天回合线程池参数
  */
 @ConfigurationProperties(prefix = "openagent.chat")
 public record ChatProperties(
         @DefaultValue("30s") Duration heartbeatInterval,
-        @DefaultValue("1s") Duration streamPollInterval,
         @DefaultValue Executor executor) {
 
     /**

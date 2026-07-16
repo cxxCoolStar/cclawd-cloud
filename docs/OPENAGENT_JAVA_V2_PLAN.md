@@ -668,10 +668,31 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 
 ## 15. 实施里程碑
 
-### M1：领域模型与数据库（1-2 天）
+### M1：领域模型与数据库（1-2 天）✅ 已完成（2026-07-16）
 
 > 前置：先完成 PROJECT_REFACTORING_PLAN 的 Phase 3（OpenAgentStore 按聚合拆 Repository、
 > 种子数据剥离、seq 竞态修正），M1 的新 Repository 直接按拆分后的结构落地（见 20.1）。
+> ✅ Phase 3 已完成（commit dbb97af）。
+
+> **M1 完成记录**：
+> - **交付物**：`V2__agent_runs_and_tools.sql`（agent_runs / tool_executions /
+>   agent_tools 三表 + session_messages 增列 tool_call_id/tool_name/metadata_json）；
+>   `AgentRunStatus`/`ToolExecutionStatus` 枚举（agentrun 域）；
+>   `AgentRunRecord`/`ToolExecutionRecord`/`AgentToolRecord` 记录 +
+>   `AgentRunRepository`/`ToolExecutionRepository`/`AgentToolRepository` 仓储（persistence）；
+>   `ToolCatalog` 内置工具目录（tool 域，7 工具 4 默认启用）；
+>   `AgentProperties`（maxToolIterations 默认 8、@Min(1)@Max(20) 启动期校验）与
+>   `ToolProperties`（tool 域）；application.yml 增补 `openagent.agent.*`/`openagent.tools.*`；
+>   DataSeeder 扩展：agent_tools 补种（不覆盖用户显式启停）+ 启动时遗留 RUNNING 标记 INTERRUPTED
+> - **参考文件**：FastClaw `internal/store/database.go`（tool_executions 的 sequence 沿用
+>   其 INSERT 内 COALESCE(MAX)+1 原子分配模式）、`internal/config/config.go`
+>   （MaxToolIterations 默认值对照）；ragent 仓储分层与 Properties 风格
+> - **有意差异**：见 20.2 问题 3（run_started 自增事件，本里程碑只建表未发事件）、
+>   问题 4（迭代默认 8）；决策落地见 20.4（方案 B、/api/tools 不实现——本里程碑未新增任何 API）
+> - **测试**：AgentRunRepositoryTest（run 生命周期、sequence 原子分配、
+>   (run_id, tool_call_id) 唯一约束、启动恢复只触达活跃 run）、ToolSeedTest（种子
+>   默认启用集 + 重种不覆盖用户选择）、AgentPropertiesTest（边界 1/20 通过、0/21 启动失败）；
+>   全量 mvnw verify 24 tests 全绿；迁移在既有库（V1 已就位）与空库均验证通过
 
 - 先阅读 FastClaw session/message/event 持久化实现，以及 ragent Service/DAO 分层样例；
 
@@ -849,7 +870,7 @@ V2 完成后建议按以下顺序演进：
 | Phase 0 | 修编译 / 仓库卫生 / Lombok / 删空壳模块（cli、runtime-integration） | ✅ 已完成（commit 52fa3a7） |
 | Phase 1 | framework 打底：Result / 错误码 / 三层异常 / GlobalExceptionHandler / SseStreamWriter | ✅ 已完成（commit c119a84） |
 | Phase 2 | 业务域分包 + Controller/Service 规范化 + SSE 对齐 fastclaw | ✅ 已完成（commit b528ad7） |
-| Phase 3 | **持久层拆分**：OpenAgentStore 按聚合拆 Repository、种子数据剥离 DataSeeder、修正 synchronized+@Transactional 的 seq 竞态 | ❌ 未做，**V2 M1 的直接前置**，先做 Phase 3 再进 M1 |
+| Phase 3 | **持久层拆分**：OpenAgentStore 按聚合拆 Repository、种子数据剥离 DataSeeder、修正 synchronized+@Transactional 的 seq 竞态 | ✅ 已完成（commit dbb97af），M1 已按新结构落地 |
 | Phase 4 | 网关落位 infra-ai + 事件模型强类型化 | ❌ 未做，**不再单独实施**：与 V2 M2（infra-ai Tool Calling 流式解析）高度重合，单独做会把网关重写两遍，并入 M1/M2 一起交付 |
 | Phase 5/6 | 前端统一请求层 / 契约对账 / chat-screen 拆分 / 测试补齐 | ❌ 未做，与 V2 无依赖关系，可并行或延后 |
 
@@ -921,8 +942,8 @@ FastClaw `internal/config/config.go:717` 的默认值为 20。正文 3.1 的"默
 
 ### 20.4 待用户决策清单
 
-| # | 决策项 | 选项 | 影响里程碑 |
-|---|---|---|---|
-| 1 | 内置工具承载位置 | A 恢复 runtime-integration / B bootstrap 内 tool 域 | M4 |
-| 2 | `/api/tools` 冲突处理 | 对齐 fastclaw ToolsConfig / V2 不实现该路径 | M1（API 设计） |
-| 3 | Phase 3 是否先行 | 建议先行（M1 直接按拆分后的 Repository 落地） | M1 |
+| # | 决策项 | 选项 | 影响里程碑 | 决策结果 |
+|---|---|---|---|---|
+| 1 | 内置工具承载位置 | A 恢复 runtime-integration / B bootstrap 内 tool 域 | M4 | ✅ **已定案（2026-07-16）：方案 B**。工具目录与配置在 `bootstrap/tool/`（`ToolCatalog`、`ToolProperties`），M4 工具实现落 `tool/adapter/`；理由：V2 仅 7 个工具，不值一个独立模块 |
+| 2 | `/api/tools` 冲突处理 | 对齐 fastclaw ToolsConfig / V2 不实现该路径 | M1（API 设计） | ✅ **已定案（2026-07-16）：V2 不实现该路径**。工具设置页的 404 属于已知契约缺口，留待 Phase 5.2 契约对账处理 |
+| 3 | Phase 3 是否先行 | 建议先行（M1 直接按拆分后的 Repository 落地） | M1 | ✅ **已完成（commit dbb97af）**：OpenAgentStore 拆为 User/Provider/Agent/ChatSession 四仓储，seq 改 fastclaw 同款 INSERT 内原子分配 + RETURNING，种子剥离 DataSeeder，LOCAL_USER_ID 收敛 IdentityConstant，附 8 线程并发回归测试 |
