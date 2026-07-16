@@ -1,0 +1,47 @@
+server:
+  address: ${OPENAGENT_BIND:127.0.0.1}
+  port: ${OPENAGENT_PORT:18953}
+  shutdown: graceful
+
+spring:
+  application:
+    name: openagent
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${OPENAGENT_DATABASE_URL:jdbc:sqlite:openagent.db}
+    username: ${OPENAGENT_DATABASE_USERNAME:}
+    password: ${OPENAGENT_DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${OPENAGENT_DATABASE_POOL_SIZE:1}
+      connection-timeout: 10000
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+openagent:
+  version: ${OPENAGENT_VERSION:0.1.0-SNAPSHOT}
+  registration-open: ${OPENAGENT_REGISTRATION_OPEN:false}
+  model:
+    provider: ${OPENAGENT_MODEL_PROVIDER:openai}
+    api-base: ${OPENAGENT_MODEL_API_BASE:https://api.openai.com/v1}
+    api-key: ${OPENAGENT_MODEL_API_KEY:}
+    name: ${OPENAGENT_MODEL:gpt-4.1-mini}
+    temperature: ${OPENAGENT_MODEL_TEMPERATURE:0.7}
+    max-tokens: ${OPENAGENT_MODEL_MAX_TOKENS:2048}
+    system-prompt: ${OPENAGENT_SYSTEM_PROMPT:You are OpenAgent, a helpful AI assistant.}
+  sandbox:
+    docker-enabled: ${OPENAGENT_SANDBOX_DOCKER_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+

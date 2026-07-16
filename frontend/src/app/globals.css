@@ -1,0 +1,343 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "streamdown/styles.css";
+@import "katex/dist/katex.min.css";
+@plugin "@tailwindcss/typography";
+
+/* Let Tailwind's JIT see the utility classes Streamdown's compiled JS uses
+   internally (text-2xl, mt-6, list-disc, …). Tailwind v4 does not scan
+   node_modules by default, so without these @source directives those
+   classes are absent from the final CSS and Streamdown's code blocks,
+   tables, and lists render unstyled. Paths are relative to this file:
+   web/src/app/globals.css → ../../node_modules. */
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/code/dist/*.js";
+@source "../../node_modules/@streamdown/math/dist/*.js";
+@source "../../node_modules/@streamdown/mermaid/dist/*.js";
+@source "../../node_modules/@streamdown/cjk/dist/*.js";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: var(--font-heading);
+}
+
+/* Light theme */
+:root {
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.008 326);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.008 326);
+  --primary: oklch(0.553 0.195 38.402);
+  --primary-foreground: oklch(0.98 0.016 73.684);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.96 0.003 325.6);
+  --muted-foreground: oklch(0.542 0.034 322.5);
+  --accent: oklch(0.96 0.003 325.6);
+  --accent-foreground: oklch(0.212 0.019 322.12);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0.005 325.62);
+  --input: oklch(0.922 0.005 325.62);
+  --ring: oklch(0.711 0.019 323.02);
+  --chart-1: oklch(0.879 0.169 91.605);
+  --chart-2: oklch(0.769 0.188 70.08);
+  --chart-3: oklch(0.666 0.179 58.318);
+  --chart-4: oklch(0.555 0.163 48.998);
+  --chart-5: oklch(0.473 0.137 46.201);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0.008 326);
+  --sidebar-primary: oklch(0.646 0.222 41.116);
+  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
+  --sidebar-accent: oklch(0.96 0.003 325.6);
+  --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
+  --sidebar-border: oklch(0.922 0.005 325.62);
+  --sidebar-ring: oklch(0.711 0.019 323.02);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0.008 326);
+}
+
+/* Dark theme */
+.dark {
+  --background: oklch(0.145 0.008 326);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.212 0.019 322.12);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.212 0.019 322.12);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.47 0.157 37.304);
+  --primary-foreground: oklch(0.98 0.016 73.684);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.263 0.024 320.12);
+  --muted-foreground: oklch(0.711 0.019 323.02);
+  --accent: oklch(0.263 0.024 320.12);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.542 0.034 322.5);
+  --chart-1: oklch(0.879 0.169 91.605);
+  --chart-2: oklch(0.769 0.188 70.08);
+  --chart-3: oklch(0.666 0.179 58.318);
+  --chart-4: oklch(0.555 0.163 48.998);
+  --chart-5: oklch(0.473 0.137 46.201);
+  --sidebar: oklch(0.212 0.019 322.12);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.705 0.213 47.604);
+  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
+  --sidebar-accent: oklch(0.263 0.024 320.12);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.542 0.034 322.5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Theme transition */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: oklch(0.5 0 0 / 30%);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0 / 50%);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0 0 / 20%);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.7 0 0 / 35%);
+}
+
+/* Typing dots animation */
+@keyframes typing-dot {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.typing-dot {
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+/* Existing animations */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.2);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-gradient-text {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  top: -10px;
+  animation: confetti-fall 3s ease-in forwards;
+}
+
+/* ── ChatMarkdown — flatten Streamdown's default "card" chrome so code /
+   table / mermaid blocks sit flat on the chat surface instead of nesting
+   boxes-in-boxes. Paired with the `.chat-md` prose typography set inline in
+   chat-markdown.tsx. Ported from fleet's MarkdownText. The `!` overrides beat
+   Streamdown's own literal classes (same target, important wins).
+
+   These rules live UNLAYERED (not inside @layer) on purpose. Streamdown's
+   default card chrome comes from its own Tailwind utility classes, which sit
+   in the `utilities` layer; an unlayered rule outranks every @layer, so the
+   non-`!` overrides here (block spacing, `relative` positioning context, pill
+   `opacity-0`) reliably win on cascade order, and the `!` ones win on
+   important. Putting them in @layer components would rank them BELOW utilities
+   and let Streamdown's defaults bleed back through. ── */
+/* Block spacing — data-streamdown attrs out-specify Streamdown's classes. */
+  .chat-md [data-streamdown="horizontal-rule"] { @apply my-3; }
+  .chat-md [data-streamdown="blockquote"] { @apply my-2; }
+  .chat-md [data-streamdown="list-item"] { @apply py-0; }
+  .chat-md > div { @apply space-y-2; }
+
+  /* Inline code only (not fenced) — immune to Streamdown's wrappers so it
+     never paints over Shiki's fenced-code theme. */
+  .chat-md :not(pre) > code {
+    @apply font-mono text-[0.9em] px-1 py-0.5 rounded bg-muted;
+  }
+  .chat-md :not(pre) > code::before,
+  .chat-md :not(pre) > code::after { @apply hidden; }
+
+  /* Wipe typography's <pre> defaults (a hardcoded dark bg that buries Shiki's
+     theme); keep ad-hoc <pre>/<img> bounded. */
+  .chat-md pre { @apply !bg-transparent !text-inherit !p-0 !my-0 !rounded-none max-w-full overflow-x-auto; }
+  .chat-md img { @apply max-w-full h-auto; }
+
+  /* Code block — strip card, bound width, anchor the floating pill. */
+  .chat-md [data-streamdown="code-block"] {
+    @apply !border-0 !bg-transparent !p-0 !rounded-none !min-w-0 !max-w-full !overflow-x-auto relative;
+  }
+
+  /* File-viewer (bareCode) mode: no copy pill, no card border/padding — the
+     source fills the pane edge-to-edge (line numbers are the only gutter). */
+  .chat-md-bare [data-streamdown="code-block-actions"],
+  .chat-md-bare [data-streamdown="code-block-header"] { @apply !hidden; }
+  .chat-md-bare [data-streamdown="code-block"],
+  .chat-md-bare [data-streamdown="code-block"] > div,
+  .chat-md-bare [data-streamdown="code-block"] pre,
+  .chat-md-bare [data-streamdown="code-block"] code {
+    @apply !border-0 !bg-transparent !rounded-none !p-0 !m-0;
+  }
+  .chat-md [data-streamdown="code-block"] pre { @apply !max-w-full !min-w-0 !overflow-x-auto; }
+  .chat-md [data-streamdown="code-block"] > div { @apply !min-w-0 !max-w-full; }
+  .chat-md [data-streamdown="code-block-header"] { @apply !hidden; }
+
+  /* Mermaid block — strip card; hide language label + inner card. */
+  .chat-md [data-streamdown="mermaid-block"] {
+    @apply !border-0 !bg-transparent !p-0 !rounded-none cursor-zoom-in;
+  }
+  .chat-md [data-streamdown="mermaid-block"] > div:first-child { @apply !hidden; }
+  .chat-md [data-streamdown="mermaid-block"] > div:nth-child(3) {
+    @apply !border-0 !bg-transparent !rounded-none;
+  }
+
+  /* Table wrapper — strip outer + inner card. */
+  .chat-md [data-streamdown="table-wrapper"] { @apply my-2 relative !border-0 !bg-transparent !p-0; }
+  .chat-md [data-streamdown="table-wrapper"] > div:nth-child(2) {
+    @apply !border-0 !bg-transparent !rounded-none;
+  }
+
+  /* Neutralize Streamdown's sticky action wrapper so the block (position:
+     relative) becomes the pill's containing block. */
+  .chat-md [data-streamdown="code-block"] > div:nth-child(2),
+  .chat-md [data-streamdown="mermaid-block"] > div:nth-child(2) {
+    @apply !static !mt-0 !h-0 !overflow-visible;
+  }
+
+  /* Floating action pills (copy code / fullscreen mermaid / export table) —
+     pin top-right, translucent, fade in on block hover. */
+  .chat-md [data-streamdown="code-block-actions"],
+  .chat-md [data-streamdown="mermaid-block-actions"],
+  .chat-md [data-streamdown="table-wrapper"] > div:first-child {
+    @apply !absolute !top-2.5 !right-1.5 !z-10 opacity-0 transition-opacity
+           !bg-background/80 !border !border-border !rounded-md !shadow-sm !backdrop-blur;
+  }
+  .chat-md [data-streamdown="table-wrapper"] > div:first-child { @apply !px-1 !py-0.5; }
+  .chat-md [data-streamdown="code-block"]:hover [data-streamdown="code-block-actions"],
+  .chat-md [data-streamdown="mermaid-block"]:hover [data-streamdown="mermaid-block-actions"],
+  .chat-md [data-streamdown="table-wrapper"]:hover > div:first-child {
+    @apply opacity-100;
+  }
