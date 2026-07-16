@@ -51,13 +51,13 @@ public class ChatService {
         return new Turn(userId, agent, provider, sessionId, store.listMessages(userId, agentId, sessionId));
     }
 
-    public void stream(Turn turn, EventConsumer consumer) {
+    public void stream(Turn turn) {
         try {
             String answer = modelGateway.stream(
                     turn.provider(),
                     turn.agent(),
                     turn.messages(),
-                    delta -> publishTransient(turn, "content_delta", Map.of("delta", delta), consumer));
+                    delta -> publishTransient(turn, "content_delta", Map.of("delta", delta)));
             store.appendMessage(
                     turn.userId(),
                     turn.agent().id(),
@@ -66,12 +66,12 @@ public class ChatService {
                     answer,
                     turn.provider().type(),
                     turn.agent().model());
-            publishPersistent(turn, "content", Map.of("content", answer), consumer);
-            publishPersistent(turn, "done", Map.of(), consumer);
+            publishPersistent(turn, "content", Map.of("content", answer));
+            publishPersistent(turn, "done", Map.of());
         } catch (Exception error) {
             String message = rootMessage(error);
-            publishPersistent(turn, "error", Map.of("message", message), consumer);
-            publishPersistent(turn, "done", Map.of(), consumer);
+            publishPersistent(turn, "error", Map.of("message", message));
+            publishPersistent(turn, "done", Map.of());
         }
     }
 
@@ -84,13 +84,12 @@ public class ChatService {
         }
     }
 
-    private void publishTransient(Turn turn, String type, Map<String, Object> data, EventConsumer consumer) {
+    private void publishTransient(Turn turn, String type, Map<String, Object> data) {
         Map<String, Object> event = event(-1, type, data);
-        consumer.accept(event);
         eventHub.broadcast(turn.agent().id(), turn.sessionId(), event);
     }
 
-    private void publishPersistent(Turn turn, String type, Map<String, Object> data, EventConsumer consumer) {
+    private void publishPersistent(Turn turn, String type, Map<String, Object> data) {
         try {
             SessionEventRecord stored = store.appendEvent(
                     turn.userId(),
@@ -99,7 +98,6 @@ public class ChatService {
                     type,
                     objectMapper.writeValueAsString(data));
             Map<String, Object> event = event(stored.seq(), type, data);
-            consumer.accept(event);
             eventHub.broadcast(turn.agent().id(), turn.sessionId(), event);
         } catch (JsonProcessingException error) {
             throw new IllegalStateException("could not persist chat event", error);
@@ -130,8 +128,4 @@ public class ChatService {
             String sessionId,
             List<ChatMessageRecord> messages) {}
 
-    @FunctionalInterface
-    public interface EventConsumer {
-        void accept(Map<String, Object> event);
-    }
 }

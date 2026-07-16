@@ -1,0 +1,719 @@
+# OpenAgent Java V2 Agent 工具调用实施方案
+
+> 版本：V2.0 方案稿  
+> 编制日期：2026-07-16  
+> 前置版本：当前 Java Chat MVP（README 中的 V0.2）  
+> 前端策略：继续复用现有 FastClaw Next.js 前端，仅做协议兼容和工具过程展示  
+> 关联文档：[OPENAGENT_JAVA_V1_PLAN.md](OPENAGENT_JAVA_V1_PLAN.md)、[PROJECT_REFACTORING_PLAN.md](PROJECT_REFACTORING_PLAN.md)
+
+## 1. 版本定位
+
+V2 的目标是把 OpenAgent 从“可以流式聊天的 Chatbot”升级为“可以自主选择工具并完成任务的 Agent”。
+
+当前版本已经具备以下基础能力：
+
+- Java 17、Spring Boot 3.5.7 和 Maven 多模块工程；
+- SQLite 自动建库和默认 Provider、默认 Agent 初始化；
+- OpenAI-compatible 模型流式调用；
+- 会话、消息和最终事件持久化；
+- 模型执行与浏览器 SSE 连接解耦，切换会话不会中断后台任务；
+- 复用现有前端并直接进入默认 Agent 的 Chatbot 页面；
+- 本地单用户模式，暂不校验权限。
+
+V2 在此基础上增加下面的核心闭环：
+
+```text
+用户输入任务
+  -> 加载 Agent 配置、上下文和可用工具
+  -> 调用模型
+  -> 模型返回 tool_calls
+  -> 校验参数和工具策略
+  -> 执行工具并持久化结果
+  -> 将 tool result 追加到模型上下文
+  -> 再次调用模型
+  -> 得到最终回答
+  -> 持久化消息和事件
+  -> 前端展示工具执行过程和最终结果
+```
+
+V2 的判断标准不是“后端存在几个工具类”，而是模型能够自主选择工具、获得真实结果、继续推理并给出最终回答，整个过程可观察、可恢复、可测试。
+
+## 2. 版本目标
+
+### 2.1 产品目标
+
+1. 用户可以直接在现有 Chatbot 页面向默认 Agent 下达需要使用工具的任务。
+2. Agent 可以在一次运行中执行多轮 `model -> tool -> model` 循环。
+3. 前端可以看到工具名称、参数、执行状态、结果摘要和最终回答。
+4. 用户切换会话或关闭页面后，Agent 仍能继续执行；重新进入会话后能够看到已持久化结果。
+5. 默认安装后无需进入管理后台即可体验 V2 能力。
+
+### 2.2 工程目标
+
+1. 让 `agent-core`、`infra-ai` 和 `runtime-integration` 成为被真实业务消费的模块，而不是仅保留接口的空壳。
+2. Agent 循环不放在 Controller 或 SSE 线程中，由独立协调器和线程池管理生命周期。
+3. 模型事件、Agent 事件和工具结果使用强类型对象，不继续扩大 `Map<String, Object>` 的使用范围。
+4. 工具实现遵循统一注册、参数校验、超时、结果截断、审计和错误映射规范。
+5. 数据库迁移只做增量变更，不破坏当前会话和消息数据。
+
+## 3. V2 范围
+
+### 3.1 必须交付
+
+#### Agent 配置
+
+- 默认 Agent 支持系统提示词；
+- 支持配置模型、temperature、max tokens；
+- 支持配置 `maxToolIterations`，默认 8，允许范围 1-20；
+- 支持配置单次 Agent 运行总超时；
+- 支持为 Agent 启用或禁用具体工具；
+- 启动时为默认 Agent 写入可直接运行的默认配置。
+
+V2 可以先通过数据库默认值和配置文件维护上述配置，不要求交付完整管理页面。
+
+#### 模型 Tool Calling
+
+- OpenAI-compatible 请求携带标准 `tools` 和 `tool_choice` 字段；
+- 支持流式响应中的 `tool_calls` 增量拼接；
+- 正确合并同一 tool call 的 `id`、函数名和 JSON arguments；
+- 支持一次模型响应包含多个 tool calls，并按稳定顺序执行；
+- tool result 以标准 `role=tool` 消息回传模型；
+- 兼容当前默认模型 `kimi-k2.5` 使用的 OpenAI-compatible Tool Calling 协议；
+- 模型未请求工具时直接完成普通文本回答。
+
+#### Agent 执行循环
+
+- 显式运行状态机；
+- 每个会话同一时刻只允许一个活跃运行；
+- 不同会话可以并行运行；
+- 最大工具迭代次数控制；
+- 单次模型调用超时、单次工具超时和整次运行超时；
+- 工具失败后将结构化错误作为 observation 返回模型，由模型决定重试、换工具或结束；
+- 达到最大迭代次数时停止继续调用工具，并生成明确错误事件；
+- 浏览器断开只结束事件转发订阅，不取消 Agent 后台运行。
+
+#### 工具框架
+
+- `ToolDescriptor`：名称、描述、JSON Schema、风险级别和结果限制；
+- `ToolRegistry`：按 Agent 配置解析当前可用工具；
+- `ToolInvoker`：统一调用入口；
+- `ToolExecutionContext`：runId、agentId、sessionId、workspace 和截止时间；
+- 参数 JSON Schema 校验；
+- 工具名称白名单；
+- 统一超时、异常映射和结果截断；
+- 工具调用及结果持久化；
+- 日志中清理敏感参数和超长结果。
+
+#### 首批内置工具
+
+| 工具 | V2 行为 | 默认状态 | 风险级别 |
+|---|---|---:|---|
+| `get_current_time` | 按指定时区返回当前时间 | 启用 | 只读、低风险 |
+| `calculator` | 执行受限数学表达式计算，不使用脚本引擎 | 启用 | 只读、低风险 |
+| `list_dir` | 列出 Agent workspace 内的文件和目录 | 启用 | 只读、中风险 |
+| `read_file` | 读取 workspace 内 UTF-8 文本文件，限制大小 | 启用 | 只读、中风险 |
+| `write_file` | 在 workspace 内创建或覆盖文本文件 | 禁用 | 写入、高风险 |
+| `apply_patch` | 对 workspace 内文本文件应用受限补丁 | 禁用 | 写入、高风险 |
+| `web_fetch` | 获取经过安全校验的 HTTP/HTTPS 文本资源 | 禁用 | 网络、高风险 |
+
+安全约束：
+
+- 文件路径必须经过规范化并验证最终路径仍位于当前 Agent workspace；
+- 禁止绝对路径、`..` 穿越、符号链接逃逸和设备文件；
+- `read_file` 默认单文件上限 1 MiB，工具结果默认上限 64 KiB；
+- `write_file` 和 `apply_patch` 必须通过 Agent 工具配置显式启用；
+- `web_fetch` 默认关闭，启用后仍必须阻止 localhost、内网、链路本地地址、云元数据地址和非 HTTP 协议；
+- V2 不提供宿主机 `exec`。命令执行必须等 Docker Sandbox 版本完成后再注册。
+
+#### 持久化与重放
+
+- Agent run 状态持久化；
+- 每次工具执行的请求、结果、耗时和状态持久化；
+- 工具调用消息和工具结果消息进入会话上下文；
+- `tool_call`、`tool_result`、`content`、`error` 和 `done` 最终事件可重放；
+- `content_delta` 等高频增量只做实时广播，不逐条入库；
+- 最终事件必须先持久化，再发布到事件中枢。
+
+#### 前端兼容
+
+- 继续使用当前聊天页面、会话列表和历史记录；
+- 复用前端现有工具消息组件和 SSE 消费逻辑；
+- 如果现有字段与 Java 事件不一致，以兼容前端现有协议为优先；
+- 工具执行中展示名称、状态和可折叠结果；
+- 工具失败不得导致整个页面崩溃；
+- 切换会话后重新进入，历史中的工具调用顺序与最终回答保持一致。
+
+### 3.2 明确不交付
+
+以下能力不进入 V2，防止版本范围失控：
+
+- 用户注册、登录、角色和权限校验；
+- Provider、Agent、用户等完整后台管理系统；
+- MCP Server 接入和远程工具发现；
+- Skill 安装、Skill 市场和脚本插件；
+- 宿主机 Shell、Docker Sandbox 和代码运行环境；
+- 长期记忆、向量知识库和完整 RAG；
+- Cron、定时任务和后台任务管理页面；
+- Telegram、Discord、Slack、飞书等外部渠道；
+- 多 Agent、Subagent、Team Chat；
+- Redis、多实例调度和分布式事件总线；
+- 图片生成、语音和多模态工具。
+
+## 4. 核心用例
+
+### 4.1 文件阅读任务
+
+用户输入：
+
+```text
+读取项目 README，并总结这个项目使用了哪些技术。
+```
+
+预期过程：
+
+1. 模型选择 `list_dir` 或直接选择 `read_file`；
+2. 工具读取 workspace 内的 `README.md`；
+3. 后端推送并持久化 `tool_call` 和 `tool_result`；
+4. 工具结果加入模型上下文；
+5. 模型根据真实文件内容生成最终总结；
+6. 切换到其他会话再返回，仍能看到工具过程和最终回答。
+
+### 4.2 多工具任务
+
+用户输入：
+
+```text
+读取 README 中的 Java 版本，把 17 乘以 8，并告诉我当前上海时间。
+```
+
+Agent 应能够在一次运行内调用 `read_file`、`calculator` 和 `get_current_time`，再综合结果回答。
+
+### 4.3 工具失败恢复
+
+用户要求读取不存在的文件时：
+
+1. `read_file` 返回结构化 `FILE_NOT_FOUND`；
+2. 错误结果作为 tool result 回传模型；
+3. 模型可以选择 `list_dir` 查找正确文件，或向用户解释问题；
+4. 不允许因为一个工具异常而丢失整个会话运行记录。
+
+## 5. 总体架构
+
+```text
+ChatController
+  -> ChatApplicationService
+  -> AgentRunCoordinator
+       -> AgentKernel                      (agent-core)
+            -> ConversationContextBuilder
+            -> LLMService                  (infra-ai port)
+            -> ToolRegistry/ToolInvoker    (agent-core port)
+                 -> BuiltinToolAdapters    (runtime-integration)
+       -> AgentRunRepository               (bootstrap)
+       -> ChatEventPublisher
+            -> database first
+            -> ChatEventHub
+                 -> POST stream subscriber
+                 -> GET reconnect subscriber
+```
+
+### 5.1 模块职责
+
+| 模块 | V2 职责 |
+|---|---|
+| `framework` | 强类型事件、统一错误码、通用结果和安全日志辅助类 |
+| `infra-ai` | OpenAI-compatible 请求/响应模型、流式解析、Tool Calling 聚合 |
+| `agent-core` | Agent 状态机、运行命令、上下文、工具端口和循环策略 |
+| `runtime-integration` | 内置工具、workspace 文件系统适配器、HTTP 安全访问适配器 |
+| `bootstrap` | Controller、应用服务、数据库 Repository、Bean 装配和迁移 |
+| `frontend` | 复用聊天页面并展示工具调用事件 |
+
+依赖约束：
+
+- `agent-core` 不依赖 Spring MVC、JdbcTemplate、具体模型 SDK 或具体工具实现；
+- `infra-ai` 不访问会话数据库；
+- `runtime-integration` 实现 `agent-core` 的工具端口；
+- `bootstrap` 负责把端口与实现装配起来；
+- Controller 不包含 Agent loop，也不直接执行工具。
+
+## 6. Agent 状态机
+
+```text
+CREATED
+  -> CONTEXT_LOADING
+  -> MODEL_RUNNING
+       -> MODEL_TEXT_COMPLETED -> COMPLETED
+       -> TOOL_REQUESTED
+            -> TOOL_VALIDATING
+            -> TOOL_RUNNING
+            -> TOOL_SUCCEEDED / TOOL_FAILED
+            -> MODEL_RUNNING
+  -> LIMIT_EXCEEDED
+  -> TIMED_OUT
+  -> FAILED
+```
+
+### 6.1 状态规则
+
+1. 每次用户消息创建一个唯一 `runId`。
+2. `runId` 与 `agentId + sessionId` 关联。
+3. 只有终态可以结束活跃运行标记。
+4. 工具失败不是默认终态；失败 observation 返回模型后仍可继续循环。
+5. 数据库或协议解析失败属于运行失败，必须产生 `error` 和 `done`。
+6. 达到工具迭代上限进入 `LIMIT_EXCEEDED`，不得再调用模型或工具。
+7. SSE 订阅断开不改变 Agent 状态。
+
+### 6.2 迭代计数
+
+- 一次包含一个或多个 tool calls 的模型响应计为一次工具迭代；
+- 同一响应中的多个工具调用按顺序执行，V2 暂不并行；
+- 工具参数校验失败也计入本轮迭代；
+- 默认最大 8 轮，最大可配置为 20 轮。
+
+## 7. 领域接口设计
+
+### 7.1 Agent Kernel
+
+```java
+public interface AgentKernel {
+    AgentRunResult run(AgentRunCommand command, AgentEventSink eventSink);
+}
+
+public record AgentRunCommand(
+        String runId,
+        String userId,
+        String agentId,
+        String sessionId,
+        String userMessage,
+        AgentRuntimeConfig config) {
+}
+```
+
+`AgentKernel` 同步表达一条后台执行线程中的完整 Agent 运行；异步调度由 `AgentRunCoordinator` 负责，不把线程模型泄漏进核心领域。
+
+### 7.2 模型端口
+
+```java
+public interface LLMService {
+    ModelResponse stream(ModelRequest request, ModelEventListener listener);
+}
+
+public sealed interface ModelResponse {
+    record Text(String content, TokenUsage usage) implements ModelResponse {}
+    record ToolCalls(List<ToolCall> calls, TokenUsage usage) implements ModelResponse {}
+}
+```
+
+### 7.3 工具端口
+
+```java
+public interface AgentTool {
+    ToolDescriptor descriptor();
+    ToolResult execute(ToolArguments arguments, ToolExecutionContext context);
+}
+
+public interface ToolRegistry {
+    List<ToolDescriptor> availableTools(String agentId);
+    AgentTool requireEnabled(String agentId, String toolName);
+}
+```
+
+### 7.4 工具结果
+
+工具不得向上抛出实现相关异常。统一映射为：
+
+```java
+public record ToolResult(
+        boolean success,
+        String content,
+        String errorCode,
+        String errorMessage,
+        boolean truncated,
+        long durationMs) {
+}
+```
+
+建议错误码：
+
+- `TOOL_NOT_FOUND`
+- `TOOL_NOT_ENABLED`
+- `TOOL_ARGUMENT_INVALID`
+- `TOOL_TIMEOUT`
+- `TOOL_EXECUTION_FAILED`
+- `WORKSPACE_PATH_FORBIDDEN`
+- `FILE_NOT_FOUND`
+- `FILE_TOO_LARGE`
+- `NETWORK_TARGET_FORBIDDEN`
+- `RESULT_TOO_LARGE`
+
+## 8. SSE 事件协议
+
+V2 保留现有外层结构：
+
+```json
+{
+  "seq": 12,
+  "type": "tool_call",
+  "data": {}
+}
+```
+
+### 8.1 事件类型
+
+| type | 是否持久化 | data 主要字段 |
+|---|---:|---|
+| `run_started` | 是 | `runId` |
+| `content_delta` | 否 | `delta` |
+| `tool_call` | 是 | `runId`、`toolCallId`、`name`、`arguments` |
+| `tool_result` | 是 | `runId`、`toolCallId`、`name`、`success`、`content`、`errorCode`、`durationMs` |
+| `content` | 是 | `runId`、`content` |
+| `error` | 是 | `runId`、`code`、`message` |
+| `done` | 是 | `runId`、`status` |
+
+### 8.2 发布顺序
+
+1. 可恢复事件先写入数据库并获得 `seq`；
+2. 再发布到 `ChatEventHub`；
+3. 在线订阅者实时消费；
+4. 重连先订阅 Hub，再读取 `since` 之后的数据库事件；
+5. 通过 `seq` 去重订阅与回放交界处的重复事件。
+
+工具参数中可能包含敏感信息，返回前必须依据 descriptor 的敏感字段配置进行遮盖。前端展示参数不代表日志可以原样记录参数。
+
+## 9. 数据库设计
+
+V2 使用 Flyway 增量迁移，建议新增以下表。
+
+### 9.1 `agent_runs`
+
+| 字段 | 说明 |
+|---|---|
+| `id` | runId，主键 |
+| `user_id` | 当前固定为 `local-user`，为后续认证预留 |
+| `agent_id` | Agent ID |
+| `session_id` | 会话 ID |
+| `status` | CREATED/RUNNING/COMPLETED/FAILED/TIMED_OUT/LIMIT_EXCEEDED |
+| `tool_iterations` | 已执行工具迭代数 |
+| `error_code` | 终态错误码，可空 |
+| `error_message` | 清理后的错误信息，可空 |
+| `started_at` | 开始时间 |
+| `completed_at` | 完成时间，可空 |
+| `created_at` | 创建时间 |
+| `updated_at` | 更新时间 |
+
+索引：
+
+- `(user_id, agent_id, session_id, created_at)`；
+- `(status, updated_at)`。
+
+### 9.2 `tool_executions`
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 内部主键 |
+| `run_id` | 所属 Agent run |
+| `tool_call_id` | 模型返回的 Tool Call ID |
+| `sequence` | 同一 run 内执行顺序 |
+| `tool_name` | 工具名称 |
+| `arguments_json` | 清理后的参数 JSON |
+| `status` | REQUESTED/RUNNING/SUCCEEDED/FAILED/TIMED_OUT |
+| `result_content` | 截断后的工具结果 |
+| `error_code` | 工具错误码，可空 |
+| `error_message` | 清理后的错误信息，可空 |
+| `duration_ms` | 执行耗时 |
+| `created_at` | 创建时间 |
+| `completed_at` | 完成时间，可空 |
+
+约束和索引：
+
+- `UNIQUE(run_id, tool_call_id)`；
+- `(run_id, sequence)`。
+
+### 9.3 `agent_tools`
+
+| 字段 | 说明 |
+|---|---|
+| `agent_id` | Agent ID |
+| `tool_name` | 工具名称 |
+| `enabled` | 是否启用 |
+| `config_json` | 工具非敏感配置 |
+| `created_at` | 创建时间 |
+| `updated_at` | 更新时间 |
+
+主键使用 `(agent_id, tool_name)`。敏感凭证不放入 `config_json`，V2 如需外部凭证只允许通过环境变量注入。
+
+### 9.4 会话消息扩展
+
+若现有 `session_messages` 无法表达工具消息，增量增加：
+
+- `tool_call_id`；
+- `tool_name`；
+- `metadata_json`。
+
+`role` 允许 `user`、`assistant`、`tool`。不修改已有主键和 `seq` 语义。
+
+## 10. API 设计
+
+现有 Chat API 路径保持不变：
+
+- `POST /api/chat/stream`
+- `GET /api/chat/subscribe`
+- `GET /api/chat/history`
+- `GET /api/chat/sessions`
+
+V2 新增最小工具配置 API：
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| GET | `/api/tools` | 返回内置工具及默认启用状态 |
+| GET | `/api/agents/{agentId}/tools` | 返回 Agent 的有效工具配置 |
+| PUT | `/api/agents/{agentId}/tools/{toolName}` | 启用、禁用或更新非敏感工具配置 |
+| GET | `/api/agent-runs/{runId}` | 查询运行状态和工具执行摘要 |
+
+虽然 V2 暂不校验权限，但 API 必须保留 `userId/agentId` 数据边界，不能为了本地模式把关联字段删除。
+
+## 11. 配置项
+
+建议增加以下配置：
+
+```yaml
+openagent:
+  agent:
+    max-tool-iterations: ${OPENAGENT_AGENT_MAX_TOOL_ITERATIONS:8}
+    run-timeout: ${OPENAGENT_AGENT_RUN_TIMEOUT:10m}
+  tools:
+    execution-timeout: ${OPENAGENT_TOOL_TIMEOUT:30s}
+    max-result-chars: ${OPENAGENT_TOOL_MAX_RESULT_CHARS:65536}
+    workspace-root: ${OPENAGENT_WORKSPACE_ROOT:./workspace}
+    read-file-max-bytes: ${OPENAGENT_READ_FILE_MAX_BYTES:1048576}
+    web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:false}
+    web-fetch-max-bytes: ${OPENAGENT_WEB_FETCH_MAX_BYTES:1048576}
+```
+
+所有配置使用 `@ConfigurationProperties`，不在业务类中写 `@Value` 或硬编码超时。
+
+## 12. 安全设计
+
+### 12.1 Workspace 隔离
+
+- 每个 Agent 使用独立目录：`{workspaceRoot}/{agentId}`；
+- 路径解析使用 `Path.toRealPath()` 或等价的安全校验；
+- 新文件写入时校验最近已存在父目录的真实路径；
+- 不跟随可能逃出 workspace 的符号链接；
+- 文件名、工具参数和错误信息不得泄露宿主机无关绝对路径。
+
+### 12.2 网络访问
+
+`web_fetch` 启用时必须：
+
+- 仅允许 `http` 和 `https`；
+- DNS 解析后校验每个目标地址；
+- 拒绝 loopback、private、link-local、multicast 和云元数据网段；
+- 每次重定向后重新校验目标；
+- 限制重定向次数、响应大小和总耗时；
+- 不自动携带系统代理凭证、Cookie 或 Authorization；
+- 响应只作为不可信文本交给模型。
+
+### 12.3 资源控制
+
+- Agent run、模型调用和工具调用分别设置超时；
+- 工具线程池与模型线程池隔离；
+- 工具队列满时快速失败，不占满 Web 请求线程；
+- 限制工具结果长度和模型上下文总长度；
+- 超时后取消 Future，并将状态持久化为 `TIMED_OUT`。
+
+### 12.4 敏感数据
+
+- API key 继续只从环境变量加载；
+- 数据库、SSE、日志中不保存 API key；
+- 工具 descriptor 可以声明敏感参数字段；
+- 日志只记录参数摘要、结果长度、耗时、状态和关联 ID。
+
+## 13. 异常与恢复策略
+
+| 场景 | 处理方式 |
+|---|---|
+| 模型返回非法 tool arguments JSON | 记录 `TOOL_ARGUMENT_INVALID` 并将错误 observation 返回模型 |
+| 模型请求未注册工具 | 返回 `TOOL_NOT_FOUND`，不反射调用任意 Bean |
+| 工具未为 Agent 启用 | 返回 `TOOL_NOT_ENABLED` |
+| 工具超时 | 取消工具任务，持久化 `TIMED_OUT`，允许模型继续处理 |
+| 模型调用失败 | 运行进入 FAILED，写入 `error` 和 `done` |
+| 浏览器断开 | 关闭订阅，不改变运行状态 |
+| 服务进程退出 | V2 不自动续跑；启动时将遗留 RUNNING 标记为 FAILED/INTERRUPTED |
+| 数据库写入失败 | 不发布伪成功事件，运行失败并记录服务日志 |
+| 达到最大迭代次数 | 写入 `AGENT_ITERATION_LIMIT`，停止继续调用 |
+
+V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启后从中间步骤继续执行”。进程级断点续跑放入后续版本。
+
+## 14. 可观测性
+
+日志统一携带：
+
+- `requestId`
+- `runId`
+- `agentId`
+- `sessionId`
+- `toolCallId`
+
+建议指标：
+
+- `openagent.agent.runs`：按终态计数；
+- `openagent.agent.run.duration`：运行耗时；
+- `openagent.agent.tool.iterations`：每次运行工具轮数；
+- `openagent.tool.executions`：按工具名和状态计数；
+- `openagent.tool.duration`：工具耗时；
+- `openagent.tool.result.truncated`：结果截断次数；
+- `openagent.model.calls`：模型调用次数；
+- `openagent.chat.active.runs`：当前活跃运行数。
+
+日志级别：
+
+- run 开始、完成和失败使用 `INFO/WARN/ERROR`；
+- 工具开始和完成使用 `INFO`，不打印完整参数及结果；
+- SSE 客户端正常断开使用 `DEBUG`；
+- 数据库写入失败使用 `ERROR`。
+
+## 15. 实施里程碑
+
+### M1：领域模型与数据库（1-2 天）
+
+- 增加 Agent run、Tool Call、Tool Result 强类型模型；
+- 增加 Flyway V2 migration；
+- 实现 AgentRunRepository、ToolExecutionRepository；
+- 增加默认 Agent 工具配置种子数据；
+- 增加配置属性类和边界校验。
+
+退出条件：迁移可从空库和现有库执行；运行与工具记录可以独立增删查改；所有 Repository 测试通过。
+
+### M2：模型 Tool Calling（2-3 天）
+
+- `infra-ai` 实现 OpenAI-compatible tools 请求；
+- 实现流式 tool call arguments 拼接；
+- 建立文本完成与工具请求两类模型结果；
+- 使用录制 fixture 覆盖分片边界、多个工具和非法 JSON；
+- 对当前 `kimi-k2.5` 做真实 smoke test。
+
+退出条件：给定固定模型流，能够稳定还原完整 ToolCall 列表；普通文本聊天不回归。
+
+### M3：Agent Kernel 与工具框架（2-3 天）
+
+- 实现 Agent 状态机和多轮循环；
+- 实现 ToolRegistry、统一 Invoker 和策略包装；
+- 接入迭代上限、超时和结果截断；
+- 将 AgentKernel 接入现有 ChatTurnCoordinator；
+- 完成断线继续执行和同会话冲突控制。
+
+退出条件：Fake Model 可以驱动“工具请求 -> 工具结果 -> 最终文本”完整闭环。
+
+### M4：内置工具与安全边界（2-3 天）
+
+- 实现时间和计算器工具；
+- 实现 workspace、目录列表和文件读取；
+- 实现默认关闭的文件写入和补丁工具；
+- 实现默认关闭的安全 `web_fetch`；
+- 覆盖路径穿越、符号链接逃逸、SSRF、超时和大结果测试。
+
+退出条件：所有工具通过正常、边界和攻击输入测试；不存在宿主机 Shell 执行入口。
+
+### M5：事件、前端联调和验收（2 天）
+
+- 增加 V2 SSE 事件并保持旧事件兼容；
+- 前端展示工具调用和结果；
+- 回放历史工具事件；
+- 完成真实模型端到端用例；
+- 更新 README、配置说明和演示步骤。
+
+退出条件：三个核心用例均可在现有 Chatbot 页面完成，切换会话不丢失结果。
+
+预计总工作量：单人约 9-13 个有效开发日。若暂不实现 `web_fetch` 和写文件工具，可压缩到 7-9 日，但模型 Tool Calling、Agent loop、持久化和安全文件读取不可删减。
+
+## 16. 测试方案
+
+### 16.1 单元测试
+
+- Tool Call 流式增量合并；
+- tool arguments JSON Schema 校验；
+- Agent 状态转换；
+- 最大迭代次数；
+- 工具超时与异常映射；
+- 结果截断；
+- calculator 非法表达式；
+- workspace 路径规范化；
+- SSRF 地址分类和重定向复验；
+- ChatEventHub 背压和终态事件保留。
+
+### 16.2 集成测试
+
+- 普通无工具聊天保持可用；
+- 单工具完整闭环；
+- 多工具顺序调用；
+- 工具失败后模型恢复；
+- 客户端断开后工具和最终回答仍入库；
+- 重连回放不重复 tool event；
+- 同一 session 并发请求返回 409；
+- 不同 session 可以并行；
+- 运行超时后状态和事件一致；
+- 现有数据库升级后历史聊天可读。
+
+### 16.3 前端端到端测试
+
+1. 新建会话并发送文件阅读任务；
+2. 等待出现工具调用状态；
+3. 切换到历史会话；
+4. 等待后台执行完成；
+5. 切回新会话；
+6. 断言工具调用、工具结果和最终回答顺序正确；
+7. 刷新页面，断言历史仍可完整显示。
+
+### 16.4 发布门禁
+
+- `mvnw -pl bootstrap -am test` 全部通过；
+- 前端构建通过；
+- 核心工具安全测试全部通过；
+- 真实 `kimi-k2.5` smoke test 通过；
+- 日志扫描确认无 API key、Authorization 和完整敏感参数；
+- 从当前数据库备份升级演练成功；
+- 普通聊天与断线续跑回归通过。
+
+## 17. 验收标准
+
+V2 必须同时满足以下条件：
+
+1. 模型能够通过标准 Tool Calling 自主选择至少一个内置工具。
+2. Agent 能完成至少三轮 `model -> tool -> model` 而不丢失上下文。
+3. 单次响应包含多个 tool calls 时，执行顺序和 tool call ID 正确。
+4. 工具调用、工具结果和最终回答均可持久化和重放。
+5. 切换会话或关闭浏览器不会取消后台运行。
+6. 回到会话后能够看到完整工具过程和最终答案，不重复展示持久化事件。
+7. 文件工具无法访问 workspace 外部路径。
+8. `web_fetch` 无法访问本机、内网和云元数据地址。
+9. 未显式启用的写入和网络工具不可调用。
+10. 达到超时或迭代上限时运行能确定结束，不产生无限循环。
+11. 当前普通聊天流程、会话历史和默认模型配置不回归。
+12. 全部自动化测试和发布门禁通过。
+
+## 18. 演示脚本
+
+面试或项目展示建议使用以下流程：
+
+1. 打开默认 Agent Chatbot 页面；
+2. 输入“读取 README，并总结项目技术栈”；
+3. 展示模型自主调用 `read_file`；
+4. 展开查看工具参数和结果摘要；
+5. 在执行中切换到另一个历史会话；
+6. 再切回原会话，展示后台任务已完成；
+7. 刷新页面，证明工具过程和最终回答已持久化；
+8. 尝试读取 workspace 外文件，展示安全拒绝；
+9. 展示 `agent_runs` 和 `tool_executions` 记录，说明运行可追踪。
+
+该脚本同时体现 OpenAgent 的核心价值：模型接入、Agent 编排、工具执行、安全边界、事件流、持久化和断线恢复，而不依赖尚未完成的管理后台。
+
+## 19. 后续版本预留
+
+V2 完成后建议按以下顺序演进：
+
+- V2.1：MCP、Skill 和 Docker Sandbox；
+- V2.2：长期记忆、知识库和上下文压缩；
+- V3：认证与管理后台、定时任务、外部渠道；
+- V4：多 Agent、分布式运行、Redis/S3 和云部署能力。
+
+在 V2 完成前不提前引入上述能力，优先保证单机 Agent 工具闭环稳定、清晰且可演示。

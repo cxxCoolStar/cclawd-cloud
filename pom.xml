@@ -27,9 +27,7 @@
         <module>framework</module>
         <module>infra-ai</module>
         <module>agent-core</module>
-        <module>runtime-integration</module>
         <module>bootstrap</module>
-        <module>cli</module>
     </modules>
 
     <dependencyManagement>
@@ -49,6 +47,15 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- 全模块统一引入 Lombok（版本由 Spring Boot BOM 管理） -->
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <pluginManagement>

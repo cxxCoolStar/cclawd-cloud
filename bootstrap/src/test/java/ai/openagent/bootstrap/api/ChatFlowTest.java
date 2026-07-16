@@ -1,6 +1,7 @@
 package ai.openagent.bootstrap.api;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,7 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ai.openagent.bootstrap.OpenAgentApplication;
 import ai.openagent.bootstrap.chat.ChatModelGateway;
+import ai.openagent.bootstrap.chat.ChatTurnCoordinator;
+import ai.openagent.bootstrap.persistence.OpenAgentStore;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -37,6 +41,12 @@ class ChatFlowTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ChatTurnCoordinator turnCoordinator;
+
+    @Autowired
+    private OpenAgentStore store;
 
     @Test
     void streamsAndPersistsACompleteChatTurn() throws Exception {
@@ -81,6 +91,25 @@ class ChatFlowTest {
                 .andExpect(jsonPath("$.sessions[0].id").value(sessionId));
     }
 
+    @Test
+    void persistsCompletedTurnAfterClientSubscriptionCloses() throws Exception {
+        String sessionId = "disconnected-session-" + UUID.randomUUID();
+
+        ChatTurnCoordinator.TurnStream turn = turnCoordinator.start("default", sessionId, "Stay running");
+        turn.subscription().close();
+        turn.completion().get(5, TimeUnit.SECONDS);
+
+        var messages = store.listMessages(OpenAgentStore.LOCAL_USER_ID, "default", sessionId);
+        assertEquals(2, messages.size());
+        assertEquals("user", messages.get(0).role());
+        assertEquals("assistant", messages.get(1).role());
+        assertEquals("Hello from OpenAgent", messages.get(1).content());
+
+        var events = store.listEventsSince(OpenAgentStore.LOCAL_USER_ID, "default", sessionId, -1);
+        assertEquals(2, events.size());
+        assertEquals("content", events.get(0).eventType());
+        assertEquals("done", events.get(1).eventType());
+    }
     @TestConfiguration
     static class FakeModelConfiguration {
 

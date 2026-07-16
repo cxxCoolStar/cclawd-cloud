@@ -2,16 +2,19 @@ package ai.openagent.bootstrap.api;
 
 import ai.openagent.bootstrap.chat.ChatEventHub;
 import ai.openagent.bootstrap.chat.ChatService;
+import ai.openagent.bootstrap.chat.ChatTurnCoordinator;
 import ai.openagent.bootstrap.persistence.ChatMessageRecord;
 import ai.openagent.bootstrap.persistence.ChatSessionRecord;
 import ai.openagent.bootstrap.persistence.OpenAgentStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +23,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
@@ -29,16 +31,19 @@ public class ChatController {
     private final OpenAgentStore store;
     private final ChatService chatService;
     private final ChatEventHub eventHub;
+    private final ChatTurnCoordinator turnCoordinator;
     private final ObjectMapper objectMapper;
 
     public ChatController(
             OpenAgentStore store,
             ChatService chatService,
             ChatEventHub eventHub,
+            ChatTurnCoordinator turnCoordinator,
             ObjectMapper objectMapper) {
         this.store = store;
         this.chatService = chatService;
         this.eventHub = eventHub;
+        this.turnCoordinator = turnCoordinator;
         this.objectMapper = objectMapper;
     }
 
@@ -68,24 +73,62 @@ public class ChatController {
     }
 
     @GetMapping(path = "/api/chat/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(
+    public StreamingResponseBody subscribe(
             @RequestParam String agentId,
             @RequestParam String sessionId,
-            @RequestParam(defaultValue = "-1") long since)
-            throws IOException {
-        SseEmitter emitter = eventHub.subscribe(agentId, sessionId);
-        for (var event : store.listEventsSince(OpenAgentStore.LOCAL_USER_ID, agentId, sessionId, since)) {
-            emitter.send(SseEmitter.event().data(chatService.replayEvent(event)));
-        }
-        return emitter;
+            @RequestParam(defaultValue = "-1") long since) {
+        ChatEventHub.Subscription subscription = eventHub.subscribe(agentId, sessionId);
+        return output -> {
+            try (subscription) {
+                SseWriter writer = new SseWriter(output, objectMapper);
+                Set<Long> replayedSequences = new HashSet<>();
+                for (var stored : store.listEventsSince(OpenAgentStore.LOCAL_USER_ID, agentId, sessionId, since)) {
+                    writer.send(chatService.replayEvent(stored));
+                    replayedSequences.add(stored.seq());
+                }
+                while (true) {
+                    Map<String, Object> event = subscription.poll(Duration.ofSeconds(15));
+                    if (event == null) {
+                        writer.heartbeat();
+                        continue;
+                    }
+                    long seq = sequence(event);
+                    if (seq < 0 || replayedSequences.add(seq)) {
+                        writer.send(event);
+                    }
+                }
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+            } catch (IOException ignored) {
+                // Disconnecting a browser only closes this subscription.
+            }
+        };
     }
 
     @PostMapping(path = "/api/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> stream(@RequestBody ChatRequest request) {
-        ChatService.Turn turn = chatService.beginTurn(request.agentId(), request.sessionId(), request.message());
+        ChatTurnCoordinator.TurnStream turn =
+                turnCoordinator.start(request.agentId(), request.sessionId(), request.message());
         StreamingResponseBody body = output -> {
-            SseWriter writer = new SseWriter(output, objectMapper);
-            chatService.stream(turn, writer::send);
+            ChatEventHub.Subscription subscription = turn.subscription();
+            try (subscription) {
+                SseWriter writer = new SseWriter(output, objectMapper);
+                while (true) {
+                    Map<String, Object> event = subscription.poll(Duration.ofSeconds(1));
+                    if (event != null) {
+                        writer.send(event);
+                        if ("done".equals(event.get("type"))) {
+                            return;
+                        }
+                    } else if (turn.completion().isDone()) {
+                        return;
+                    }
+                }
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+            } catch (IOException ignored) {
+                // The coordinator owns the model turn, so it continues in the background.
+            }
         };
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache")
@@ -110,6 +153,11 @@ public class ChatController {
 
     public record ChatRequest(String agentId, String sessionId, String message) {}
 
+    private static long sequence(Map<String, Object> event) {
+        Object value = event.get("seq");
+        return value instanceof Number number ? number.longValue() : -1;
+    }
+
     private static final class SseWriter {
         private final OutputStream output;
         private final ObjectMapper objectMapper;
@@ -119,14 +167,15 @@ public class ChatController {
             this.objectMapper = objectMapper;
         }
 
-        private synchronized void send(Map<String, Object> event) {
-            try {
-                String frame = "data: " + objectMapper.writeValueAsString(event) + "\n\n";
-                output.write(frame.getBytes(StandardCharsets.UTF_8));
-                output.flush();
-            } catch (IOException error) {
-                throw new UncheckedIOException(error);
-            }
+        private synchronized void send(Map<String, Object> event) throws IOException {
+            String frame = "data: " + objectMapper.writeValueAsString(event) + "\n\n";
+            output.write(frame.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        }
+
+        private synchronized void heartbeat() throws IOException {
+            output.write(": heartbeat\n\n".getBytes(StandardCharsets.UTF_8));
+            output.flush();
         }
     }
 }
