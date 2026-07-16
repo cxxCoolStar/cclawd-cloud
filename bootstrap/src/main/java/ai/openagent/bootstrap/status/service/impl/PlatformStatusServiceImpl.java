@@ -1,7 +1,8 @@
 package ai.openagent.bootstrap.status.service.impl;
 
 import ai.openagent.bootstrap.config.ModelSettings;
-import ai.openagent.bootstrap.persistence.OpenAgentStore;
+import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.status.PlatformCapabilities;
 import ai.openagent.bootstrap.status.config.PlatformProperties;
 import ai.openagent.bootstrap.status.controller.vo.PlatformStatusVO;
@@ -21,24 +22,24 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
     private final Instant startedAt = Instant.now();
     private final int port;
     private final PlatformProperties platformProperties;
-    private final OpenAgentStore store;
+    private final AgentRepository agentRepository;
     private final ModelSettings modelSettings;
 
     public PlatformStatusServiceImpl(
             @Value("${server.port:18953}") int port,
             PlatformProperties platformProperties,
-            OpenAgentStore store,
+            AgentRepository agentRepository,
             ModelSettings modelSettings) {
         this.port = port;
         this.platformProperties = platformProperties;
-        this.store = store;
+        this.agentRepository = agentRepository;
         this.modelSettings = modelSettings;
     }
 
     @Override
     public PlatformStatusVO currentStatus() {
         List<PlatformStatusVO.AgentStatusVO> agents =
-                store.listAgents(OpenAgentStore.LOCAL_USER_ID).stream()
+                agentRepository.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
                         .map(PlatformStatusVO.AgentStatusVO::from)
                         .toList();
         return new PlatformStatusVO(

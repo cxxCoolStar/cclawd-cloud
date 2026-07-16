@@ -13,7 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ai.openagent.bootstrap.OpenAgentApplication;
 import ai.openagent.bootstrap.chat.gateway.ChatModelGateway;
 import ai.openagent.bootstrap.chat.service.ChatTurnCoordinator;
-import ai.openagent.bootstrap.persistence.OpenAgentStore;
+import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,7 @@ class ChatFlowTest {
     private ChatTurnCoordinator turnCoordinator;
 
     @Autowired
-    private OpenAgentStore store;
+    private ChatSessionRepository sessionRepository;
 
     @Test
     void streamsAndPersistsACompleteChatTurn() throws Exception {
@@ -99,13 +100,13 @@ class ChatFlowTest {
         turn.subscription().close();
         turn.completion().get(5, TimeUnit.SECONDS);
 
-        var messages = store.listMessages(OpenAgentStore.LOCAL_USER_ID, "default", sessionId);
+        var messages = sessionRepository.listMessages(IdentityConstant.LOCAL_USER_ID, "default", sessionId);
         assertEquals(2, messages.size());
         assertEquals("user", messages.get(0).role());
         assertEquals("assistant", messages.get(1).role());
         assertEquals("Hello from OpenAgent", messages.get(1).content());
 
-        var events = store.listEventsSince(OpenAgentStore.LOCAL_USER_ID, "default", sessionId, -1);
+        var events = sessionRepository.listEventsSince(IdentityConstant.LOCAL_USER_ID, "default", sessionId, -1);
         assertEquals(2, events.size());
         assertEquals("content", events.get(0).eventType());
         assertEquals("done", events.get(1).eventType());

@@ -7,9 +7,12 @@ import ai.openagent.bootstrap.chat.controller.vo.ChatSessionVO;
 import ai.openagent.bootstrap.chat.event.ChatEventHub;
 import ai.openagent.bootstrap.chat.gateway.ChatModelGateway;
 import ai.openagent.bootstrap.chat.service.ChatService;
+import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.AgentRecord;
-import ai.openagent.bootstrap.persistence.OpenAgentStore;
+import ai.openagent.bootstrap.persistence.AgentRepository;
+import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.ProviderRecord;
+import ai.openagent.bootstrap.persistence.ProviderRepository;
 import ai.openagent.bootstrap.persistence.SessionEventRecord;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
@@ -38,7 +41,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final OpenAgentStore store;
+    private final AgentRepository agentRepository;
+    private final ProviderRepository providerRepository;
+    private final ChatSessionRepository sessionRepository;
     private final ChatModelGateway modelGateway;
     private final ChatEventHub eventHub;
     private final ObjectMapper objectMapper;
@@ -51,14 +56,14 @@ public class ChatServiceImpl implements ChatService {
         if (message == null || message.isBlank()) {
             throw new ClientException("message required");
         }
-        AgentRecord agent = store.findAgent(agentId)
+        AgentRecord agent = agentRepository.findById(agentId)
                 .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
-        ProviderRecord provider = store.findProvider(agent.providerId())
+        ProviderRecord provider = providerRepository.findById(agent.providerId())
                 .orElseThrow(() -> new ServiceException("provider not found", BaseErrorCode.SERVICE_UNAVAILABLE_ERROR));
-        String userId = OpenAgentStore.LOCAL_USER_ID;
-        store.ensureSession(userId, agentId, sessionId, message);
-        store.appendMessage(userId, agentId, sessionId, "user", message, provider.type(), agent.model());
-        return new Turn(userId, agent, provider, sessionId, store.listMessages(userId, agentId, sessionId));
+        String userId = IdentityConstant.LOCAL_USER_ID;
+        sessionRepository.ensureSession(userId, agentId, sessionId, message);
+        sessionRepository.appendMessage(userId, agentId, sessionId, "user", message, provider.type(), agent.model());
+        return new Turn(userId, agent, provider, sessionId, sessionRepository.listMessages(userId, agentId, sessionId));
     }
 
     @Override
@@ -72,7 +77,7 @@ public class ChatServiceImpl implements ChatService {
                     turn.agent(),
                     turn.messages(),
                     delta -> publishTransient(turn, "content_delta", Map.of("delta", delta)));
-            store.appendMessage(
+            sessionRepository.appendMessage(
                     turn.userId(),
                     turn.agent().id(),
                     turn.sessionId(),
@@ -95,24 +100,25 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public ChatHistoryVO history(String agentId, String sessionId) {
-        String userId = OpenAgentStore.LOCAL_USER_ID;
-        List<ChatMessageVO> history = store.listMessages(userId, agentId, sessionId).stream()
+        String userId = IdentityConstant.LOCAL_USER_ID;
+        List<ChatMessageVO> history = sessionRepository.listMessages(userId, agentId, sessionId).stream()
                 .map(ChatMessageVO::from)
                 .toList();
-        return new ChatHistoryVO(history, store.latestEventSequence(userId, agentId, sessionId));
+        return new ChatHistoryVO(history, sessionRepository.latestEventSequence(userId, agentId, sessionId));
     }
 
     @Override
     public ChatSessionListVO sessions(String agentId) {
-        List<ChatSessionVO> sessions = store.listSessions(OpenAgentStore.LOCAL_USER_ID, agentId).stream()
-                .map(ChatSessionVO::from)
-                .toList();
+        List<ChatSessionVO> sessions =
+                sessionRepository.listSessions(IdentityConstant.LOCAL_USER_ID, agentId).stream()
+                        .map(ChatSessionVO::from)
+                        .toList();
         return new ChatSessionListVO(sessions);
     }
 
     @Override
     public List<Map<String, Object>> replayEventsSince(String agentId, String sessionId, long since) {
-        return store.listEventsSince(OpenAgentStore.LOCAL_USER_ID, agentId, sessionId, since).stream()
+        return sessionRepository.listEventsSince(IdentityConstant.LOCAL_USER_ID, agentId, sessionId, since).stream()
                 .map(this::decode)
                 .toList();
     }
@@ -143,7 +149,7 @@ public class ChatServiceImpl implements ChatService {
      */
     private void publishPersistent(Turn turn, String type, Map<String, Object> data) {
         try {
-            SessionEventRecord stored = store.appendEvent(
+            SessionEventRecord stored = sessionRepository.appendEvent(
                     turn.userId(),
                     turn.agent().id(),
                     turn.sessionId(),
