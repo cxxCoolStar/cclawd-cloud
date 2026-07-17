@@ -166,7 +166,10 @@ public class AutoPersistMemoryService {
                         List.of(ModelMessage.user(prompt)),
                         List.of(),
                         0.3,
-                        200),
+                        // 有意偏离 fastclaw 的 200：kimi-k2.5 等 reasoning 模型
+                        // 会先消耗 reasoning 预算，200 会导致正文为空
+                        // （model returned an empty response），实测 2000 可稳定产出
+                        2000),
                 event -> {});
         String json = response instanceof ModelResponse.Text text
                 ? text.content()
