@@ -1,30 +1,32 @@
 # OpenAgent
 
-OpenAgent is an open-source, self-hosted AI Agent platform. The current V0.2 milestone provides a Java chat MVP while reusing the existing Next.js frontend.
+OpenAgent is an open-source, self-hosted AI Agent platform. The current V2 milestone upgrades the Java chat MVP into a tool-calling agent: the model can autonomously pick tools, act on real results, and keep reasoning across multiple rounds — while reusing the existing Next.js frontend.
 
-## V0.2 Features
+## V2 Features
 
 - Spring Boot 3.5 and Java 17 modular backend
 - Automatic Flyway database initialization
 - SQLite by default, with PostgreSQL driver support
 - Fixed local identity (`local-user`) and no permission checks
-- Seeded default Provider and Agent configuration
-- OpenAI-compatible streaming chat
-- Persisted sessions, messages, and replayable final events
-- Existing frontend opens directly at `/agents/default/chat/`
+- Seeded default Provider, Agent, and per-agent tool configuration
+- OpenAI-compatible streaming chat **with standard Tool Calling** (streamed `tool_calls` fragment aggregation, multi-tool responses, `role=tool` result round-trip)
+- **ReAct agent loop**: multi-round `model → tool → model` with loop protection (3 identical calls), all-failed-rounds tool disabling, iteration cap with forced final synthesis, and per-run/per-tool timeouts
+- **Built-in workspace tools**: `list_dir`, `read_file` (enabled by default); `write_file`, `edit_file`, `apply_patch`, `web_fetch` (disabled by default, opt-in per agent)
+- **Security boundaries**: per-session workspace isolation, path-traversal/symlink-escape rejection, binary-file read refusal, SSRF-guarded web fetch (loopback/private/metadata addresses blocked, per-hop redirect re-validation)
+- Persisted sessions, messages, tool executions, agent runs, and replayable final events (`tool_call` / `tool_result` / `content` / `error` / `done`)
+- Browser disconnect does not cancel a running agent turn; reconnect replays from any `seq` cursor
+- Existing frontend opens directly at `/agents/default/chat/` and renders tool calls as collapsible groups
 
-The administration backend, tools, MCP, scheduler, channels, and production authentication are deferred to later versions. Because authentication is bypassed, the default bind address remains `127.0.0.1`.
+The administration backend, MCP, scheduler, channels, host shell/exec, and production authentication are deferred to later versions. Because authentication is bypassed, the default bind address remains `127.0.0.1`.
 
 ## Modules
 
 | Module | Responsibility |
 |---|---|
-| `framework` | Shared conventions and request identity |
-| `infra-ai` | Model and provider ports |
-| `agent-core` | Agent state, tool ports, and orchestration contracts |
-| `runtime-integration` | Runtime adapter contracts |
-| `bootstrap` | Spring Boot APIs, chat service, and persistence |
-| `cli` | Operator CLI skeleton |
+| `framework` | Shared conventions, error codes, and global exception mapping |
+| `infra-ai` | OpenAI-compatible model client: streaming, tool-call aggregation, orphan tool-call stripping |
+| `agent-core` | ReAct agent kernel, tool framework ports, run state machine (no Spring dependency) |
+| `bootstrap` | Spring Boot APIs, agent run coordinator, tool registry/invoker, built-in tools, persistence |
 | `frontend` | Reused and rebranded Next.js frontend |
 
 ## Prerequisites
@@ -69,7 +71,33 @@ Supported settings:
 | `OPENAGENT_MODEL_MAX_TOKENS` | `2048` |
 | `OPENAGENT_SYSTEM_PROMPT` | built-in OpenAgent assistant prompt |
 
+Agent loop and tool settings:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `OPENAGENT_AGENT_MAX_TOOL_ITERATIONS` | `8` | Allowed range 1-20 |
+| `OPENAGENT_AGENT_RUN_TIMEOUT` | `10m` | Whole-run deadline |
+| `OPENAGENT_TOOL_TIMEOUT` | `30s` | Per-tool-execution deadline |
+| `OPENAGENT_TOOL_MAX_RESULT_CHARS` | `65536` | Tool results are truncated beyond this |
+| `OPENAGENT_WORKSPACE_ROOT` | `./workspace` | Session dirs at `<root>/<agentId>/sessions/<sessionId>` |
+| `OPENAGENT_READ_FILE_MAX_BYTES` | `1048576` | `read_file` single-file limit |
+| `OPENAGENT_WEB_FETCH_ENABLED` | `false` | Global gate on top of the per-agent toggle |
+| `OPENAGENT_WEB_FETCH_MAX_BYTES` | `1048576` | Response size cap |
+
 Without an API key, the UI and database still start normally; sending a message returns a clear streaming configuration error.
+
+## Built-in Tools
+
+| Tool | Default | Risk |
+|---|---|---|
+| `list_dir` | enabled | read-only |
+| `read_file` | enabled | read-only, 1 MiB limit, binary files refused |
+| `write_file` | disabled | writes inside the session workspace |
+| `edit_file` | disabled | exact-substring replacement with uniqueness check |
+| `apply_patch` | disabled | multi-file Codex-DSL patch, atomic (no partial writes) |
+| `web_fetch` | disabled | http/https only, SSRF-guarded, double-gated by `OPENAGENT_WEB_FETCH_ENABLED` |
+
+Per-agent enablement lives in the `agent_tools` table (seeded on startup, user overrides preserved across restarts). All file tools are confined to the per-session workspace directory — absolute paths, `..` traversal, and symlink escapes are rejected.
 
 ## Build And Run
 
@@ -101,4 +129,13 @@ Useful API checks:
 - `http://127.0.0.1:18953/api/me`
 - `http://127.0.0.1:18953/api/agents`
 
-The implementation plan is documented in [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md).
+## Try The Agent Loop
+
+1. Drop a file into the session workspace (create the directory on first use): `workspace/default/sessions/<your-session-id>/README.md`
+2. In the chat page, ask: *"List the files in your workspace, then read README.md and summarize it."*
+3. Watch the model call `list_dir`, then `read_file`, then answer from real file content — each step renders as a collapsible tool group.
+4. Switch to another conversation mid-run and come back: the run keeps going server-side and the finished result is there.
+5. Ask it to read a path outside the workspace (e.g. `../../../openagent.db`) to see the security boundary respond with `WORKSPACE_PATH_FORBIDDEN`.
+6. Inspect the run trail in the database: `agent_runs` (one row per turn, terminal status + iteration count) and `tool_executions` (one row per tool call with timing and result).
+
+Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md).

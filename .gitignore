@@ -18,4 +18,5 @@ frontend/out/
 frontend/.turbo/
 mvnw
 mvnw.cmd
+workspace/
 

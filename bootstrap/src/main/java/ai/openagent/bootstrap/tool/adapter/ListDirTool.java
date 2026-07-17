@@ -32,7 +32,9 @@ public class ListDirTool extends AbstractFileTool {
     public ToolDescriptor descriptor() {
         return new ToolDescriptor(
                 "list_dir",
-                "List files and directories in a path",
+                "List files and directories in a path. Output format: one entry per line, "
+                        + "\"d <name>/\" for directories and \"f <name> (<size> bytes)\" for files — "
+                        + "the leading \"d \" / \"f \" is a type marker, NOT part of the name.",
                 Map.of(
                         "type", "object",
                         "properties", Map.of("path", Map.of(

@@ -871,7 +871,32 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 
 退出条件：所有工具通过正常、边界和攻击输入测试；不存在宿主机 Shell 执行入口。
 
-### M5：事件、前端联调和验收（2 天）
+### M5：事件、前端联调和验收（2 天）✅ 已完成（2026-07-17）
+
+> **M5 完成记录**：
+> - **事件契约核对**：逐行核对 chat-screen.tsx 两个事件 switch（POST 流
+>   1469-1694 行、subscribe 817-960 行）与后端产出——tool_call 消费
+>   data.id/name/arguments、tool_result 消费 data.id/result/metadata、
+>   content_delta 建/续流式气泡、content 封口 + metadata 盖章、done 收敛，
+>   全部与 M3 WireAgentEventSink 的产出一致；历史接口 toolCalls/toolCallId
+>   形状与 buildChatMessages 工具分组渲染兼容（M4 smoke 会话实测验证）
+> - **端到端验收**（真实 kimi-k2.5）：
+>   用例 4.1/4.2 文件阅读与多工具——单次运行内自主 list_dir → read_file →
+>   综合总结，事件顺序正确；
+>   用例 4.3 工具失败恢复——read_file(summary.md) 返回 FILE_NOT_FOUND 后
+>   模型自主 list_dir 找到 notes.md 并读取回答，全程无人工干预；
+>   断线续跑——POST 2 秒后断开，后台运行照常完成并落库（fastclaw
+>   detached-context 语义）；
+>   重放——subscribe since=-1 全量回放 / since=N 断点补收均正确
+> - **联调发现并修复**：list_dir 结果的 "f " 类型标记被模型误认为文件名
+>   一部分（读 "f notes.md" 失败两轮）——按 fastclaw "工具目录即提示词"
+>   的思路在 list_dir description 中说明输出格式后，模型一次通过
+> - **文档**：README 全面更新（V2 能力、模块表、Agent/工具配置项、内置
+>   工具表、演示步骤）；"旧事件兼容"表述修正（新项目无版本兼容问题，
+>   实质是与现有前端的消费契约对齐，已随 M3 落地）
+> - **遗留（不阻塞验收）**：浏览器端工具分组折叠展示的人工确认（后端
+>   契约已验证一致）；模型在连续失败后偶发空响应（error+done 正常收敛，
+>   属模型行为非框架缺陷）
 
 - 先核对 FastClaw events.go、event_hub.go、ChatStreamEvent 和 chat-screen.tsx，禁止凭文档猜测事件字段；
 
