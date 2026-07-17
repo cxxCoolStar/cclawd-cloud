@@ -55,7 +55,8 @@ public record ToolCatalog(String name, String description, RiskLevel riskLevel, 
             new ToolCatalog("edit_file", "按精确子串替换编辑 workspace 内文本文件", RiskLevel.HIGH, false),
             new ToolCatalog("apply_patch", "对 workspace 内文本文件应用受限补丁", RiskLevel.HIGH, false),
             new ToolCatalog("web_fetch", "获取经过安全校验的 HTTP/HTTPS 文本资源", RiskLevel.HIGH, false),
-            new ToolCatalog("memory_search", "检索 Agent 长期记忆文件（MEMORY.md/USER.md/HISTORY.md）", RiskLevel.MEDIUM, true));
+            new ToolCatalog("memory_search", "检索 Agent 长期记忆文件（MEMORY.md/USER.md/HISTORY.md）", RiskLevel.MEDIUM, true),
+            new ToolCatalog("exec", "在 Docker 沙箱容器内执行 shell 命令", RiskLevel.HIGH, false));
 
     private static final Map<String, ToolCatalog> BY_NAME =
             BUILTIN_TOOLS.stream().collect(Collectors.toUnmodifiableMap(ToolCatalog::name, Function.identity()));

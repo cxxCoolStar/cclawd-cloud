@@ -34,6 +34,10 @@ openagent:
     system-prompt: ${OPENAGENT_SYSTEM_PROMPT:You are OpenAgent, a helpful AI assistant.}
   sandbox:
     docker-enabled: ${OPENAGENT_SANDBOX_DOCKER_ENABLED:false}
+    image: ${OPENAGENT_SANDBOX_IMAGE:python:3.12-slim}
+    cpus: ${OPENAGENT_SANDBOX_CPUS:1}
+    memory: ${OPENAGENT_SANDBOX_MEMORY:512m}
+    network: ${OPENAGENT_SANDBOX_NETWORK:bridge}
   agent:
     max-tool-iterations: ${OPENAGENT_AGENT_MAX_TOOL_ITERATIONS:8}
     run-timeout: ${OPENAGENT_AGENT_RUN_TIMEOUT:10m}
