@@ -72,6 +72,21 @@ export function NavSessions({
       const here =
         pathname === target || pathname === target.replace(/\/$/, "");
       if (here) return;
+      // Chat→chat switches swap in place via the History API: ChatScreen
+      // stays mounted under layout-client and reacts to usePathname()
+      // (Next 16 patches pushState to sync the app router). router.push
+      // here fires an RSC fetch for a route that output:'export' never
+      // pre-rendered; when rapid clicks stack those fetches onto an
+      // already-busy connection pool one goes pending forever and the
+      // router wedges — every later click queues behind it and nothing
+      // navigates. Same lesson as handleSend's replaceState note in
+      // chat-screen.tsx. Real router.push only for cross-surface moves
+      // (e.g. from /chats), where the page tree genuinely changes.
+      const chatSurface = /^\/agents\/[^/]+\/(chat|project)(\/|$)/;
+      if (chatSurface.test(target) && chatSurface.test(pathname)) {
+        window.history.pushState(null, "", target);
+        return;
+      }
       if (inFlightTargetRef.current === target) return;
       inFlightTargetRef.current = target;
       router.push(target);

@@ -188,6 +188,16 @@ export function NavProjectsList({
       const here =
         pathname === target || pathname === target.replace(/\/$/, "");
       if (here) return;
+      // Chat→chat / project→chat switches swap in place via the History
+      // API — see the matching note in nav-projects.tsx. router.push on
+      // the chat surface fires an RSC fetch that output:'export' can't
+      // satisfy; stacked rapid clicks wedge the router and the sidebar
+      // stops responding entirely.
+      const chatSurface = /^\/agents\/[^/]+\/(chat|project)(\/|$)/;
+      if (chatSurface.test(target) && chatSurface.test(pathname)) {
+        window.history.pushState(null, "", target);
+        return;
+      }
       if (inFlightTargetRef.current === target) return;
       inFlightTargetRef.current = target;
       router.push(target);
