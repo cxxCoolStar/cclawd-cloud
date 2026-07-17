@@ -9,6 +9,7 @@ import ai.openagent.agent.tool.ToolResult;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.memory.MemoryService;
 import ai.openagent.bootstrap.persistence.AgentRecord;
+import ai.openagent.bootstrap.skill.SkillService;
 import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.ChatMessageRecord;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
@@ -66,6 +67,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
     private final AgentProperties agentProperties;
     private final LLMService llmService;
     private final MemoryService memoryService;
+    private final SkillService skillService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -99,17 +101,21 @@ public class PersistedConversationFactory implements AgentConversationFactory {
      */
     private String buildSystemPrompt(AgentRecord agent) {
         String base = agent.systemPrompt();
-        if (!memoryService.enabled()) {
-            return base;
-        }
         StringBuilder prompt = new StringBuilder(base);
-        String memory = memoryService.loadMemory(agent.id()).trim();
-        if (!memory.isEmpty()) {
-            prompt.append("\n\n# Long-term Memory\n").append(memory);
+        if (memoryService.enabled()) {
+            String memory = memoryService.loadMemory(agent.id()).trim();
+            if (!memory.isEmpty()) {
+                prompt.append("\n\n# Long-term Memory\n").append(memory);
+            }
+            String userProfile = memoryService.loadUserFile(agent.id()).trim();
+            if (!userProfile.isEmpty()) {
+                prompt.append("\n\n# User Profile\n").append(userProfile);
+            }
         }
-        String userProfile = memoryService.loadUserFile(agent.id()).trim();
-        if (!userProfile.isEmpty()) {
-            prompt.append("\n\n# User Profile\n").append(userProfile);
+        // V5：技能摘要注入（无技能时为空串不拼接）
+        String skillsSummary = skillService.buildSkillsSummary(agent.id());
+        if (!skillsSummary.isBlank()) {
+            prompt.append("\n\n").append(skillsSummary);
         }
         return prompt.toString();
     }

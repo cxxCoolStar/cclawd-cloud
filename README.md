@@ -1,6 +1,13 @@
 # OpenAgent
 
-OpenAgent is an open-source, self-hosted AI Agent platform. The current **V0.4** milestone adds a Docker-sandboxed `exec` tool on top of V0.3 memory — the agent can write code, run it in a container, and reason over real output. All while reusing the existing Next.js frontend.
+OpenAgent is an open-source, self-hosted AI Agent platform. The current **V0.5** milestone adds skills on top of V0.4: instruction packs the agent loads on demand. All while reusing the existing Next.js frontend.
+
+## V0.5 Features
+
+- **Skills**: a directory with a `SKILL.md` (YAML frontmatter + Markdown instructions) is a skill; global dir `./skills` plus per-agent `{workspaceRoot}/{agentId}/skills` (same-name shadowing)
+- **Progressive disclosure**: the system prompt carries only a one-line catalog; the model loads full instructions via the built-in `load_skill` tool
+- **Skill APIs**: `GET /api/skills`, `GET /api/agents/{id}/skills`, `DELETE` both scopes, `POST /api/skills/upload` (ZIP, top-dir strip, `SKILL.md` enforced, zip-slip guarded)
+- **File upload**: `POST /api/agents/{id}/files` (multipart, session-scoped) and the workspace file list/content endpoints backing the Workspace panel
 
 ## V0.4 Features
 
@@ -106,6 +113,7 @@ Agent loop and tool settings:
 | `OPENAGENT_MEMORY_AUTO_PERSIST_ENABLED` | `true` | Enable automatic memory extraction |
 | `OPENAGENT_MEMORY_AUTO_PERSIST_INTERVAL` | `5` | User-message count modulo that triggers auto-persist |
 | `OPENAGENT_MEMORY_MAX_FILE_CHARS` | `32768` | Max chars for MEMORY.md / USER.md |
+| `OPENAGENT_SKILLS_DIR` | `./skills` | Global skills directory (per-agent skills live at `<workspace>/<agentId>/skills`) |
 | `OPENAGENT_SANDBOX_DOCKER_ENABLED` | `false` | Global gate for the `exec` tool |
 | `OPENAGENT_SANDBOX_IMAGE` | `python:3.12-slim` | Sandbox container image |
 | `OPENAGENT_SANDBOX_CPUS` | `1` | Container CPU limit |
@@ -126,6 +134,7 @@ Without an API key, the UI and database still start normally; sending a message 
 | `web_fetch` | disabled | http/https only, SSRF-guarded, double-gated by `OPENAGENT_WEB_FETCH_ENABLED` |
 | `memory_search` | enabled | text search over `MEMORY.md` / `USER.md` / `HISTORY.md` |
 | `exec` | disabled | shell commands inside the Docker sandbox only; needs `OPENAGENT_SANDBOX_DOCKER_ENABLED=true` |
+| `load_skill` | enabled | loads full instructions of an installed skill by name |
 
 Per-agent enablement lives in the `agent_tools` table (seeded on startup, user overrides preserved across restarts). All file tools are confined to the per-session workspace directory — absolute paths, `..` traversal, and symlink escapes are rejected. `memory_search` reads agent-level memory files, not the session workspace.
 
@@ -168,4 +177,4 @@ Useful API checks:
 5. Ask it to read a path outside the workspace (e.g. `../../../openagent.db`) to see the security boundary respond with `WORKSPACE_PATH_FORBIDDEN`.
 6. Inspect the run trail in the database: `agent_runs` (one row per turn, terminal status + iteration count) and `tool_executions` (one row per tool call with timing and result).
 
-Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md), [OPENAGENT_JAVA_V3_PLAN.md](docs/OPENAGENT_JAVA_V3_PLAN.md), [OPENAGENT_JAVA_V4_PLAN.md](docs/OPENAGENT_JAVA_V4_PLAN.md).
+Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md), [OPENAGENT_JAVA_V3_PLAN.md](docs/OPENAGENT_JAVA_V3_PLAN.md), [OPENAGENT_JAVA_V4_PLAN.md](docs/OPENAGENT_JAVA_V4_PLAN.md), [OPENAGENT_JAVA_V5_PLAN.md](docs/OPENAGENT_JAVA_V5_PLAN.md).
