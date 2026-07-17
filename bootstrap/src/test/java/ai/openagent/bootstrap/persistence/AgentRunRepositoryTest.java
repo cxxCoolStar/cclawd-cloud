@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.openagent.bootstrap.OpenAgentApplication;
-import ai.openagent.bootstrap.agentrun.AgentRunStatus;
+import ai.openagent.agent.AgentRunStatus;
 import ai.openagent.bootstrap.agentrun.ToolExecutionStatus;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import java.util.List;

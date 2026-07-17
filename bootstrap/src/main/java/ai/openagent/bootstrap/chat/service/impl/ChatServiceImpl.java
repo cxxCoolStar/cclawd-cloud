@@ -5,11 +5,11 @@ import ai.openagent.bootstrap.chat.controller.vo.ChatMessageVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionVO;
 import ai.openagent.bootstrap.chat.event.ChatEventHub;
-import ai.openagent.bootstrap.chat.gateway.ChatModelGateway;
 import ai.openagent.bootstrap.chat.service.ChatService;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.persistence.AgentRepository;
+import ai.openagent.bootstrap.persistence.ChatMessageRecord;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.ProviderRecord;
 import ai.openagent.bootstrap.persistence.ProviderRepository;
@@ -17,9 +17,16 @@ import ai.openagent.bootstrap.persistence.SessionEventRecord;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.exception.ServiceException;
+import ai.openagent.infra.ai.LLMService;
+import ai.openagent.infra.ai.model.ModelEvent;
+import ai.openagent.infra.ai.model.ModelMessage;
+import ai.openagent.infra.ai.model.ModelProviderConfig;
+import ai.openagent.infra.ai.model.ModelRequest;
+import ai.openagent.infra.ai.model.ModelResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +51,7 @@ public class ChatServiceImpl implements ChatService {
     private final AgentRepository agentRepository;
     private final ProviderRepository providerRepository;
     private final ChatSessionRepository sessionRepository;
-    private final ChatModelGateway modelGateway;
+    private final LLMService llmService;
     private final ChatEventHub eventHub;
     private final ObjectMapper objectMapper;
 
@@ -72,11 +79,7 @@ public class ChatServiceImpl implements ChatService {
         log.info("[chat] 开始流式回合，agentId={}, sessionId={}, model={}",
                 turn.agent().id(), turn.sessionId(), turn.agent().model());
         try {
-            String answer = modelGateway.stream(
-                    turn.provider(),
-                    turn.agent(),
-                    turn.messages(),
-                    delta -> publishTransient(turn, "content_delta", Map.of("delta", delta)));
+            String answer = invokeModel(turn);
             sessionRepository.appendMessage(
                     turn.userId(),
                     turn.agent().id(),
@@ -96,6 +99,54 @@ public class ChatServiceImpl implements ChatService {
             publishPersistent(turn, "error", Map.of("message", message));
             publishPersistent(turn, "done", Map.of());
         }
+    }
+
+    /**
+     * 调用模型端口并取回最终文本
+     *
+     * <p>
+     * 普通聊天不携带 tools，正常只会得到 Text 结果；模型异常返回
+     * ToolCalls 时降级取其正文（Agent 工具循环属于 M3 的 AgentKernel）
+     * </p>
+     */
+    private String invokeModel(Turn turn) {
+        if (turn.provider().apiKey() == null || turn.provider().apiKey().isBlank()) {
+            throw new ServiceException(
+                    "OPENAGENT_MODEL_API_KEY is not configured", BaseErrorCode.SERVICE_UNAVAILABLE_ERROR);
+        }
+        List<ModelMessage> messages = new ArrayList<>();
+        messages.add(ModelMessage.system(turn.agent().systemPrompt()));
+        for (ChatMessageRecord message : turn.messages()) {
+            if ("user".equals(message.role())) {
+                messages.add(ModelMessage.user(message.content()));
+            } else if ("assistant".equals(message.role())) {
+                messages.add(ModelMessage.assistant(message.content()));
+            }
+        }
+        ModelRequest request = new ModelRequest(
+                new ModelProviderConfig(
+                        turn.provider().type(), turn.provider().apiBase(), turn.provider().apiKey()),
+                turn.agent().model(),
+                messages,
+                List.of(),
+                turn.provider().temperature(),
+                turn.provider().maxTokens());
+        ModelResponse response = llmService.stream(request, event -> {
+            if (event instanceof ModelEvent.TextDelta delta) {
+                publishTransient(turn, "content_delta", Map.of("delta", delta.text()));
+            }
+        });
+        if (response instanceof ModelResponse.Text text) {
+            return text.content();
+        }
+        // 未携带 tools 却收到 tool calls：记录后取正文尽力交付
+        log.warn("[chat] 模型在无工具请求下返回了 tool_calls，agentId={}, sessionId={}",
+                turn.agent().id(), turn.sessionId());
+        String content = ((ModelResponse.ToolCalls) response).content();
+        if (content.isBlank()) {
+            throw new ServiceException("model returned tool calls without content", BaseErrorCode.SERVICE_ERROR);
+        }
+        return content;
     }
 
     @Override

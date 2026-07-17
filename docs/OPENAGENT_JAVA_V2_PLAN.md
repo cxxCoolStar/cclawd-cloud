@@ -704,11 +704,50 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 
 退出条件：迁移可从空库和现有库执行；运行与工具记录可以独立增删查改；所有 Repository 测试通过。
 
-### M2：模型 Tool Calling（2-3 天）
+### M2：模型 Tool Calling（2-3 天）✅ 已完成（2026-07-17）
 
 > 本里程碑吸收 PROJECT_REFACTORING_PLAN Phase 4：现有 bootstrap 内的
 > OpenAiCompatibleChatModelGateway 迁移/重写到 infra-ai，接口按第 7 章定义
 > 替换既有占位骨架（见 20.2 问题 5），同时解决两模块 ToolCall 同名类冲突。
+
+> **M2 完成记录**：
+> - **交付物**：infra-ai 接口按第 7 章重定义——`LLMService.stream(request, listener)`
+>   返回 sealed `ModelResponse{Text, ToolCalls}`（两者均携带 usage 与
+>   rawAssistantJson；ToolCalls 额外保留 content，正文与 tool calls 并存时不丢失）；
+>   `ModelMessage`（rawAssistantJson 承载 fastclaw RawAssistant 语义）、
+>   `ToolCall`（arguments 保持 JSON 字符串）、`ToolDefinition`、`TokenUsage`、
+>   `ModelProviderConfig`、`ModelEvent`（仅 Text/Reasoning delta）；
+>   `OpenAiCompatibleLLMService`（infra-ai，不依赖 Spring，由 bootstrap 的
+>   `LLMServiceConfiguration` 装配）：tools 非空才上 wire、stream_options.include_usage、
+>   `ToolCallAccumulator` 按 index 聚合分片（id/type 覆盖、name/arguments 拼接、
+>   TreeMap 保证稳定顺序）、孤立 tool_calls 及悬空 tool 回复在 wire 构造时剥离
+>   （openai.go findOrphanToolCalls 移植）、坏 chunk WARN 跳过不断流、
+>   usage 终章解析（cached_tokens 从 input 中扣除）；
+>   删除 bootstrap `chat/gateway/`（ChatModelGateway + 旧网关）、infra-ai 占位
+>   `ChatClient`/`ModelCallHandle`、agent-core `ToolCall`（同名冲突保留 infra-ai 份）
+>   与 `AgentRunHandle`；agent-core `AgentKernel/AgentRunCommand` 按第 7 章重签名，
+>   新增 `AgentRunResult`/`AgentRuntimeConfig`；ChatServiceImpl 改消费 LLMService
+>   （无工具聊天 tools 为空列表；异常收到 ToolCalls 时降级取正文）
+> - **参考文件**：FastClaw `internal/provider/openai.go`（ChatStream 聚合、
+>   toAPIMessages/findOrphanToolCalls/assistantToolCallIDs、RawAssistant 序列化、
+>   openaiUsageToProvider）、`internal/provider/provider.go`（Message/ToolCall/
+>   StreamChunk 结构）、`openai_stream_raw_assistant_test.go`（SSE 脚本式 fixture
+>   与 RawAssistant 必含 tool_calls 回归）、`openai_request_retry_test.go`、
+>   `internal/agent/tool_recovery.go`（XML 泄漏恢复，见有意差异）
+> - **有意差异**：①不实现 gpt-5/o 系列 max_completion_tokens/temperature 参数
+>   重试（fastclaw doChatRequest 三次重试）——V2 目标供应商为 kimi-k2.5，不涉及；
+>   ②不实现 tool_recovery 的 DSML/XML 泄漏恢复——kimi-k2.5 使用标准 tool_calls
+>   通道，留待 M3 按需评估；③reasoning_content 聚合进 rawAssistantJson 回传但
+>   不单独暴露 Thinking 字段；④HttpClient 无 fastclaw ResponseHeaderTimeout
+>   等价物，以整体 REQUEST_TIMEOUT(10m)+CONNECT_TIMEOUT(20s) 兜底
+> - **测试**：`OpenAiCompatibleLLMServiceTest`（本地 HttpServer SSE 脚本回放，
+>   11 用例：arguments 跨 chunk 分片、多 tool calls 稳定顺序、坏 chunk 跳过、
+>   正文+tool calls 并存、tools 字段有无、tool_call_id 上 wire、rawAssistant
+>   原样重放、孤立剥离与完整配对不误伤、空响应抛 RemoteException、usage 解析）；
+>   `ToolCallAccumulatorTest`（4 用例：分片合并、乱序 index、late id 覆盖）；
+>   `KimiSmokeTest`（OPENAGENT_SMOKE_TEST=true 门控，真实 kimi-k2.5 普通聊天 +
+>   两轮 tool calling 闭环均通过，2026-07-17）；全量 mvnw verify 全绿
+>   （bootstrap 24 tests 含既有 ChatFlowTest 改用 Fake LLMService 后不回归）
 
 - 先阅读 FastClaw internal/provider/openai.go、provider 测试和 tool recovery 测试，并保存真实 Kimi 流式响应 fixture；
 
@@ -871,7 +910,7 @@ V2 完成后建议按以下顺序演进：
 | Phase 1 | framework 打底：Result / 错误码 / 三层异常 / GlobalExceptionHandler / SseStreamWriter | ✅ 已完成（commit c119a84） |
 | Phase 2 | 业务域分包 + Controller/Service 规范化 + SSE 对齐 fastclaw | ✅ 已完成（commit b528ad7） |
 | Phase 3 | **持久层拆分**：OpenAgentStore 按聚合拆 Repository、种子数据剥离 DataSeeder、修正 synchronized+@Transactional 的 seq 竞态 | ✅ 已完成（commit dbb97af），M1 已按新结构落地 |
-| Phase 4 | 网关落位 infra-ai + 事件模型强类型化 | ❌ 未做，**不再单独实施**：与 V2 M2（infra-ai Tool Calling 流式解析）高度重合，单独做会把网关重写两遍，并入 M1/M2 一起交付 |
+| Phase 4 | 网关落位 infra-ai + 事件模型强类型化 | ✅ 网关部分已随 M2 完成（OpenAiCompatibleLLMService 落位 infra-ai，旧 ChatModelGateway 删除）；Agent 事件强类型化随 M3 交付 |
 | Phase 5/6 | 前端统一请求层 / 契约对账 / chat-screen 拆分 / 测试补齐 | ❌ 未做，与 V2 无依赖关系，可并行或延后 |
 
 **结论：V2 的实施顺序为 Phase 3 → M1（吸收 Phase 4 的 Repository 部分）→ M2（吸收 Phase 4 的网关部分）→ M3 → M4 → M5。**

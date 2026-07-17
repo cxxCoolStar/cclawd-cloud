@@ -1,6 +1,6 @@
 package ai.openagent.bootstrap.persistence;
 
-import ai.openagent.bootstrap.agentrun.AgentRunStatus;
+import ai.openagent.agent.AgentRunStatus;
 
 /**
  * Agent 运行持久化记录（agent_runs 表）

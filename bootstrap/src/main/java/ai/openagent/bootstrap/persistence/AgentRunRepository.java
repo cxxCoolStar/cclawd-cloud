@@ -1,6 +1,6 @@
 package ai.openagent.bootstrap.persistence;
 
-import ai.openagent.bootstrap.agentrun.AgentRunStatus;
+import ai.openagent.agent.AgentRunStatus;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

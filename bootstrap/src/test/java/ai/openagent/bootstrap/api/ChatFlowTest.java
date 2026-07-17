@@ -11,10 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ai.openagent.bootstrap.OpenAgentApplication;
-import ai.openagent.bootstrap.chat.gateway.ChatModelGateway;
 import ai.openagent.bootstrap.chat.service.ChatTurnCoordinator;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
+import ai.openagent.infra.ai.LLMService;
+import ai.openagent.infra.ai.model.ModelEvent;
+import ai.openagent.infra.ai.model.ModelResponse;
+import ai.openagent.infra.ai.model.TokenUsage;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -120,11 +123,11 @@ class ChatFlowTest {
 
         @Bean
         @Primary
-        ChatModelGateway fakeChatModelGateway() {
-            return (provider, agent, messages, onDelta) -> {
-                onDelta.accept("Hello ");
-                onDelta.accept("from OpenAgent");
-                return "Hello from OpenAgent";
+        LLMService fakeLlmService() {
+            return (request, listener) -> {
+                listener.onEvent(new ModelEvent.TextDelta("Hello "));
+                listener.onEvent(new ModelEvent.TextDelta("from OpenAgent"));
+                return new ModelResponse.Text("Hello from OpenAgent", TokenUsage.ZERO, "");
             };
         }
     }

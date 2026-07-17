@@ -211,10 +211,16 @@ public final class ChatSseStream {
             subscription.close();
         }
         onClose.accept(this);
+        // 若 emitter 已因客户端断开进入错误态，complete() 会抛异常
+        // 用 try-catch 兜住所有情况（IllegalStateException / AsyncRequestNotUsableException 等）
         try {
             emitter.complete();
-        } catch (Exception ignored) {
-            // 连接已因写失败进入错误态，complete 抛 IllegalStateException 属预期
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // 连接已死，无需处理
+            log.debug("SSE emitter complete skipped: {}", e.getMessage());
+        } catch (Exception e) {
+            // 其他异常也忽略
+            log.debug("SSE emitter complete error: {}", e.getClass().getSimpleName());
         }
     }
 

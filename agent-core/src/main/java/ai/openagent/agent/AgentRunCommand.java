@@ -1,24 +1,29 @@
 package ai.openagent.agent;
 
-import ai.openagent.framework.identity.RequestIdentity;
-import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 一次 Agent 运行命令（V2 方案 7.1）
+ *
+ * <p>
+ * V2 本地单用户模式下 userId 固定为 local-user，但字段保留为
+ * 数据边界（V2 方案第 10 章：不能为了本地模式删除关联字段）
+ * </p>
+ */
 public record AgentRunCommand(
         String runId,
-        RequestIdentity identity,
+        String userId,
         String agentId,
-        String sessionKey,
-        String input,
-        Map<String, Object> effectiveConfig) {
+        String sessionId,
+        String userMessage,
+        AgentRuntimeConfig config) {
 
     public AgentRunCommand {
         runId = Objects.requireNonNull(runId, "runId");
-        identity = Objects.requireNonNull(identity, "identity");
+        userId = Objects.requireNonNull(userId, "userId");
         agentId = Objects.requireNonNull(agentId, "agentId");
-        sessionKey = Objects.requireNonNull(sessionKey, "sessionKey");
-        input = Objects.requireNonNull(input, "input");
-        effectiveConfig = effectiveConfig == null ? Map.of() : Map.copyOf(effectiveConfig);
+        sessionId = Objects.requireNonNull(sessionId, "sessionId");
+        userMessage = Objects.requireNonNull(userMessage, "userMessage");
+        config = Objects.requireNonNull(config, "config");
     }
 }
-

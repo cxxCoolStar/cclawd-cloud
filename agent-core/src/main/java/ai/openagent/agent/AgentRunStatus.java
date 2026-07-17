@@ -1,9 +1,11 @@
-package ai.openagent.bootstrap.agentrun;
+package ai.openagent.agent;
 
 /**
  * Agent 运行状态（V2 方案第 6 章状态机的持久化投影）
  *
  * <p>
+ * 领域枚举归属 agent-core：AgentKernel 的运行结果（{@link AgentRunResult}）
+ * 与 bootstrap 的 agent_runs 持久化共用同一份状态词汇，避免字符串手写漂移。
  * 只有 {@link #isTerminal() 终态} 可以结束会话的活跃运行标记；
  * 服务进程重启时遗留的 RUNNING 由启动恢复逻辑标记为 INTERRUPTED
  * </p>
