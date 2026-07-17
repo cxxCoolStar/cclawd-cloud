@@ -40,7 +40,7 @@ class ToolSeedTest {
 
         Set<String> enabled = toolRepository.listEnabledToolNames(DataSeeder.DEFAULT_AGENT_ID).stream()
                 .collect(Collectors.toSet());
-        assertEquals(Set.of("get_current_time", "calculator", "list_dir", "read_file"), enabled);
+        assertEquals(Set.of("list_dir", "read_file"), enabled);
 
         // 2. 用户显式启用高风险工具后再次种子（模拟应用重启）：不得被覆盖
         toolRepository.upsert(DataSeeder.DEFAULT_AGENT_ID, "write_file", true, "{}");
@@ -48,5 +48,12 @@ class ToolSeedTest {
         assertTrue(
                 toolRepository.find(DataSeeder.DEFAULT_AGENT_ID, "write_file").orElseThrow().enabled(),
                 "补种不得覆盖用户显式启停");
+
+        // 3. 目录已移除的工具（历史种子遗留）在补种时被清理
+        toolRepository.upsert(DataSeeder.DEFAULT_AGENT_ID, "calculator", true, "{}");
+        dataSeeder.seed();
+        assertTrue(
+                toolRepository.find(DataSeeder.DEFAULT_AGENT_ID, "calculator").isEmpty(),
+                "目录外工具的遗留配置应被清理");
     }
 }

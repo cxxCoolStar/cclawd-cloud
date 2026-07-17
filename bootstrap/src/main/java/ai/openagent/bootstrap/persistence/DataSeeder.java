@@ -116,13 +116,20 @@ public class DataSeeder implements ApplicationRunner {
     }
 
     /**
-     * 为默认 Agent 补种内置工具配置：只补缺失项，不覆盖用户显式启停
+     * 为默认 Agent 补种内置工具配置：只补缺失项，不覆盖用户显式启停；
+     * 目录已移除的工具（如 2026-07-17 砍掉的 get_current_time/calculator）
+     * 一并清理遗留行
      */
     private void seedDefaultAgentTools() {
         for (ToolCatalog tool : ToolCatalog.BUILTIN_TOOLS) {
             if (!agentToolRepository.exists(DEFAULT_AGENT_ID, tool.name())) {
                 agentToolRepository.upsert(DEFAULT_AGENT_ID, tool.name(), tool.enabledDefault(), "{}");
             }
+        }
+        int removed = agentToolRepository.deleteNotIn(
+                DEFAULT_AGENT_ID, ToolCatalog.BUILTIN_TOOLS.stream().map(ToolCatalog::name).toList());
+        if (removed > 0) {
+            log.info("[seed] 清理已从目录移除的工具配置 {} 条", removed);
         }
     }
 

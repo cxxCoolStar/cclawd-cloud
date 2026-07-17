@@ -88,4 +88,22 @@ public class AgentToolRepository {
                 toolName);
         return count != null && count > 0;
     }
+
+    /**
+     * 删除不在目录白名单内的工具配置（目录裁剪后清理遗留种子行）
+     */
+    public int deleteNotIn(String agentId, List<String> keepToolNames) {
+        if (keepToolNames.isEmpty()) {
+            return jdbc.update("DELETE FROM agent_tools WHERE agent_id = ?", agentId);
+        }
+        String placeholders = String.join(", ", keepToolNames.stream().map(name -> "?").toList());
+        Object[] params = new Object[keepToolNames.size() + 1];
+        params[0] = agentId;
+        for (int i = 0; i < keepToolNames.size(); i++) {
+            params[i + 1] = keepToolNames.get(i);
+        }
+        return jdbc.update(
+                "DELETE FROM agent_tools WHERE agent_id = ? AND tool_name NOT IN (" + placeholders + ")",
+                params);
+    }
 }

@@ -44,14 +44,15 @@ public record ToolCatalog(String name, String description, RiskLevel riskLevel, 
     }
 
     /**
-     * 首批内置工具清单（V2 方案 3.1 表格的代码化）
+     * 首批内置工具清单（V2 方案 3.1 表格的代码化，2026-07-17 修订：
+     * 对齐 fastclaw 核心文件工具族，砍掉自创的 get_current_time/calculator，
+     * 补入 edit_file）
      */
     public static final List<ToolCatalog> BUILTIN_TOOLS = List.of(
-            new ToolCatalog("get_current_time", "按指定时区返回当前时间", RiskLevel.LOW, true),
-            new ToolCatalog("calculator", "执行受限数学表达式计算", RiskLevel.LOW, true),
             new ToolCatalog("list_dir", "列出 Agent workspace 内的文件和目录", RiskLevel.MEDIUM, true),
             new ToolCatalog("read_file", "读取 workspace 内 UTF-8 文本文件", RiskLevel.MEDIUM, true),
             new ToolCatalog("write_file", "在 workspace 内创建或覆盖文本文件", RiskLevel.HIGH, false),
+            new ToolCatalog("edit_file", "按精确子串替换编辑 workspace 内文本文件", RiskLevel.HIGH, false),
             new ToolCatalog("apply_patch", "对 workspace 内文本文件应用受限补丁", RiskLevel.HIGH, false),
             new ToolCatalog("web_fetch", "获取经过安全校验的 HTTP/HTTPS 文本资源", RiskLevel.HIGH, false));
 
