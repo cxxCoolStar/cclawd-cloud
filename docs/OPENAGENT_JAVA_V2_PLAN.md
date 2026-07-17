@@ -759,7 +759,48 @@ V2 的恢复目标是“断开页面可继续”，不承诺“Java 进程重启
 
 退出条件：给定固定模型流，能够稳定还原完整 ToolCall 列表；普通文本聊天不回归。
 
-### M3：Agent Kernel 与工具框架（2-3 天）
+### M3：Agent Kernel 与工具框架（2-3 天）✅ 已完成（2026-07-17）
+
+> **M3 完成记录**：
+> - **交付物**：
+>   agent-core——`ReActAgentKernel`（多轮 model→tool→model 循环：循环保护
+>   连续 3 次相同工具+arguments、连续 3 轮全失败禁用 tools+system 提示、
+>   迭代上限/循环保护后无 tools 最终总结（capReachedNudge 语义）+
+>   iterationCapReached metadata + 兜底文本、Invoker 异常/null 合成失败结果
+>   保证配对闭合、run 总超时、error/done 必达）；工具端口定型：`AgentTool`/
+>   `ToolRegistry`/`ToolInvoker`/`ToolArguments`/`ToolResult`（7.4 章形状：
+>   errorCode/truncated/durationMs + observation()）/`ToolErrorCode`/
+>   `ToolExecutionContext`（workspace+deadline）/`ToolUnavailableException`；
+>   `AgentConversation(Factory)` 会话上下文端口；`AgentEvent`（sealed 领域事件）。
+>   bootstrap——`CatalogToolRegistry`（目录白名单 ∩ 已装配实现 ∩ agent_tools
+>   启用三重交集）；`PersistingToolInvoker`（JSON 校验→独立线程池+deadline
+>   超时（AbortPolicy 显式拒绝）→截断→tool_executions 全程持久化）；
+>   `PersistedConversationFactory`（历史装载、assistant tool_calls/rawAssistant
+>   存 metadata_json、tool 消息 tool_call_id 配对）；`AgentRunCoordinator`
+>   （同会话单活跃 409、agent_runs RUNNING→终态持久化、独立线程池、断连不取消）；
+>   `WireAgentEventSink` + `ChatEventPublisher`（领域事件→fastclaw wire 协议，
+>   先持久化后广播）；`ChatController` 改接 AgentRunCoordinator，删除
+>   ChatTurnCoordinator，ChatService 收敛为查询服务；`ChatMessageVO` 按前端
+>   ChatHistoryMessage 形状增加 toolCalls/toolCallId/name/metadata；
+>   session_messages 读写增加 tool_call_id/tool_name/metadata_json 列
+> - **参考文件**：FastClaw `internal/agent/loop.go`（ReAct 主循环 2050-2430、
+>   consecutiveCount≥3 循环保护、failedRoundsLimit=3、capReachedNudge、
+>   iterationCapMetadata、defensive backstop 配对合成）、
+>   `internal/agent/tools/registry.go`（注册与启停语义）；ragent 分层与线程池规范
+> - **有意差异**：①同响应多 tool calls 串行执行（正文 6.2 已声明，防写工具
+>   竞争 workspace，无 fastclaw maxParallelToolCalls/deferred 机制）；
+>   ②无 steer/hooks/PII scrub/媒体提取/FTS（不在 V2 范围）；③循环保护触发后
+>   直接进入最终交付且该轮工具不执行（fastclaw 在 append 后 break，行为一致）；
+>   ④无 llmRetry 重试包装，模型调用失败即 FAILED（重试策略留待真实场景需要时加）
+> - **测试**：`ReActAgentKernelTest`（13 用例：完整闭环含事件顺序与消息配对、
+>   纯文本、正文+tool calls 顺序、循环保护触发/不触发、3 轮全失败禁用工具、
+>   迭代上限 metadata、总结失败兜底、Invoker 异常/null 合成、多工具稳定顺序、
+>   模型失败 error+done、done 必达）；`ToolLoopFlowTest`（真实装配集成：
+>   全链路持久化断言 messages/events/agent_runs/tool_executions、同会话并发
+>   409 与释放后可复用）；ChatFlowTest 改走 AgentRunCoordinator 不回归；
+>   全量 mvnw verify 全绿（agent-core 13 + bootstrap 26 + infra-ai 18）；
+>   真实 kimi-k2.5 无工具聊天 smoke 通过（工具实现是 M4 交付物，
+>   当前 availableTools 为空列表时行为退化为普通聊天）
 
 - 先逐段对照 FastClaw internal/agent/loop.go 和 tools/registry.go，列出循环、失败轮次、消息配对和最终交付行为；
 

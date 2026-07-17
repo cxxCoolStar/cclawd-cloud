@@ -86,11 +86,30 @@ public class ChatSessionRepository {
             String content,
             String provider,
             String model) {
+        return appendMessage(userId, agentId, sessionId, role, content, provider, model, "", "", "");
+    }
+
+    /**
+     * 追加带工具字段的会话消息（tool 消息以 toolCallId 配对；
+     * assistant 消息的 metadataJson 携带 tool_calls 与 UI metadata）
+     */
+    @Transactional
+    public ChatMessageRecord appendMessage(
+            String userId,
+            String agentId,
+            String sessionId,
+            String role,
+            String content,
+            String provider,
+            String model,
+            String toolCallId,
+            String toolName,
+            String metadataJson) {
         long now = System.currentTimeMillis();
         Long seq = jdbc.queryForObject(
                 """
-                INSERT INTO session_messages (id, user_id, agent_id, session_id, seq, role, content, provider, model, created_at)
-                SELECT ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, ?, ?, ?, ?, ?
+                INSERT INTO session_messages (id, user_id, agent_id, session_id, seq, role, content, provider, model, tool_call_id, tool_name, metadata_json, created_at)
+                SELECT ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, ?, ?, ?, ?, ?, ?, ?, ?
                   FROM session_messages
                  WHERE user_id = ? AND agent_id = ? AND session_id = ?
                 RETURNING seq
@@ -104,6 +123,9 @@ public class ChatSessionRepository {
                 content,
                 value(provider),
                 value(model),
+                value(toolCallId),
+                value(toolName),
+                value(metadataJson),
                 now,
                 userId,
                 agentId,
@@ -115,7 +137,9 @@ public class ChatSessionRepository {
                 userId,
                 agentId,
                 sessionId);
-        return new ChatMessageRecord(seq == null ? 1 : seq, role, content, value(provider), value(model), now);
+        return new ChatMessageRecord(
+                seq == null ? 1 : seq, role, content, value(provider), value(model),
+                value(toolCallId), value(toolName), value(metadataJson), now);
     }
 
     /**
@@ -123,13 +147,16 @@ public class ChatSessionRepository {
      */
     public List<ChatMessageRecord> listMessages(String userId, String agentId, String sessionId) {
         return jdbc.query(
-                "SELECT seq, role, content, provider, model, created_at FROM session_messages WHERE user_id = ? AND agent_id = ? AND session_id = ? ORDER BY seq",
+                "SELECT seq, role, content, provider, model, tool_call_id, tool_name, metadata_json, created_at FROM session_messages WHERE user_id = ? AND agent_id = ? AND session_id = ? ORDER BY seq",
                 (rs, row) -> new ChatMessageRecord(
                         rs.getLong("seq"),
                         rs.getString("role"),
                         rs.getString("content"),
                         rs.getString("provider"),
                         rs.getString("model"),
+                        rs.getString("tool_call_id"),
+                        rs.getString("tool_name"),
+                        rs.getString("metadata_json"),
                         rs.getLong("created_at")),
                 userId,
                 agentId,

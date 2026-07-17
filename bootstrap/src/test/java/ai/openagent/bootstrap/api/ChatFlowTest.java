@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ai.openagent.bootstrap.OpenAgentApplication;
-import ai.openagent.bootstrap.chat.service.ChatTurnCoordinator;
+import ai.openagent.bootstrap.agentrun.AgentRunCoordinator;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.infra.ai.LLMService;
@@ -47,7 +47,7 @@ class ChatFlowTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ChatTurnCoordinator turnCoordinator;
+    private AgentRunCoordinator runCoordinator;
 
     @Autowired
     private ChatSessionRepository sessionRepository;
@@ -105,7 +105,7 @@ class ChatFlowTest {
 
         // 不建立任何 SSE 订阅直接开启回合，等价于客户端在回合开始后立刻
         // 断开——回合必须照常完成并落库（fastclaw detached-context 语义）
-        turnCoordinator.start("default", sessionId, "Stay running").get(5, TimeUnit.SECONDS);
+        turnCoordinatorStart(sessionId, "Stay running");
 
         var messages = sessionRepository.listMessages(IdentityConstant.LOCAL_USER_ID, "default", sessionId);
         assertEquals(2, messages.size());
@@ -118,6 +118,10 @@ class ChatFlowTest {
         assertEquals("content", events.get(0).eventType());
         assertEquals("done", events.get(1).eventType());
     }
+    private void turnCoordinatorStart(String sessionId, String message) throws Exception {
+        runCoordinator.start("default", sessionId, message).get(5, TimeUnit.SECONDS);
+    }
+
     @TestConfiguration
     static class FakeModelConfiguration {
 

@@ -65,12 +65,15 @@ class CodeStyleArchitectureTest {
             .haveSimpleNameEndingWith("Request");
 
     /**
-     * controller/vo 包下的类命名必须以 VO 结尾
+     * controller/vo 包下的顶层类命名必须以 VO 结尾（匿名/内部类除外，
+     * 如 Jackson TypeReference 匿名子类）
      */
     @ArchTest
     static final ArchRule vo_classes_are_named_vo = classes()
             .that()
             .resideInAPackage("..controller.vo..")
+            .and()
+            .areTopLevelClasses()
             .should()
             .haveSimpleNameEndingWith("VO");
 

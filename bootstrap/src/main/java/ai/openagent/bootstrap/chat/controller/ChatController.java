@@ -1,11 +1,11 @@
 package ai.openagent.bootstrap.chat.controller;
 
+import ai.openagent.bootstrap.agentrun.AgentRunCoordinator;
 import ai.openagent.bootstrap.chat.controller.request.ChatStreamRequest;
 import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatTodoVO;
 import ai.openagent.bootstrap.chat.service.ChatService;
-import ai.openagent.bootstrap.chat.service.ChatTurnCoordinator;
 import ai.openagent.bootstrap.chat.sse.ChatSseStream;
 import ai.openagent.bootstrap.chat.sse.ChatSseStreamFactory;
 import jakarta.validation.Valid;
@@ -43,7 +43,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 public class ChatController {
 
     private final ChatService chatService;
-    private final ChatTurnCoordinator turnCoordinator;
+    private final AgentRunCoordinator runCoordinator;
     private final ChatSseStreamFactory sseStreamFactory;
 
     /**
@@ -109,9 +109,11 @@ public class ChatController {
      * 发起聊天回合并以 SSE 返回本回合事件流
      *
      * <p>
-     * 回合由协调器在独立线程池执行——客户端断开后模型调用照常完成并落库，
-     * 页面刷新可经 /api/chat/subscribe?since=N 补收剩余事件。连接在订阅
-     * 建立后才开启回合，保证首个事件不丢；收到 done 事件自动结束
+     * 回合作为一次 Agent 运行由协调器在独立线程池执行（V2 起统一走
+     * AgentKernel，无工具聊天是工具列表为空的退化情形）——客户端断开后
+     * 运行照常完成并落库，页面刷新可经 /api/chat/subscribe?since=N 补收
+     * 剩余事件。连接在订阅建立后才开启运行，保证首个事件不丢；收到
+     * done 事件自动结束
      * </p>
      */
     @PostMapping(path = "/api/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -119,7 +121,7 @@ public class ChatController {
         ChatSseStream stream = sseStreamFactory.openTurnStream();
         try {
             sseStreamFactory.connect(stream, requestParam.agentId(), requestParam.sessionId());
-            turnCoordinator.start(requestParam.agentId(), requestParam.sessionId(), requestParam.message());
+            runCoordinator.start(requestParam.agentId(), requestParam.sessionId(), requestParam.message());
         } catch (RuntimeException error) {
             // 回合未能开启（409 并发冲突 / 校验失败等）——释放连接，交给
             // 全局异常处理器输出 JSON 错误响应
