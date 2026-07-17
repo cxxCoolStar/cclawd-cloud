@@ -98,8 +98,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = Throwable.class)
     public ResponseEntity<Map<String, Object>> defaultErrorHandler(
             HttpServletRequest request, Throwable throwable) {
+        // SSE/异步请求在响应开始后出错，不宜再返回 JSON，直接记录后忽略
+        if (isAsyncRequest(request)) {
+            log.debug("[{}] {} async request error suppressed: {}", 
+                    request.getMethod(), getUrl(request), throwable.getClass().getSimpleName());
+            return null;
+        }
         log.error("[{}] {} ", request.getMethod(), getUrl(request), throwable);
         return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, BaseErrorCode.SERVICE_ERROR.message());
+    }
+
+    /**
+     * 判断是否为 SSE 或异步流式请求
+     */
+    private boolean isAsyncRequest(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains("text/event-stream")) {
+            return true;
+        }
+        // 检查是否已由异步上下文处理（比如 ChatSseStream 响应已开始）
+        return request.getAsyncContext() != null;
     }
 
     /**
