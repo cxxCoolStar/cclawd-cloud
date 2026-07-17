@@ -25,9 +25,18 @@ import org.springframework.validation.annotation.Validated;
  *                          本地单机 + 首批只读工具，8 轮足够且减少失控消耗；
  *                          上限 20 与 FastClaw 对齐
  * @param runTimeout        单次 Agent 运行总超时
+ * @param contextTokenThreshold 上下文压缩触发阈值（token 估算值），默认
+ *                          80000 对齐 fastclaw DefaultTokenThreshold
+ * @param contextPruneTurnAge   近期保留完整的消息条数，默认 20 对齐
+ *                          fastclaw PruneTurnAge
+ * @param contextSummaryMaxTokens 压缩总结调用的 maxTokens，默认 2048
+ *                          对齐 fastclaw compressOlderMessages
  */
 @Validated
 @ConfigurationProperties(prefix = "openagent.agent")
 public record AgentProperties(
         @DefaultValue("8") @Min(1) @Max(20) int maxToolIterations,
-        @DefaultValue("10m") Duration runTimeout) {}
+        @DefaultValue("10m") Duration runTimeout,
+        @DefaultValue("80000") @Min(50) int contextTokenThreshold,
+        @DefaultValue("20") @Min(1) int contextPruneTurnAge,
+        @DefaultValue("2048") @Min(256) int contextSummaryMaxTokens) {}

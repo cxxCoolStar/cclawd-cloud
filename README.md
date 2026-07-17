@@ -1,6 +1,15 @@
 # OpenAgent
 
-OpenAgent is an open-source, self-hosted AI Agent platform. The current V2 milestone upgrades the Java chat MVP into a tool-calling agent: the model can autonomously pick tools, act on real results, and keep reasoning across multiple rounds — while reusing the existing Next.js frontend.
+OpenAgent is an open-source, self-hosted AI Agent platform. The current **V0.3** milestone adds memory and context compaction on top of the V0.2 tool-calling agent — while reusing the existing Next.js frontend.
+
+## V0.3 Features
+
+- **Context compaction**: two-stage prune/summarize with tool-call pairing protection, history logging to `memory/logs/`, and safe cutoff so the model request never starts with a dangling `role=tool` message
+- **Memory files**: `MEMORY.md` / `USER.md` / `HISTORY.md` at the agent level, injected into the system prompt every turn
+- **`memory_search` tool**: search the agent's long-term memory files for facts and preferences (enabled by default)
+- **Auto-persist memory**: every N user turns the model extracts facts/preferences from recent conversation and appends them to the memory files
+- **Write-time threat scanning**: prompt-injection, credential-leak, and SSH-backdoor patterns are logged and still written (fastclaw-compatible fail-open behavior)
+- **Memory API**: `GET /api/agents/{agentId}/memory` and `PUT /api/agents/{agentId}/memory`
 
 ## V2 Features
 
@@ -83,6 +92,13 @@ Agent loop and tool settings:
 | `OPENAGENT_READ_FILE_MAX_BYTES` | `1048576` | `read_file` single-file limit |
 | `OPENAGENT_WEB_FETCH_ENABLED` | `false` | Global gate on top of the per-agent toggle |
 | `OPENAGENT_WEB_FETCH_MAX_BYTES` | `1048576` | Response size cap |
+| `OPENAGENT_CONTEXT_TOKEN_THRESHOLD` | `80000` | Trigger context compaction when estimated tokens exceed this |
+| `OPENAGENT_CONTEXT_PRUNE_TURN_AGE` | `20` | Number of recent turns kept verbatim during compaction |
+| `OPENAGENT_CONTEXT_SUMMARY_MAX_TOKENS` | `2048` | Max tokens for compaction summarization call |
+| `OPENAGENT_MEMORY_ENABLED` | `true` | Inject memory files into the system prompt |
+| `OPENAGENT_MEMORY_AUTO_PERSIST_ENABLED` | `true` | Enable automatic memory extraction |
+| `OPENAGENT_MEMORY_AUTO_PERSIST_INTERVAL` | `5` | User-message count modulo that triggers auto-persist |
+| `OPENAGENT_MEMORY_MAX_FILE_CHARS` | `32768` | Max chars for MEMORY.md / USER.md |
 
 Without an API key, the UI and database still start normally; sending a message returns a clear streaming configuration error.
 
@@ -96,8 +112,9 @@ Without an API key, the UI and database still start normally; sending a message 
 | `edit_file` | disabled | exact-substring replacement with uniqueness check |
 | `apply_patch` | disabled | multi-file Codex-DSL patch, atomic (no partial writes) |
 | `web_fetch` | disabled | http/https only, SSRF-guarded, double-gated by `OPENAGENT_WEB_FETCH_ENABLED` |
+| `memory_search` | enabled | text search over `MEMORY.md` / `USER.md` / `HISTORY.md` |
 
-Per-agent enablement lives in the `agent_tools` table (seeded on startup, user overrides preserved across restarts). All file tools are confined to the per-session workspace directory — absolute paths, `..` traversal, and symlink escapes are rejected.
+Per-agent enablement lives in the `agent_tools` table (seeded on startup, user overrides preserved across restarts). All file tools are confined to the per-session workspace directory — absolute paths, `..` traversal, and symlink escapes are rejected. `memory_search` reads agent-level memory files, not the session workspace.
 
 ## Build And Run
 
@@ -138,4 +155,4 @@ Useful API checks:
 5. Ask it to read a path outside the workspace (e.g. `../../../openagent.db`) to see the security boundary respond with `WORKSPACE_PATH_FORBIDDEN`.
 6. Inspect the run trail in the database: `agent_runs` (one row per turn, terminal status + iteration count) and `tool_executions` (one row per tool call with timing and result).
 
-Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md).
+Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md), [OPENAGENT_JAVA_V3_PLAN.md](docs/OPENAGENT_JAVA_V3_PLAN.md).

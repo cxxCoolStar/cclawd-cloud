@@ -28,6 +28,11 @@ class AgentPropertiesTest {
             AgentProperties properties = context.getBean(AgentProperties.class);
             assertEquals(8, properties.maxToolIterations());
             assertEquals(Duration.ofMinutes(10), properties.runTimeout());
+            // V3 M1 上下文压缩默认值（对齐 fastclaw DefaultTokenThreshold /
+            // PruneTurnAge / compressOlderMessages 的 2048）
+            assertEquals(80000, properties.contextTokenThreshold());
+            assertEquals(20, properties.contextPruneTurnAge());
+            assertEquals(2048, properties.contextSummaryMaxTokens());
         });
     }
 

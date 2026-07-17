@@ -218,6 +218,19 @@ public class ChatSessionRepository {
         return value == null ? -1 : value;
     }
 
+    /**
+     * 统计用户在指定 agent 下的用户消息总数（V3 M2 auto-persist 触发门槛：
+     * fastclaw CountChatterUserMessages 语义，按 (agent, user) 维度计数）
+     */
+    public long countUserMessages(String userId, String agentId) {
+        Long value = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM session_messages WHERE user_id = ? AND agent_id = ? AND role = 'user'",
+                Long.class,
+                userId,
+                agentId);
+        return value == null ? 0 : value;
+    }
+
     private static String preview(String text, int maxLength) {
         String normalized = value(text).replaceAll("\\s+", " ").trim();
         return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);

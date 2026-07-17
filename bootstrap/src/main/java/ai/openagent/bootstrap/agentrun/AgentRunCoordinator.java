@@ -9,6 +9,7 @@ import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.chat.event.ChatEventPublisher;
 import ai.openagent.bootstrap.chat.event.ChatSessionKey;
 import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.memory.AutoPersistMemoryService;
 import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
@@ -51,6 +52,8 @@ public class AgentRunCoordinator {
     private final Executor executor;
     private final Set<String> activeRuns = ConcurrentHashMap.newKeySet();
 
+    private final AutoPersistMemoryService autoPersistMemoryService;
+
     public AgentRunCoordinator(
             AgentKernel agentKernel,
             AgentRunRepository runRepository,
@@ -58,6 +61,7 @@ public class AgentRunCoordinator {
             ChatEventPublisher eventPublisher,
             AgentProperties agentProperties,
             ToolProperties toolProperties,
+            AutoPersistMemoryService autoPersistMemoryService,
             @Qualifier("chatTurnExecutor") Executor executor) {
         this.agentKernel = agentKernel;
         this.runRepository = runRepository;
@@ -65,6 +69,7 @@ public class AgentRunCoordinator {
         this.eventPublisher = eventPublisher;
         this.agentProperties = agentProperties;
         this.toolProperties = toolProperties;
+        this.autoPersistMemoryService = autoPersistMemoryService;
         this.executor = executor;
     }
 
@@ -119,6 +124,15 @@ public class AgentRunCoordinator {
                             eventPublisher.publishTransient(agentId, sessionId, "error",
                                     Map.of("message", "agent run failed unexpectedly"));
                             eventPublisher.publishTransient(agentId, sessionId, "done", Map.of());
+                        } else {
+                            // V3 M2：自动记忆提取以 fire-and-forget 方式触发，
+                            // 避免 session 锁被占用；失败不影响运行终态
+                            try {
+                                executor.execute(() -> autoPersistMemoryService.maybePersist(
+                                        IdentityConstant.LOCAL_USER_ID, agentId, sessionId));
+                            } catch (RuntimeException fireError) {
+                                log.warn("[agentrun] 自动记忆提取任务入队失败", fireError);
+                            }
                         }
                     });
         } catch (RejectedExecutionException error) {

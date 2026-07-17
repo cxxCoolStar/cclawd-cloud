@@ -37,6 +37,14 @@ openagent:
   agent:
     max-tool-iterations: ${OPENAGENT_AGENT_MAX_TOOL_ITERATIONS:8}
     run-timeout: ${OPENAGENT_AGENT_RUN_TIMEOUT:10m}
+    context-token-threshold: ${OPENAGENT_CONTEXT_TOKEN_THRESHOLD:80000}
+    context-prune-turn-age: ${OPENAGENT_CONTEXT_PRUNE_TURN_AGE:20}
+    context-summary-max-tokens: ${OPENAGENT_CONTEXT_SUMMARY_MAX_TOKENS:2048}
+  memory:
+    enabled: ${OPENAGENT_MEMORY_ENABLED:true}
+    auto-persist-enabled: ${OPENAGENT_MEMORY_AUTO_PERSIST_ENABLED:true}
+    auto-persist-interval: ${OPENAGENT_MEMORY_AUTO_PERSIST_INTERVAL:5}
+    max-file-chars: ${OPENAGENT_MEMORY_MAX_FILE_CHARS:32768}
   tools:
     execution-timeout: ${OPENAGENT_TOOL_TIMEOUT:30s}
     max-result-chars: ${OPENAGENT_TOOL_MAX_RESULT_CHARS:65536}

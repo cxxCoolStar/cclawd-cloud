@@ -40,7 +40,7 @@ class ToolSeedTest {
 
         Set<String> enabled = toolRepository.listEnabledToolNames(DataSeeder.DEFAULT_AGENT_ID).stream()
                 .collect(Collectors.toSet());
-        assertEquals(Set.of("list_dir", "read_file"), enabled);
+        assertEquals(Set.of("list_dir", "read_file", "memory_search"), enabled);
 
         // 2. 用户显式启用高风险工具后再次种子（模拟应用重启）：不得被覆盖
         toolRepository.upsert(DataSeeder.DEFAULT_AGENT_ID, "write_file", true, "{}");
