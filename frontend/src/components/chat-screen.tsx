@@ -603,9 +603,26 @@ export function ChatScreen() {
   // Keep that fetch from clearing optimistic bubbles or advancing the
   // seq cursor past events the POST handler is about to render.
   const inFlightSendSessionRef = useRef<string | null>(null);
+  // Once navigation leaves the session owned by the foreground POST,
+  // that stream must stop mutating this component's shared UI state.
+  // History plus /api/chat/subscribe take ownership if the user returns.
+  const detachedInFlightSessionRef = useRef<string | null>(null);
   // AbortController for the in-flight chat stream so the Stop button can
   // cancel both the upload and the SSE connection. Reset on every new turn.
   const abortRef = useRef<AbortController | null>(null);
+
+  // Hand the visible conversation back to history + /api/chat/subscribe
+  // when navigation leaves the session owned by the foreground POST. The
+  // stream keeps running server-side; sending flips off so the composer
+  // doesn't show a Stop button for a stream the user can no longer see.
+  const detachInFlightPost = useCallback((nextSessionId: string) => {
+    const activePostSession = inFlightSendSessionRef.current;
+    if (activePostSession && activePostSession !== nextSessionId) {
+      detachedInFlightSessionRef.current = activePostSession;
+      streamingMsgIdRef.current = null;
+      setSending(false);
+    }
+  }, []);
 
   // Gates the EventSource effect: holds the sessionId whose history has
   // been fetched and whose `subscribeSinceRef` is now accurate. Without
@@ -837,7 +854,10 @@ export function ChatScreen() {
         // transient slash bubble, then reload history on `done`; slash
         // replies are event-only, so that reload clears the visible
         // answer and makes the send look like it did nothing.
-        if (inFlightSendSessionRef.current === sessionId) return;
+        const attachedPostOwnsSession =
+          inFlightSendSessionRef.current === sessionId &&
+          detachedInFlightSessionRef.current !== sessionId;
+        if (attachedPostOwnsSession) return;
         // CAREFUL: do NOT bump maxSeqRef before the switch. This handler
         // intentionally drops tool_call / tool_result during catch-up
         // (the post-`done` history reload renders them properly) — but
@@ -1016,6 +1036,7 @@ export function ChatScreen() {
     if (urlSessionId) {
       prevHadSessionRef.current = true;
       if (urlSessionId !== sessionId) {
+        detachInFlightPost(urlSessionId);
         setSessionId(urlSessionId);
         setMessages([]);
       }
@@ -1023,10 +1044,12 @@ export function ChatScreen() {
     }
     if (prevHadSessionRef.current) {
       prevHadSessionRef.current = false;
-      setSessionId(generateSessionId());
+      const nextSessionId = generateSessionId();
+      detachInFlightPost(nextSessionId);
+      setSessionId(nextSessionId);
       setMessages([]);
     }
-  }, [urlSessionId, sessionId]);
+  }, [urlSessionId, sessionId, detachInFlightPost]);
 
   // Switching conversations (sidebar chat click, New chat, opening a project)
   // changes the URL ids — close the workspace panel so the previous chat's
@@ -1130,7 +1153,9 @@ export function ChatScreen() {
   // hanging it off the last agent message.
   useEffect(() => {
     if (!selectedAgent || !sessionId) return;
-    const sessionHasActivePost = inFlightSendSessionRef.current === sessionId;
+    const sessionHasActivePost =
+      inFlightSendSessionRef.current === sessionId &&
+      detachedInFlightSessionRef.current !== sessionId;
     // Reset dedup state when session changes — events from a previous
     // session must not bias the new session's seq filter, and any
     // transient placeholder is no longer relevant.
@@ -1296,6 +1321,13 @@ export function ChatScreen() {
     // useSearchParams (and the sidebar's navigateOnce dedupe that
     // derives from them) still see the new URL.
     const target = `/agents/${selectedAgent}/chat/${sessionId}/`;
+    // Only re-attach when the detached POST belongs to THIS session (the
+    // user came back to it). Clearing unconditionally would re-attach a
+    // different session's still-streaming detached POST, letting its
+    // events mutate this conversation's UI state.
+    if (detachedInFlightSessionRef.current === sessionId) {
+      detachedInFlightSessionRef.current = null;
+    }
     inFlightSendSessionRef.current = sessionId;
     if (pathname !== target) {
       window.history.replaceState(null, "", target);
@@ -1420,6 +1452,9 @@ export function ChatScreen() {
 
     try {
       await sendChatStream(selectedAgent, sessionId, fullText, (evt: ChatStreamEvent) => {
+        // Navigation detached this POST from the visible conversation.
+        // The server keeps generating; history/subscription render it.
+        if (detachedInFlightSessionRef.current === sessionId) return;
         // Dedup against /api/chat/subscribe SSE, which subscribes to
         // the same chat-events hub server-side. Whichever path arrives
         // first renders; the other skips. seq < 0 means persistence
@@ -1658,6 +1693,7 @@ export function ChatScreen() {
           }
         }
       }, abortRef.current.signal, imageDataUrls, projectIdHint);
+      if (detachedInFlightSessionRef.current === sessionId) return;
       // Diff the workspace against the pre-turn snapshot so files
       // produced by *exec* (e.g. a Python script that saves PDFs) get
       // surfaced too — `turnFiles` only catches write_file tool calls
@@ -1717,16 +1753,20 @@ export function ChatScreen() {
         );
       }
     } catch (err) {
+      // Surface the underlying error in DevTools so future "Failed to
+      // get a response" reports come with a concrete cause (network,
+      // parse, post-turn fetch, …) rather than the generic message —
+      // including detached streams, whose errors are otherwise invisible.
+      if (typeof console !== "undefined") {
+        console.error("[chat] handleSend error", { sessionId, detached: detachedInFlightSessionRef.current === sessionId }, err);
+      }
+      // Errors from a detached stream belong to its original session,
+      // never to whichever conversation is currently visible.
+      if (detachedInFlightSessionRef.current === sessionId) return;
       // AbortError from the user clicking Stop is expected — surface a
       // brief "Stopped" line so they see the cancellation took effect,
       // not a generic failure message.
       const isAbort = err instanceof DOMException && err.name === "AbortError";
-      // Surface the underlying error in DevTools so future "Failed to
-      // get a response" reports come with a concrete cause (network,
-      // parse, post-turn fetch, …) rather than the generic message.
-      if (typeof console !== "undefined") {
-        console.error("[chat] handleSend error", err);
-      }
       // Keyboard-stack abort + post-stream tear-down can both throw an
       // AbortError after a successful turn (the SSE reader is
       // released on `done`, then a stray reader.cancel() races with a
@@ -1780,16 +1820,28 @@ export function ChatScreen() {
         });
       }
     } finally {
-      if (inFlightSendSessionRef.current === sessionId) {
+      // A detached stream may finish AFTER a newer send took over the
+      // foreground (detachInFlightPost frees `sending`, so sends can
+      // overlap). Only the call that still owns the foreground POST may
+      // reset the shared composer state — otherwise a late-finishing
+      // detached stream would null the new turn's AbortController and
+      // flip its Stop button off mid-stream.
+      const ownsForeground = inFlightSendSessionRef.current === sessionId;
+      if (ownsForeground) {
         inFlightSendSessionRef.current = null;
       }
-      abortRef.current = null;
-      setSending(false);
-      // Belt-and-suspenders: the subagent's done event clears this on
-      // the happy path, but if a network blip drops that event we don't
-      // want a stale "iteration 5/20" sitting under a finished turn.
-      setSubagentProgress(null);
-      textareaRef.current?.focus();
+      if (detachedInFlightSessionRef.current === sessionId) {
+        detachedInFlightSessionRef.current = null;
+      }
+      if (ownsForeground) {
+        abortRef.current = null;
+        setSending(false);
+        // Belt-and-suspenders: the subagent's done event clears this on
+        // the happy path, but if a network blip drops that event we don't
+        // want a stale "iteration 5/20" sitting under a finished turn.
+        setSubagentProgress(null);
+        textareaRef.current?.focus();
+      }
     }
   }, [input, attachments, selectedAgent, sessionId, sending, isReadOnlyView, isReadOnlySafeSlashCommand, loadSessions, pathname, router, urlProjectId]);
 
@@ -1931,12 +1983,14 @@ export function ChatScreen() {
 
   const handleNewChat = () => {
     const newId = generateSessionId();
+    detachInFlightPost(newId);
     setSessionId(newId);
     setMessages([]);
     router.replace(`/agents/${selectedAgent}/chat/`);
   };
 
   const handleSelectSession = (sid: string) => {
+    detachInFlightPost(sid);
     setSessionId(sid);
     // history.replaceState (not router.replace) for the same reason as
     // handleSend: /chat/[session] is only pre-rendered for the `_`
