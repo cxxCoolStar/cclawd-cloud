@@ -8,6 +8,10 @@ spring:
     name: openagent
   config:
     import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: ${OPENAGENT_UPLOAD_MAX_FILE_SIZE:64MB}
+      max-request-size: ${OPENAGENT_UPLOAD_MAX_REQUEST_SIZE:64MB}
   datasource:
     url: ${OPENAGENT_DATABASE_URL:jdbc:sqlite:openagent.db}
     username: ${OPENAGENT_DATABASE_USERNAME:}

@@ -78,6 +78,57 @@ public class AgentFileService {
         return resolved;
     }
 
+    /**
+     * 上传文件条目（前端 UploadedFile 形状：path 为 agent 相对路径）
+     */
+    public record UploadedFileEntry(String path, long size) {}
+
+    /**
+     * 保存上传文件到 workspace：sessionId 非空时落到该会话目录
+     * （fastclaw handleAgentFileUpload 的作用域语义），文件名只取
+     * 最后一段（剥离任何目录成分），同名覆盖
+     */
+    public List<UploadedFileEntry> saveUploads(String agentId, String sessionId, List<UploadFile> files) {
+        Path dir = sessionId == null || sessionId.isBlank()
+                ? agentHome(agentId)
+                : agentHome(agentId).resolve("sessions").resolve(sessionId);
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException error) {
+            throw new UncheckedIOException(error);
+        }
+        Path root = agentHome(agentId).toAbsolutePath().normalize();
+        List<UploadedFileEntry> saved = new java.util.ArrayList<>();
+        for (UploadFile file : files) {
+            String name = file.filename();
+            int separator = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+            if (separator >= 0) {
+                name = name.substring(separator + 1);
+            }
+            if (name.isBlank() || ".".equals(name) || "..".equals(name)) {
+                throw new ClientException("invalid filename", BaseErrorCode.PARAM_VERIFY_ERROR);
+            }
+            Path target = dir.resolve(name).normalize().toAbsolutePath();
+            if (!target.startsWith(root)) {
+                throw new ClientException("path escape", BaseErrorCode.PARAM_VERIFY_ERROR);
+            }
+            try {
+                Files.write(target, file.content());
+            } catch (IOException error) {
+                throw new UncheckedIOException(error);
+            }
+            saved.add(new UploadedFileEntry(
+                    root.relativize(target).toString().replace('\\', '/'),
+                    file.content().length));
+        }
+        return saved;
+    }
+
+    /**
+     * 一个待保存的上传文件（Controller 从 multipart 解出后传入）
+     */
+    public record UploadFile(String filename, byte[] content) {}
+
     private WorkspaceFileEntry toEntry(Path root, Path path) {
         try {
             String relative = root.relativize(path).toString().replace('\\', '/');

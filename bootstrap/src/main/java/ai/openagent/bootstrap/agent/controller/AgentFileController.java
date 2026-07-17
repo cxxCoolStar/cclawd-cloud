@@ -15,8 +15,10 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Agent workspace 文件接口（最小闭环：列表 + 内容）
@@ -42,6 +44,28 @@ public class AgentFileController {
     public Map<String, List<AgentFileService.WorkspaceFileEntry>> listFiles(
             @PathVariable String agentId, @RequestParam(required = false) String sessionId) {
         return Map.of("files", agentFileService.listFiles(agentId, sessionId));
+    }
+
+    /**
+     * 上传文件到会话 workspace（前端回形针按钮，multipart 字段名 "file"
+     * 可多值；fastclaw 同款 64MB 解析上限已在 application.yml 配置）
+     *
+     * @return {"files": [{path, size}]}，path 为 agent 相对路径
+     */
+    @PostMapping("/api/agents/{agentId}/files")
+    public Map<String, List<AgentFileService.UploadedFileEntry>> uploadFiles(
+            @PathVariable String agentId,
+            @RequestParam(required = false) String sessionId,
+            @RequestParam("file") List<MultipartFile> files) throws IOException {
+        List<AgentFileService.UploadFile> uploads = new java.util.ArrayList<>();
+        for (MultipartFile file : files) {
+            String filename = file.getOriginalFilename();
+            if (filename == null || filename.isBlank()) {
+                continue;
+            }
+            uploads.add(new AgentFileService.UploadFile(filename, file.getBytes()));
+        }
+        return Map.of("files", agentFileService.saveUploads(agentId, sessionId, uploads));
     }
 
     /**

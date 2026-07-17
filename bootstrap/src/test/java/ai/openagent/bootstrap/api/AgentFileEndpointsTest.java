@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.api;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -105,5 +107,40 @@ class AgentFileEndpointsTest {
     void missingFileReturns404() throws Exception {
         mockMvc.perform(get("/api/agents/default/files/sessions/s1/nope.py"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void uploadsMultipleFilesIntoSessionScope() throws Exception {
+        MockMultipartFile first = new MockMultipartFile(
+                "file", "hello.txt", "text/plain", "你好".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockMultipartFile second = new MockMultipartFile(
+                "file", "data.csv", "text/csv", "a,b".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        mockMvc.perform(multipart("/api/agents/default/files")
+                        .file(first)
+                        .file(second)
+                        .param("sessionId", "upload-multi"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files.length()").value(2))
+                .andExpect(jsonPath("$.files[0].path").value("sessions/upload-multi/hello.txt"))
+                .andExpect(jsonPath("$.files[0].size").isNumber())
+                .andExpect(jsonPath("$.files[1].path").value("sessions/upload-multi/data.csv"));
+        // 上传后可列出、可读
+        mockMvc.perform(get("/api/agents/default/files").param("sessionId", "upload-multi"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files.length()").value(2));
+        mockMvc.perform(get("/api/agents/default/files/sessions/upload-multi/hello.txt"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("你好")));
+    }
+
+    @Test
+    void uploadStripsDirectoryComponentsFromFilename() throws Exception {
+        MockMultipartFile evil = new MockMultipartFile(
+                "file", "../../evil.txt", "text/plain", "x".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        mockMvc.perform(multipart("/api/agents/default/files")
+                        .file(evil)
+                        .param("sessionId", "upload-s"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files[0].path").value("sessions/upload-s/evil.txt"));
     }
 }
