@@ -2027,3 +2027,40 @@ export function fileUrl(agentId: string, path: string, download = false): string
   const qs = params.toString();
   return `/api/agents/${agentId}/files/${encoded}${qs ? "?" + qs : ""}`;
 }
+
+// Workspace version history (per-session git snapshots taken after each
+// agent run). Backs the Workspace panel's history dropdown: list commits,
+// restore the whole session workspace to one of them.
+export interface WorkspaceHistoryEntry {
+  hash: string;
+  message: string;
+  time: number; // unix seconds
+}
+
+export async function getSessionHistory(
+  agentId: string,
+  sessionId: string,
+): Promise<WorkspaceHistoryEntry[]> {
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/history`,
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.history || []) as WorkspaceHistoryEntry[];
+}
+
+export async function restoreSessionHistory(
+  agentId: string,
+  sessionId: string,
+  commit: string,
+): Promise<void> {
+  const res = await apiFetch(
+    `/api/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/history/restore`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commit }),
+    },
+  );
+  if (!res.ok) throw new Error(`restore failed: ${res.status}`);
+}

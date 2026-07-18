@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.workspace;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.openagent.bootstrap.tool.config.ToolProperties;
@@ -112,5 +113,31 @@ class WorkspaceHistoryServiceTest {
         assertFalse(service.enabled());
         service.commitAfterRun("default", "s1", "run-1");
         assertFalse(Files.exists(temp.resolve(".history")));
+    }
+
+    @Test
+    void listsAndRestoresHistory(@TempDir Path temp) throws Exception {
+        Path workspace = temp.resolve("default").resolve("sessions").resolve("s1");
+        Files.createDirectories(workspace);
+        Files.writeString(workspace.resolve("a.txt"), "v1");
+        WorkspaceHistoryService service = service(temp);
+        service.commitAfterRun("default", "s1", "run-1");
+        Files.writeString(workspace.resolve("a.txt"), "v2");
+        service.commitAfterRun("default", "s1", "run-2");
+
+        var history = service.listHistory("default", "s1");
+        assertEquals(2, history.size());
+        assertEquals("turn run-2", history.get(0).message());
+        assertTrue(history.get(0).time() > 0);
+
+        service.restore("default", "s1", history.get(1).hash());
+        assertEquals("v1", Files.readString(workspace.resolve("a.txt")));
+    }
+
+    @Test
+    void restoreRejectsBadCommitHash(@TempDir Path temp) {
+        WorkspaceHistoryService service = service(temp);
+        assertThrows(ai.openagent.framework.exception.ClientException.class,
+                () -> service.restore("default", "s1", "main; rm -rf /"));
     }
 }

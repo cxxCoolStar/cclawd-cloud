@@ -87,6 +87,53 @@ public class WorkspaceHistoryService {
     }
 
     /**
+     * 一次历史提交（回滚列表用）
+     */
+    public record HistoryEntry(String hash, String message, long time) {}
+
+    /**
+     * 列出会话的历史提交（新到旧）
+     */
+    public List<HistoryEntry> listHistory(String agentId, String sessionId) {
+        Path repo = historyRepo(agentId, sessionId);
+        if (!Files.isDirectory(repo)) {
+            return List.of();
+        }
+        Path workTree = sessionWorkspace(agentId, sessionId);
+        String output = runGit(repo, workTree, "log", "--pretty=%H|%s|%ct");
+        if (output.isBlank()) {
+            return List.of();
+        }
+        return output.lines()
+                .map(line -> line.split("\\|", 3))
+                .filter(parts -> parts.length == 3)
+                .map(parts -> new HistoryEntry(parts[0], parts[1], Long.parseLong(parts[2])))
+                .toList();
+    }
+
+    /**
+     * 回滚会话 workspace 到指定提交（整树恢复；提交哈希先校验防注入）
+     */
+    public void restore(String agentId, String sessionId, String commit) {
+        if (commit == null || !commit.matches("[0-9a-fA-F]{7,40}")) {
+            throw new ai.openagent.framework.exception.ClientException(
+                    "invalid commit hash", ai.openagent.framework.errorcode.BaseErrorCode.PARAM_VERIFY_ERROR);
+        }
+        Path repo = historyRepo(agentId, sessionId);
+        if (!Files.isDirectory(repo)) {
+            throw new ai.openagent.framework.exception.ClientException(
+                    "no history for this session", ai.openagent.framework.errorcode.BaseErrorCode.RESOURCE_NOT_FOUND);
+        }
+        runGit(repo, sessionWorkspace(agentId, sessionId), "checkout", commit, "--", ".");
+        log.info("[workspace-history] 已回滚，agentId={}, sessionId={}, commit={}", agentId, sessionId, commit);
+    }
+
+    private Path sessionWorkspace(String agentId, String sessionId) {
+        return Path.of(toolProperties.workspaceRoot())
+                .resolve(agentId).resolve("sessions").resolve(sessionId);
+    }
+
+    /**
      * 会话的历史仓库路径（workspace 外）
      */
     public Path historyRepo(String agentId, String sessionId) {
