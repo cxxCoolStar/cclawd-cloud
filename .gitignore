@@ -18,5 +18,6 @@ frontend/out/
 frontend/.turbo/
 mvnw
 mvnw.cmd
-workspace/
+# 只忽略仓库根目录的 agent workspace 数据，不匹配源码中的 workspace 包
+/workspace/
 

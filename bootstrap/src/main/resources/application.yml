@@ -55,6 +55,8 @@ openagent:
     max-file-chars: ${OPENAGENT_MEMORY_MAX_FILE_CHARS:32768}
   skills:
     dir: ${OPENAGENT_SKILLS_DIR:./skills}
+  workspace:
+    history-enabled: ${OPENAGENT_WORKSPACE_HISTORY_ENABLED:true}
   tools:
     execution-timeout: ${OPENAGENT_TOOL_TIMEOUT:30s}
     max-result-chars: ${OPENAGENT_TOOL_MAX_RESULT_CHARS:65536}

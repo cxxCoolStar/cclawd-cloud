@@ -123,6 +123,7 @@ Agent loop and tool settings:
 | `OPENAGENT_MEMORY_AUTO_PERSIST_INTERVAL` | `5` | User-message count modulo that triggers auto-persist |
 | `OPENAGENT_MEMORY_MAX_FILE_CHARS` | `32768` | Max chars for MEMORY.md / USER.md |
 | `OPENAGENT_SKILLS_DIR` | `./skills` | Global skills directory (per-agent skills live at `<workspace>/<agentId>/skills`) |
+| `OPENAGENT_WORKSPACE_HISTORY_ENABLED` | `true` | Snapshot the session workspace to a git bare repo after every run (`<workspace>/.history/`) |
 | `OPENAGENT_SANDBOX_DOCKER_ENABLED` | `false` | Global gate for the `exec` tool |
 | `OPENAGENT_SANDBOX_IMAGE` | `python:3.12-slim` | Sandbox container image |
 | `OPENAGENT_SANDBOX_CPUS` | `1` | Container CPU limit |

@@ -14,6 +14,7 @@ import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
+import ai.openagent.bootstrap.workspace.WorkspaceHistoryService;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.exception.ServiceException;
@@ -53,6 +54,7 @@ public class AgentRunCoordinator {
     private final Set<String> activeRuns = ConcurrentHashMap.newKeySet();
 
     private final AutoPersistMemoryService autoPersistMemoryService;
+    private final WorkspaceHistoryService workspaceHistoryService;
 
     public AgentRunCoordinator(
             AgentKernel agentKernel,
@@ -62,6 +64,7 @@ public class AgentRunCoordinator {
             AgentProperties agentProperties,
             ToolProperties toolProperties,
             AutoPersistMemoryService autoPersistMemoryService,
+            WorkspaceHistoryService workspaceHistoryService,
             @Qualifier("chatTurnExecutor") Executor executor) {
         this.agentKernel = agentKernel;
         this.runRepository = runRepository;
@@ -70,6 +73,7 @@ public class AgentRunCoordinator {
         this.agentProperties = agentProperties;
         this.toolProperties = toolProperties;
         this.autoPersistMemoryService = autoPersistMemoryService;
+        this.workspaceHistoryService = workspaceHistoryService;
         this.executor = executor;
     }
 
@@ -130,6 +134,10 @@ public class AgentRunCoordinator {
                             try {
                                 executor.execute(() -> autoPersistMemoryService.maybePersist(
                                         IdentityConstant.LOCAL_USER_ID, agentId, sessionId));
+                                // workspace 版本历史：turn 边界快照（覆盖文件工具
+                                // + exec + 上传的全部写入）
+                                executor.execute(() -> workspaceHistoryService.commitAfterRun(
+                                        agentId, sessionId, runId));
                             } catch (RuntimeException fireError) {
                                 log.warn("[agentrun] 自动记忆提取任务入队失败", fireError);
                             }
