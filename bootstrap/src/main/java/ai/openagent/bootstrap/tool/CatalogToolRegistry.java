@@ -73,6 +73,14 @@ public class CatalogToolRegistry implements ToolRegistry {
         return List.copyOf(builtin);
     }
 
+    /**
+     * 已装配的内置工具描述（管理视图用：与 availableTools 的内置部分
+     * 同一交集来源——ToolCatalog 白名单 ∩ Spring 装配实现，不看启停）
+     */
+    public List<ToolDescriptor> assembledBuiltinTools() {
+        return toolsByName.values().stream().map(AgentTool::descriptor).toList();
+    }
+
     @Override
     public AgentTool requireEnabled(String agentId, String toolName) {
         // MCP 工具（mcp_ 前缀）走动态适配

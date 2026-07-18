@@ -5,24 +5,71 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ai.openagent.bootstrap.agentrun.config.AgentProperties;
+import ai.openagent.bootstrap.config.ConfigService;
+import ai.openagent.bootstrap.config.ConfigService.SkillEntry;
+import ai.openagent.bootstrap.config.ModelSettings;
+import ai.openagent.bootstrap.persistence.ConfigRepository;
+import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
 import ai.openagent.bootstrap.skill.config.SkillProperties;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import ai.openagent.framework.exception.ClientException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * SkillService 单测（V5 方案 M1/M2 行为清单）
+ * SkillService 单测（V5 方案 M1/M2 行为清单 + V7 方案 3.3 启停过滤）
  */
 class SkillServiceTest {
+
+    /**
+     * 内存版 ConfigRepository：按 LinkedHashMap 存取（同 ConfigServiceTest 写法）
+     */
+    private static final class StubConfigRepository extends ConfigRepository {
+        private final Map<String, String> store = new LinkedHashMap<>();
+
+        StubConfigRepository() {
+            super(null);
+        }
+
+        @Override
+        public Optional<String> get(String key) {
+            return Optional.ofNullable(store.get(key));
+        }
+
+        @Override
+        public void upsert(String key, String json) {
+            store.put(key, json);
+        }
+
+        @Override
+        public void delete(String key) {
+            store.remove(key);
+        }
+
+        @Override
+        public Map<String, String> listByPrefix(String prefix) {
+            Map<String, String> result = new LinkedHashMap<>();
+            store.forEach((key, json) -> {
+                if (key.startsWith(prefix)) {
+                    result.put(key, json);
+                }
+            });
+            return result;
+        }
+    }
 
     private static final String FULL_SKILL = """
             ---
@@ -41,9 +88,23 @@ class SkillServiceTest {
             """;
 
     private SkillService service(Path skillsDir, Path workspaceRoot) {
+        return service(skillsDir, workspaceRoot, configService());
+    }
+
+    private SkillService service(Path skillsDir, Path workspaceRoot, ConfigService configService) {
         return new SkillService(
                 new SkillProperties(skillsDir.toString()),
-                new ToolProperties(Duration.ofSeconds(30), 65536, workspaceRoot.toString(), 1048576, false, 1048576));
+                new ToolProperties(Duration.ofSeconds(30), 65536, workspaceRoot.toString(), 1048576, false, 1048576),
+                configService);
+    }
+
+    private ConfigService configService() {
+        return new ConfigService(
+                new StubConfigRepository(),
+                new ObjectMapper(),
+                new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
+                new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),
+                new SandboxProperties(false, "python:3.12-slim", "1", "512m", "bridge"));
     }
 
     private static void writeSkill(Path dir, String name, String content) throws Exception {
@@ -184,6 +245,90 @@ class SkillServiceTest {
         service.deleteSkill(null, "doomed");
         assertFalse(Files.exists(global.resolve("doomed")));
         assertThrows(ClientException.class, () -> service.deleteSkill(null, "doomed"));
+    }
+
+    @Test
+    void loadAllFiltersGloballyDisabledSkill(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        writeSkill(global, "web-search", FULL_SKILL);
+        writeSkill(global, "calc", "---\ndescription: calc things\n---\nbody");
+        ConfigService configService = configService();
+        configService.patchSkillEntries(null, Map.of("web-search", new SkillEntry(false, null, null)));
+        SkillService service = service(global, temp.resolve("ws"), configService);
+
+        List<SkillService.Skill> all = service.loadAll("default");
+        assertEquals(List.of("calc"), all.stream().map(SkillService.Skill::name).toList());
+        assertFalse(service.buildSkillsSummary("default").contains("web-search"));
+    }
+
+    @Test
+    void agentOverrideReenablesGloballyDisabledSkill(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        writeSkill(global, "web-search", FULL_SKILL);
+        ConfigService configService = configService();
+        configService.patchSkillEntries(null, Map.of("web-search", new SkillEntry(false, null, null)));
+        configService.patchSkillEntries("default", Map.of("web-search", new SkillEntry(true, null, null)));
+        SkillService service = service(global, temp.resolve("ws"), configService);
+
+        assertEquals(1, service.loadAll("default").size());
+        assertTrue(service.loadSkillContent("default", "web-search").isPresent());
+        // 无 per-agent 覆盖的其他 agent 仍被全局禁用过滤
+        assertTrue(service.loadAll("other").isEmpty());
+    }
+
+    @Test
+    void agentOverrideDisablesSkill(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        writeSkill(global, "web-search", FULL_SKILL);
+        ConfigService configService = configService();
+        configService.patchSkillEntries("default", Map.of("web-search", new SkillEntry(false, null, null)));
+        SkillService service = service(global, temp.resolve("ws"), configService);
+
+        assertTrue(service.loadAll("default").isEmpty());
+        // 其他 agent 无覆盖，默认启用
+        assertEquals(1, service.loadAll("other").size());
+    }
+
+    @Test
+    void skillWithoutEntryDefaultsToEnabled(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        writeSkill(global, "web-search", FULL_SKILL);
+        ConfigService configService = configService();
+        // 只有无关技能的条目，web-search 无条目
+        configService.patchSkillEntries(null, Map.of("other", new SkillEntry(false, null, null)));
+        SkillService service = service(global, temp.resolve("ws"), configService);
+
+        assertEquals(1, service.loadAll("default").size());
+        assertTrue(service.loadSkillContent("default", "web-search").isPresent());
+    }
+
+    @Test
+    void loadSkillContentReturnsEmptyForDisabledSkill(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        writeSkill(global, "web-search", FULL_SKILL);
+        ConfigService configService = configService();
+        configService.patchSkillEntries(null, Map.of("web-search", new SkillEntry(false, null, null)));
+        SkillService service = service(global, temp.resolve("ws"), configService);
+
+        assertTrue(service.loadSkillContent("default", "web-search").isEmpty());
+    }
+
+    @Test
+    void listViewsDoNotFilterDisabledSkills(@TempDir Path temp) throws Exception {
+        Path global = temp.resolve("skills");
+        Path ws = temp.resolve("ws");
+        writeSkill(global, "web-search", FULL_SKILL);
+        writeSkill(ws.resolve("default").resolve("skills"), "agent-skill",
+                "---\ndescription: agent only\n---\nbody");
+        ConfigService configService = configService();
+        configService.patchSkillEntries(null, Map.of("web-search", new SkillEntry(false, null, null)));
+        configService.patchSkillEntries("default", Map.of("agent-skill", new SkillEntry(false, null, null)));
+        SkillService service = service(global, ws, configService);
+
+        assertEquals(1, service.listGlobal().size());
+        assertEquals(1, service.listAgentSkills("default").size());
+        // 运行时视图则两个都被过滤
+        assertTrue(service.loadAll("default").isEmpty());
     }
 
     @Test

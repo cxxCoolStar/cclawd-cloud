@@ -3,10 +3,12 @@ package ai.openagent.bootstrap.agent.service.impl;
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.mcp.McpClientManager;
 import ai.openagent.bootstrap.persistence.AgentMcpServerRecord;
 import ai.openagent.bootstrap.persistence.AgentMcpServerRepository;
+import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
@@ -30,6 +32,7 @@ public class AgentServiceImpl implements AgentService {
     private final AgentMcpServerRepository mcpServerRepository;
     private final McpClientManager mcpClientManager;
     private final ObjectMapper objectMapper;
+    private final ModelSettings modelSettings;
 
     @Override
     public List<AgentVO> listAgents() {
@@ -80,6 +83,27 @@ public class AgentServiceImpl implements AgentService {
         mcpServerRepository.replaceAll(id, records);
         mcpClientManager.evictAgent(id);
         return getAgentConfig(id);
+    }
+
+    @Override
+    public void updateAgentProfile(String id, String name, String description, String model) {
+        if (name == null && description == null && model == null) {
+            return;
+        }
+        AgentRecord agent = agentRepository.findById(id)
+                .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
+        long now = System.currentTimeMillis();
+        if (name != null || description != null) {
+            agentRepository.updateProfile(
+                    id,
+                    name != null ? name : agent.name(),
+                    description != null ? description : agent.description(),
+                    now);
+        }
+        if (model != null) {
+            // 空串 = 清除覆盖，回退种子默认值（与 DataSeeder 同源）
+            agentRepository.updateModel(id, model.isBlank() ? modelSettings.name() : model, now);
+        }
     }
 
     private String writeJson(Object value, String emptyFallback) {

@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.skill;
 
+import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.skill.config.SkillProperties;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import ai.openagent.framework.errorcode.BaseErrorCode;
@@ -31,7 +32,8 @@ import org.yaml.snakeyaml.Yaml;
  * 同名 Agent 私有遮蔽全局；system prompt 只放 {@code <skill_catalog>}
  * 一行一技能摘要，全文经 load_skill 按需加载；列表 API 形状
  * {name, description, location, type, envSpec}。
- * V5 收缩：不做 gating、alwaysLoad、远程安装与启停/env 配置
+ * V5 收缩：不做 gating、alwaysLoad 与远程安装；启停配置于 V7 M2 生效
+ * （{@code enabled=false} 的技能从运行时视图过滤，env/apiKey 仍只存储不注入）
  * </p>
  */
 @Slf4j
@@ -61,10 +63,13 @@ public class SkillService {
 
     private final SkillProperties skillProperties;
     private final ToolProperties toolProperties;
+    private final ConfigService configService;
 
-    public SkillService(SkillProperties skillProperties, ToolProperties toolProperties) {
+    public SkillService(SkillProperties skillProperties, ToolProperties toolProperties,
+                        ConfigService configService) {
         this.skillProperties = skillProperties;
         this.toolProperties = toolProperties;
+        this.configService = configService;
     }
 
     /**
@@ -97,7 +102,9 @@ public class SkillService {
 
     /**
      * 运行时合并视图：全局 + Agent 私有（同名遮蔽），按名字排序
-     * （fastclaw LoadSkills 层序与排序语义）
+     * （fastclaw LoadSkills 层序与排序语义）；enabled=false 的技能被过滤
+     * （V7 方案 3.3，per-agent 覆盖优先于全局，判定见
+     * {@link ConfigService#skillEnabled}）
      */
     public List<Skill> loadAll(String agentId) {
         Map<String, Skill> merged = new LinkedHashMap<>();
@@ -108,16 +115,21 @@ public class SkillService {
             merged.put(skill.name(), skill);
         }
         return merged.values().stream()
+                .filter(skill -> configService.skillEnabled(agentId, skill.name()))
                 .sorted(Comparator.comparing(Skill::name))
                 .toList();
     }
 
     /**
      * 读取技能全文（load_skill 工具）：Agent 私有优先，{baseDir} 替换为
-     * 技能目录绝对路径（fastclaw load_skill.go 语义）
+     * 技能目录绝对路径（fastclaw load_skill.go 语义）；禁用技能返回空
+     * （LoadSkillTool 自然报"未找到"）
      */
     public Optional<String> loadSkillContent(String agentId, String name) {
         validateName(name);
+        if (!configService.skillEnabled(agentId, name)) {
+            return Optional.empty();
+        }
         for (Path dir : List.of(agentDir(agentId), globalDir())) {
             Path skillFile = dir.resolve(name).resolve("SKILL.md");
             if (Files.isRegularFile(skillFile)) {

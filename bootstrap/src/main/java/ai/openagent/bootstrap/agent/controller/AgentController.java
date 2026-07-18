@@ -50,13 +50,14 @@ public class AgentController {
     }
 
     /**
-     * 更新 Agent（V6 最小实现：仅 mcpServers 整表替换，其他字段忽略；
-     * mcpServers 缺省保持不动（前端 "omit to leave untouched" 语义），
-     * 显式 {} 清空）
+     * 更新 Agent（V6：mcpServers 整表替换，缺省保持不动、显式 {} 清空；
+     * V7 M3 增补 name/description/model 字段，null = 不动，model 空串 =
+     * 清除覆盖回退种子默认值；其余前端字段忽略——见 V7 方案 3.4）
      */
     @PutMapping("/api/agents/{id}")
     public AgentConfigVO updateAgent(
             @PathVariable String id, @RequestBody @Valid AgentUpdateRequest request) {
+        agentService.updateAgentProfile(id, request.name(), request.description(), request.model());
         if (request.mcpServers() == null) {
             return agentService.getAgentConfig(id);
         }

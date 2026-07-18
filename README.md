@@ -101,6 +101,8 @@ Supported settings:
 | `OPENAGENT_MODEL_MAX_TOKENS` | `2048` |
 | `OPENAGENT_SYSTEM_PROMPT` | built-in OpenAgent assistant prompt |
 
+Note: `OPENAGENT_MODEL` / `OPENAGENT_SYSTEM_PROMPT` seed the default agent on first boot only. After that, the default agent's model is managed via `PUT /api/agents/default` (or the UI), and restarts no longer overwrite it. Provider connection settings (`OPENAGENT_MODEL_PROVIDER` / `API_BASE` / `API_KEY`) are still refreshed from the environment on every boot.
+
 Agent loop and tool settings:
 
 | Variable | Default | Notes |

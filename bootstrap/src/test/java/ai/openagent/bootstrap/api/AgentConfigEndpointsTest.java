@@ -19,7 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
         classes = OpenAgentApplication.class,
         properties = {
             "spring.datasource.url=jdbc:sqlite:target/agent-config-test.db",
-            "openagent.model.api-key=test-key"
+            "openagent.model.api-key=test-key",
+            "openagent.model.name=kimi-k2.5"
         })
 @AutoConfigureMockMvc
 class AgentConfigEndpointsTest {
@@ -91,6 +92,52 @@ class AgentConfigEndpointsTest {
     @Test
     void unknownAgentReturns404() throws Exception {
         mockMvc.perform(get("/api/agents/no-such-agent/config"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void putProfileFieldsUpdatesNameDescriptionAndModel() throws Exception {
+        // name/description/model 更新，mcpServers 缺省不动
+        mockMvc.perform(put("/api/agents/default")
+                        .contentType("application/json")
+                        .content("""
+                                {"name": "Renamed Agent", "description": "new desc",
+                                 "model": "kimi-k2.5-turbo",
+                                 "mcpServers": {"keep": {"type": "stdio", "command": "npx"}}}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/agents/default"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.agent.name").value("Renamed Agent"))
+                .andExpect(jsonPath("$.agent.description").value("new desc"))
+                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5-turbo"));
+
+        // 未出现的字段不动（promptMode 等无后端语义的字段忽略）
+        mockMvc.perform(put("/api/agents/default")
+                        .contentType("application/json")
+                        .content("{\"model\": \"kimi-k2.5-pro\", \"promptMode\": \"x\", \"splitReplies\": true}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/agents/default"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.agent.name").value("Renamed Agent"))
+                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5-pro"));
+
+        // model 空串 = 清除覆盖，回退种子默认值（openagent.model.name）
+        mockMvc.perform(put("/api/agents/default")
+                        .contentType("application/json")
+                        .content("{\"model\": \"\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/agents/default"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5"));
+    }
+
+    @Test
+    void putProfileFieldsOnUnknownAgentReturns404() throws Exception {
+        mockMvc.perform(put("/api/agents/no-such-agent")
+                        .contentType("application/json")
+                        .content("{\"name\": \"x\"}"))
                 .andExpect(status().isNotFound());
     }
 }

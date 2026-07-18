@@ -63,11 +63,18 @@ public class AgentRepository {
     }
 
     /**
-     * 按配置刷新智能体（仅种子数据使用）
+     * 更新智能体名称与描述（PUT /api/agents 字段，V7 M3）
      */
-    public void updateSettings(String id, String providerId, String model, String systemPrompt, long now) {
+    public void updateProfile(String id, String name, String description, long now) {
         jdbc.update(
-                "UPDATE agents SET provider_id = ?, model = ?, system_prompt = ?, updated_at = ? WHERE id = ?",
-                providerId, model, systemPrompt, now, id);
+                "UPDATE agents SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+                name, description, now, id);
+    }
+
+    /**
+     * 更新智能体模型覆盖（空串回退种子默认值的逻辑由调用方处理，V7 M3）
+     */
+    public void updateModel(String id, String model, long now) {
+        jdbc.update("UPDATE agents SET model = ?, updated_at = ? WHERE id = ?", model, now, id);
     }
 }

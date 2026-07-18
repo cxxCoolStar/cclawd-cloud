@@ -62,7 +62,7 @@ class PlatformEndpointsTest {
                 .andExpect(jsonPath("$.channels", empty()))
                 .andExpect(jsonPath("$.capabilities.channels").value(false))
                 .andExpect(jsonPath("$.capabilities.dockerSandbox").value(true))
-                .andExpect(jsonPath("$.capabilities.mcp").value(false))
+                .andExpect(jsonPath("$.capabilities.mcp").value(true))
                 .andExpect(jsonPath("$.modelReady").value(false));
     }
 }

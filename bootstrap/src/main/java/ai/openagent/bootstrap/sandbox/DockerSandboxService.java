@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.sandbox;
 
+import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import jakarta.annotation.PreDestroy;
@@ -57,17 +58,26 @@ public class DockerSandboxService {
     private final SandboxProperties sandboxProperties;
     private final ToolProperties toolProperties;
     private final DockerCli dockerCli;
+    private final ConfigService configService;
     private final Map<String, Object> agentLocks = new ConcurrentHashMap<>();
 
     public DockerSandboxService(
-            SandboxProperties sandboxProperties, ToolProperties toolProperties, DockerCli dockerCli) {
+            SandboxProperties sandboxProperties,
+            ToolProperties toolProperties,
+            DockerCli dockerCli,
+            ConfigService configService) {
         this.sandboxProperties = sandboxProperties;
         this.toolProperties = toolProperties;
         this.dockerCli = dockerCli;
+        this.configService = configService;
     }
 
+    /**
+     * Docker 沙箱全局开关：/api/config 的 DB 覆盖优先（V7 方案 3.2），
+     * 缺省回退 {@code openagent.sandbox.docker-enabled} 属性值
+     */
     public boolean dockerEnabled() {
-        return sandboxProperties.dockerEnabled();
+        return configService.sandboxEnabledOverride().orElse(sandboxProperties.dockerEnabled());
     }
 
     /**

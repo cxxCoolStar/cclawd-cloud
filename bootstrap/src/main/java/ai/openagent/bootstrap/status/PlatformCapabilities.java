@@ -10,7 +10,8 @@ public record PlatformCapabilities(
         boolean cron) {
 
     public static PlatformCapabilities v1Defaults(boolean dockerSandboxEnabled) {
-        return new PlatformCapabilities(false, false, false, false, dockerSandboxEnabled, false, false);
+        // mcp 能力 V6 已交付（V7 M3 修复恒 false 的遗留值）
+        return new PlatformCapabilities(false, false, false, false, dockerSandboxEnabled, true, false);
     }
 }
 

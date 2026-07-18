@@ -15,10 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>
  * 应用启动时保证本地单用户模式的默认数据就位：本地用户、默认供应商、
- * 默认智能体、默认工具配置。供应商与智能体的模型配置每次启动按环境变量
- * 刷新，使 {@code OPENAGENT_MODEL_*} 的变更无需手动改库即可生效；
- * 工具配置只做缺失补种（不覆盖用户显式启停），并将遗留的活跃运行标记为
- * INTERRUPTED（V2 不做进程级断点续跑）
+ * 默认智能体、默认工具配置。供应商的连接配置每次启动按环境变量刷新，
+ * 使 {@code OPENAGENT_MODEL_*} 的变更无需手动改库即可生效；默认智能体
+ * 只在首次启动播种——V7 起其 model/systemPrompt 由 UI/API
+ * （PUT /api/agents/{id}）管理，启动不再覆盖，避免用户的显式修改被
+ * 重置；工具配置只做缺失补种（不覆盖用户显式启停），并将遗留的活跃
+ * 运行标记为 INTERRUPTED（V2 不做进程级断点续跑）
  * </p>
  */
 @Slf4j
@@ -98,10 +100,13 @@ public class DataSeeder implements ApplicationRunner {
                 now);
     }
 
+    /**
+     * 默认智能体只播种不刷新：V7 起 model/systemPrompt 由 UI/API 管理，
+     * 环境变量仅作为首次启动的默认值（供应商连接配置仍每次刷新，
+     * 见 {@link #seedDefaultProvider}）
+     */
     private void seedDefaultAgent(long now) {
         if (agentRepository.exists(DEFAULT_AGENT_ID)) {
-            agentRepository.updateSettings(
-                    DEFAULT_AGENT_ID, DEFAULT_PROVIDER_ID, modelSettings.name(), modelSettings.systemPrompt(), now);
             return;
         }
         agentRepository.insert(

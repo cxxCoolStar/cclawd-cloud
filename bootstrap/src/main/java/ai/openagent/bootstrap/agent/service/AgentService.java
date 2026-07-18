@@ -29,4 +29,10 @@ public interface AgentService {
      * 整表替换 Agent 的 MCP Server 配置（驱逐缓存客户端，下次调用重连）
      */
     AgentConfigVO updateMcpServers(String id, Map<String, AgentConfigVO.McpServerVO> mcpServers);
+
+    /**
+     * 更新 Agent 基础字段（V7 M3）：name/description/model 为 null 时不动；
+     * model 为空串时清除覆盖、回退种子默认值（ModelSettings）
+     */
+    void updateAgentProfile(String id, String name, String description, String model);
 }
