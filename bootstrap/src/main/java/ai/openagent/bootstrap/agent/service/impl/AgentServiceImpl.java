@@ -1,12 +1,21 @@
 package ai.openagent.bootstrap.agent.service.impl;
 
+import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
 import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.mcp.McpClientManager;
+import ai.openagent.bootstrap.persistence.AgentMcpServerRecord;
+import ai.openagent.bootstrap.persistence.AgentMcpServerRepository;
 import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
+import ai.openagent.framework.exception.ServiceException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +27,9 @@ import org.springframework.stereotype.Service;
 public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
+    private final AgentMcpServerRepository mcpServerRepository;
+    private final McpClientManager mcpClientManager;
+    private final ObjectMapper objectMapper;
 
     @Override
     public List<AgentVO> listAgents() {
@@ -31,5 +43,73 @@ public class AgentServiceImpl implements AgentService {
         return agentRepository.findById(id)
                 .map(AgentVO::from)
                 .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Override
+    public AgentConfigVO getAgentConfig(String id) {
+        getAgent(id);
+        Map<String, AgentConfigVO.McpServerVO> servers = new LinkedHashMap<>();
+        for (AgentMcpServerRecord record : mcpServerRepository.listByAgent(id)) {
+            servers.put(record.name(), new AgentConfigVO.McpServerVO(
+                    record.type(),
+                    record.url(),
+                    readMap(record.headersJson()),
+                    record.command(),
+                    readList(record.argsJson()),
+                    readMap(record.envJson())));
+        }
+        return new AgentConfigVO(servers);
+    }
+
+    @Override
+    public AgentConfigVO updateMcpServers(String id, Map<String, AgentConfigVO.McpServerVO> mcpServers) {
+        getAgent(id);
+        List<AgentMcpServerRecord> records = mcpServers.entrySet().stream()
+                .map(entry -> new AgentMcpServerRecord(
+                        id,
+                        entry.getKey(),
+                        entry.getValue().type(),
+                        value(entry.getValue().url()),
+                        writeJson(entry.getValue().headers(), "{}"),
+                        value(entry.getValue().command()),
+                        writeJson(entry.getValue().args(), "[]"),
+                        writeJson(entry.getValue().env(), "{}"),
+                        0,
+                        0))
+                .toList();
+        mcpServerRepository.replaceAll(id, records);
+        mcpClientManager.evictAgent(id);
+        return getAgentConfig(id);
+    }
+
+    private String writeJson(Object value, String emptyFallback) {
+        if (value == null) {
+            return emptyFallback;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException error) {
+            throw new ServiceException("could not encode mcp server config", error, BaseErrorCode.SERVICE_ERROR);
+        }
+    }
+
+    private Map<String, String> readMap(String json) {
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        } catch (JsonProcessingException error) {
+            return Map.of();
+        }
+    }
+
+    private List<String> readList(String json) {
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        } catch (JsonProcessingException error) {
+            return List.of();
+        }
+    }
+
+    private static String value(String value) {
+        return value == null ? "" : value;
     }
 }

@@ -5,6 +5,8 @@ import ai.openagent.agent.tool.ToolDescriptor;
 import ai.openagent.agent.tool.ToolErrorCode;
 import ai.openagent.agent.tool.ToolRegistry;
 import ai.openagent.agent.tool.ToolUnavailableException;
+import ai.openagent.bootstrap.mcp.McpClientManager;
+import ai.openagent.bootstrap.mcp.McpToolAdapter;
 import ai.openagent.bootstrap.persistence.AgentToolRepository;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -34,10 +36,15 @@ import org.springframework.stereotype.Component;
 public class CatalogToolRegistry implements ToolRegistry {
 
     private final AgentToolRepository agentToolRepository;
+    private final McpClientManager mcpClientManager;
     private final Map<String, AgentTool> toolsByName;
 
-    public CatalogToolRegistry(AgentToolRepository agentToolRepository, List<AgentTool> tools) {
+    public CatalogToolRegistry(
+            AgentToolRepository agentToolRepository,
+            McpClientManager mcpClientManager,
+            List<AgentTool> tools) {
         this.agentToolRepository = agentToolRepository;
+        this.mcpClientManager = mcpClientManager;
         Map<String, AgentTool> byName = new LinkedHashMap<>();
         for (AgentTool tool : tools) {
             String name = tool.descriptor().name();
@@ -54,14 +61,29 @@ public class CatalogToolRegistry implements ToolRegistry {
     @Override
     public List<ToolDescriptor> availableTools(String agentId) {
         Set<String> enabled = new HashSet<>(agentToolRepository.listEnabledToolNames(agentId));
-        return toolsByName.values().stream()
+        List<ToolDescriptor> builtin = toolsByName.values().stream()
                 .map(AgentTool::descriptor)
                 .filter(descriptor -> enabled.contains(descriptor.name()))
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        // V6：MCP 工具动态并入（server 配置即启用，不经 agent_tools；
+        // 连接失败的 server 由 McpClientManager 记 WARN 跳过）
+        for (McpToolAdapter.DiscoveredTool tool : mcpClientManager.discoverTools(agentId)) {
+            builtin.add(tool.descriptor());
+        }
+        return List.copyOf(builtin);
     }
 
     @Override
     public AgentTool requireEnabled(String agentId, String toolName) {
+        // MCP 工具（mcp_ 前缀）走动态适配
+        if (toolName.startsWith("mcp_")) {
+            return mcpClientManager.discoverTools(agentId).stream()
+                    .filter(tool -> tool.prefixedName().equals(toolName))
+                    .findFirst()
+                    .map(tool -> new McpToolAdapter(tool, mcpClientManager))
+                    .orElseThrow(() -> new ToolUnavailableException(
+                            ToolErrorCode.TOOL_NOT_FOUND, "tool not found: " + toolName));
+        }
         AgentTool tool = toolsByName.get(toolName);
         if (tool == null) {
             throw new ToolUnavailableException(

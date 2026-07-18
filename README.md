@@ -1,6 +1,13 @@
 # OpenAgent
 
-OpenAgent is an open-source, self-hosted AI Agent platform. The current **V0.5** milestone adds skills on top of V0.4: instruction packs the agent loads on demand. All while reusing the existing Next.js frontend.
+OpenAgent is an open-source, self-hosted AI Agent platform. The current **V0.6** milestone adds MCP client support on top of V0.5 skills: external MCP servers contribute tools to the agent. All while reusing the existing Next.js frontend.
+
+## V0.6 Features
+
+- **MCP client**: official MCP Java SDK; stdio (subprocess) and Streamable HTTP transports
+- **Per-agent MCP servers**: `GET /api/agents/{id}/config` + `PUT /api/agents/{id}` (`mcpServers` whole-map replace), backed by the `agent_mcp_servers` table
+- **Dynamic tools**: discovered MCP tools appear as `mcp_<server>_<tool>` alongside builtin tools; unreachable servers are skipped without breaking builtin tools
+- **UTF-8 stdio transport**: custom transport fixes the SDK's platform-charset decoding (Chinese tool results were garbled on Windows)
 
 ## V0.5 Features
 
@@ -180,4 +187,4 @@ Useful API checks:
 5. Ask it to read a path outside the workspace (e.g. `../../../openagent.db`) to see the security boundary respond with `WORKSPACE_PATH_FORBIDDEN`.
 6. Inspect the run trail in the database: `agent_runs` (one row per turn, terminal status + iteration count) and `tool_executions` (one row per tool call with timing and result).
 
-Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md), [OPENAGENT_JAVA_V3_PLAN.md](docs/OPENAGENT_JAVA_V3_PLAN.md), [OPENAGENT_JAVA_V4_PLAN.md](docs/OPENAGENT_JAVA_V4_PLAN.md), [OPENAGENT_JAVA_V5_PLAN.md](docs/OPENAGENT_JAVA_V5_PLAN.md).
+Implementation plans: [OPENAGENT_JAVA_V1_PLAN.md](docs/OPENAGENT_JAVA_V1_PLAN.md), [OPENAGENT_JAVA_V2_PLAN.md](docs/OPENAGENT_JAVA_V2_PLAN.md), [OPENAGENT_JAVA_V3_PLAN.md](docs/OPENAGENT_JAVA_V3_PLAN.md), [OPENAGENT_JAVA_V4_PLAN.md](docs/OPENAGENT_JAVA_V4_PLAN.md), [OPENAGENT_JAVA_V5_PLAN.md](docs/OPENAGENT_JAVA_V5_PLAN.md), [OPENAGENT_JAVA_V6_PLAN.md](docs/OPENAGENT_JAVA_V6_PLAN.md).
