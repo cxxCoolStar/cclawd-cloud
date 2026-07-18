@@ -106,6 +106,8 @@ Agent loop and tool settings:
 | `OPENAGENT_READ_FILE_MAX_BYTES` | `1048576` | `read_file` single-file limit |
 | `OPENAGENT_WEB_FETCH_ENABLED` | `false` | Global gate on top of the per-agent toggle |
 | `OPENAGENT_WEB_FETCH_MAX_BYTES` | `1048576` | Response size cap |
+| `OPENAGENT_WEB_SEARCH_ORDER` | `searxng` | web_search provider fallback chain |
+| `OPENAGENT_WEB_SEARCH_SEARXNG_ENDPOINT` | empty | SearXNG instance URL (e.g. `http://127.0.0.1:8888`); empty hides web_search |
 | `OPENAGENT_CONTEXT_TOKEN_THRESHOLD` | `80000` | Trigger context compaction when estimated tokens exceed this |
 | `OPENAGENT_CONTEXT_PRUNE_TURN_AGE` | `20` | Number of recent turns kept verbatim during compaction |
 | `OPENAGENT_CONTEXT_SUMMARY_MAX_TOKENS` | `2048` | Max tokens for compaction summarization call |
@@ -132,6 +134,7 @@ Without an API key, the UI and database still start normally; sending a message 
 | `edit_file` | disabled | exact-substring replacement with uniqueness check |
 | `apply_patch` | disabled | multi-file Codex-DSL patch, atomic (no partial writes) |
 | `web_fetch` | disabled | http/https only, SSRF-guarded, double-gated by `OPENAGENT_WEB_FETCH_ENABLED` |
+| `web_search` | disabled | provider chain (built-in SearXNG; brave/exa pluggable), needs `OPENAGENT_WEB_SEARCH_SEARXNG_ENDPOINT` |
 | `memory_search` | enabled | text search over `MEMORY.md` / `USER.md` / `HISTORY.md` |
 | `exec` | disabled | shell commands inside the Docker sandbox only; needs `OPENAGENT_SANDBOX_DOCKER_ENABLED=true` |
 | `load_skill` | enabled | loads full instructions of an installed skill by name |

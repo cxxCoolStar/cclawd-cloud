@@ -62,6 +62,9 @@ openagent:
     read-file-max-bytes: ${OPENAGENT_READ_FILE_MAX_BYTES:1048576}
     web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:false}
     web-fetch-max-bytes: ${OPENAGENT_WEB_FETCH_MAX_BYTES:1048576}
+    web-search:
+      order: ${OPENAGENT_WEB_SEARCH_ORDER:searxng}
+      searxng-endpoint: ${OPENAGENT_WEB_SEARCH_SEARXNG_ENDPOINT:}
 
 management:
   endpoints:
