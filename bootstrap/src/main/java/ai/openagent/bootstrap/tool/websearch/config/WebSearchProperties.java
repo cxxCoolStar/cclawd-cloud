@@ -12,17 +12,22 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * openagent:
  *   tools:
  *     web-search:
- *       order: "searxng"
+ *       order: "searxng,tavily"
  *       searxng-endpoint: "http://127.0.0.1:8888"
+ *       tavily-api-key: "tvly-..."
  * </pre>
  * </p>
  *
- * @param order           provider 回退顺序（逗号分隔；当前仅内置 searxng，
+ * @param order           provider 回退顺序（逗号分隔；内置 searxng/tavily，
  *                        brave/exa 预留）
  * @param searxngEndpoint SearXNG 实例地址（无需 API key；空 = 未配置，
- *                        对应 fastclaw「无凭证即隐藏」——链不可用）
+ *                        对应 fastclaw「无凭证即隐藏」——链中跳过）
+ * @param tavilyApiKey    Tavily API key（空 = 未配置，链中跳过）
+ * @param tavilyEnabled   Tavily provider 开关（false 时即使配了 key 也跳过）
  */
 @ConfigurationProperties(prefix = "openagent.tools.web-search")
 public record WebSearchProperties(
-        @DefaultValue("searxng") String order,
-        @DefaultValue("") String searxngEndpoint) {}
+        @DefaultValue("searxng,tavily") String order,
+        @DefaultValue("") String searxngEndpoint,
+        @DefaultValue("") String tavilyApiKey,
+        @DefaultValue("true") boolean tavilyEnabled) {}

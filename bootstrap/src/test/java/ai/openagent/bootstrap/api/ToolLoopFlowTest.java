@@ -2,7 +2,6 @@ package ai.openagent.bootstrap.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.openagent.agent.AgentRunStatus;
@@ -17,7 +16,6 @@ import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.SessionEventRecord;
 import ai.openagent.bootstrap.persistence.ToolExecutionRecord;
 import ai.openagent.bootstrap.persistence.ToolExecutionRepository;
-import ai.openagent.framework.exception.ClientException;
 import ai.openagent.infra.ai.LLMService;
 import ai.openagent.infra.ai.model.ModelMessage;
 import ai.openagent.infra.ai.model.ModelResponse;
@@ -44,7 +42,8 @@ import org.springframework.context.annotation.Primary;
  * <p>
  * 脚本化模型 + 真实 Registry/Invoker/文件工具/持久化：验证
  * 「工具请求 → 工具执行 → 工具结果回传 → 最终文本」全链路的事件顺序、
- * 消息配对持久化、tool_executions / agent_runs 记录与同会话并发 409。
+ * 消息配对持久化、tool_executions / agent_runs 记录与同会话 FIFO 排队、
+ * 跨会话并行（V8 M2 队列语义，替代原同会话并发 409）。
  * 工具走 M4 真实 read_file（目录白名单内、默认启用），测试预置 workspace 文件
  * </p>
  */
@@ -118,41 +117,79 @@ class ToolLoopFlowTest {
     }
 
     @Test
-    void concurrentRunOnSameSessionIsRejected() throws Exception {
-        String sessionId = "conflict-" + UUID.randomUUID();
+    void concurrentRunOnSameSessionIsQueuedInOrder() throws Exception {
+        String sessionId = "queued-" + UUID.randomUUID();
         ScriptedModelConfiguration.HOLD_LATCH = new CountDownLatch(1);
+        CompletableFuture<Void> first;
+        CompletableFuture<Void> second;
         try {
-            CompletableFuture<Void> first = runCoordinator.start("default", sessionId, "hold the turn");
-            // 同会话第二次开启必须 409（RESOURCE_CONFLICT）
-            assertThrows(ClientException.class,
-                    () -> runCoordinator.start("default", sessionId, "second message"));
+            first = runCoordinator.start("default", sessionId, "hold the turn");
+            // 同会话第二条消息不再 409（V8 M2），排队等待首个运行终态后出队
+            second = runCoordinator.start("default", sessionId, "second message");
+            assertTrue(!second.isDone(), "第二条消息应处于排队状态");
             ScriptedModelConfiguration.HOLD_LATCH.countDown();
             first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
         } finally {
             ScriptedModelConfiguration.HOLD_LATCH = null;
         }
-        // 首个运行结束后同会话可再次运行
-        runCoordinator.start("default", sessionId, "hello again").get(10, TimeUnit.SECONDS);
+        // 提交即落库（两条 user 先行）+ 串行执行（assistant 按序收尾）：
+        // user(hold) → user(second) → assistant → assistant
+        List<ChatMessageRecord> messages =
+                sessionRepository.listMessages(IdentityConstant.LOCAL_USER_ID, "default", sessionId);
+        assertEquals(List.of("user", "user", "assistant", "assistant"),
+                messages.stream().map(ChatMessageRecord::role).toList());
+        assertEquals("hold the turn", messages.get(0).content());
+        assertEquals("second message", messages.get(1).content());
+        // 两个 run 均正常完成
+        List<AgentRunRecord> runs = runRepository.listBySession(
+                IdentityConstant.LOCAL_USER_ID, "default", sessionId, 10);
+        assertEquals(2, runs.size());
+        assertTrue(runs.stream().allMatch(run -> run.status() == AgentRunStatus.COMPLETED));
+    }
+
+    @Test
+    void runsOnDifferentSessionsExecuteInParallel() throws Exception {
+        String sessionA = "parallel-a-" + UUID.randomUUID();
+        String sessionB = "parallel-b-" + UUID.randomUUID();
+        ScriptedModelConfiguration.HOLD_LATCH = new CountDownLatch(1);
+        try {
+            CompletableFuture<Void> runA = runCoordinator.start("default", sessionA, "hold the turn");
+            // 会话 B 不受会话 A 的队列/持锁影响，并行完成
+            runCoordinator.start("default", sessionB, "quick question").get(10, TimeUnit.SECONDS);
+            assertTrue(!runA.isDone(), "会话 A 仍应被持锁阻塞");
+            ScriptedModelConfiguration.HOLD_LATCH.countDown();
+            runA.get(10, TimeUnit.SECONDS);
+        } finally {
+            ScriptedModelConfiguration.HOLD_LATCH = null;
+        }
+        assertEquals(AgentRunStatus.COMPLETED,
+                runRepository.listBySession(IdentityConstant.LOCAL_USER_ID, "default", sessionB, 10)
+                        .get(0).status());
     }
 
     @TestConfiguration
     static class ScriptedModelConfiguration {
 
         /**
-         * 非空时模型调用阻塞等待（并发 409 测试用）
+         * 非空时含 "hold" 的用户消息的模型调用阻塞等待（排队/并行测试用）
          */
         static volatile CountDownLatch HOLD_LATCH;
 
         /**
          * 脚本化模型：用户消息含 "read the data file" 且尚无 tool result 时
-         * 请求 read_file 工具；已有 tool result 时输出最终回答；其余直接文本
+         * 请求 read_file 工具；已有 tool result 时输出最终回答；其余直接文本；
+         * 含 "hold" 的消息在 HOLD_LATCH 非空时阻塞
          */
         @Bean
         @Primary
         LLMService scriptedLlmService() {
             return (request, listener) -> {
                 CountDownLatch latch = HOLD_LATCH;
-                if (latch != null) {
+                boolean asksHold = request.messages().stream()
+                        .anyMatch(m -> m.role() == ModelMessage.Role.USER
+                                && m.content().contains("hold"));
+                if (latch != null && asksHold) {
                     try {
                         latch.await(10, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {

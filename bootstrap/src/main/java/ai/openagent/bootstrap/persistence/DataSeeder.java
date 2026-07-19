@@ -15,12 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>
  * 应用启动时保证本地单用户模式的默认数据就位：本地用户、默认供应商、
- * 默认智能体、默认工具配置。供应商的连接配置每次启动按环境变量刷新，
- * 使 {@code OPENAGENT_MODEL_*} 的变更无需手动改库即可生效；默认智能体
- * 只在首次启动播种——V7 起其 model/systemPrompt 由 UI/API
- * （PUT /api/agents/{id}）管理，启动不再覆盖，避免用户的显式修改被
- * 重置；工具配置只做缺失补种（不覆盖用户显式启停），并将遗留的活跃
- * 运行标记为 INTERRUPTED（V2 不做进程级断点续跑）
+ * 默认智能体、默认工具配置。供应商的连接配置在 env 已配置 apiKey 时
+ * 每次启动按环境变量刷新，使 {@code OPENAGENT_MODEL_*} 的变更无需手动
+ * 改库即可生效；env 未配置时保留 DB 值（V8 M3：onboard 写入的连接配置
+ * 跨重启保留）；默认智能体只在首次启动播种——V7 起其 model/systemPrompt
+ * 由 UI/API（PUT /api/agents/{id}）管理，启动不再覆盖，避免用户的显式
+ * 修改被重置；工具配置只做缺失补种（不覆盖用户显式启停），并将遗留的
+ * 活跃运行标记为 INTERRUPTED（V2 不做进程级断点续跑）
  * </p>
  */
 @Slf4j
@@ -77,6 +78,11 @@ public class DataSeeder implements ApplicationRunner {
 
     private void seedDefaultProvider(long now) {
         if (providerRepository.exists(DEFAULT_PROVIDER_ID)) {
+            // V8 M3：env 未配置 apiKey 时保留 DB 值（onboard/UI 写入的连接
+            // 配置不被重启清空）；env 已配置则维持原有"每次启动刷新"语义
+            if (!modelSettings.ready()) {
+                return;
+            }
             providerRepository.updateSettings(
                     DEFAULT_PROVIDER_ID,
                     modelSettings.provider(),

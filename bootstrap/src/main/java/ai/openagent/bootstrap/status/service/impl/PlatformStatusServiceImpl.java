@@ -3,6 +3,8 @@ package ai.openagent.bootstrap.status.service.impl;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.AgentRepository;
+import ai.openagent.bootstrap.persistence.DataSeeder;
+import ai.openagent.bootstrap.persistence.ProviderRepository;
 import ai.openagent.bootstrap.status.PlatformCapabilities;
 import ai.openagent.bootstrap.status.config.PlatformProperties;
 import ai.openagent.bootstrap.status.controller.vo.PlatformStatusVO;
@@ -23,16 +25,19 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
     private final int port;
     private final PlatformProperties platformProperties;
     private final AgentRepository agentRepository;
+    private final ProviderRepository providerRepository;
     private final ModelSettings modelSettings;
 
     public PlatformStatusServiceImpl(
             @Value("${server.port:18953}") int port,
             PlatformProperties platformProperties,
             AgentRepository agentRepository,
+            ProviderRepository providerRepository,
             ModelSettings modelSettings) {
         this.port = port;
         this.platformProperties = platformProperties;
         this.agentRepository = agentRepository;
+        this.providerRepository = providerRepository;
         this.modelSettings = modelSettings;
     }
 
@@ -42,6 +47,11 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
                 agentRepository.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
                         .map(PlatformStatusVO.AgentStatusVO::from)
                         .toList();
+        // V8 M3：env 或 DB（onboard 写入）任一侧配好 apiKey 即视为已初始化
+        boolean configured = modelSettings.ready() || providerRepository
+                .findById(DataSeeder.DEFAULT_PROVIDER_ID)
+                .map(provider -> provider.apiKey() != null && !provider.apiKey().isBlank())
+                .orElse(false);
         return new PlatformStatusVO(
                 true,
                 platformProperties.registrationOpen(),
@@ -56,8 +66,8 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
                         modelSettings.provider(),
                         modelSettings.name(),
                         modelSettings.apiBase(),
-                        modelSettings.ready() ? "configured" : ""),
-                modelSettings.ready(),
+                        configured ? "configured" : ""),
+                configured,
                 0,
                 0,
                 PlatformCapabilities.v1Defaults(platformProperties.sandbox().dockerEnabled()));

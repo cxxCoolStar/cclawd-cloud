@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.agent.controller;
 
+import ai.openagent.bootstrap.agent.controller.request.AgentCreateRequest;
 import ai.openagent.bootstrap.agent.controller.request.AgentUpdateRequest;
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
@@ -9,8 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +44,27 @@ public class AgentController {
     @GetMapping("/api/agents/{id}")
     public Map<String, AgentVO> getAgent(@PathVariable String id) {
         return Map.of("agent", agentService.getAgent(id));
+    }
+
+    /**
+     * 创建 Agent（V8 M3）：201 + {agent}，前端 createAgent 读 resp.agent.id；
+     * name 必填校验，model/systemPrompt 缺省回落 ModelSettings
+     */
+    @PostMapping("/api/agents")
+    public ResponseEntity<Map<String, AgentVO>> createAgent(@RequestBody @Valid AgentCreateRequest request) {
+        AgentVO agent = agentService.createAgent(
+                request.name(), request.description(), request.model(), request.systemPrompt());
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("agent", agent));
+    }
+
+    /**
+     * 删除 Agent（V8 M3）：级联清理会话/运行/工具/MCP/技能覆盖配置；
+     * 种子默认 agent 拒绝删除（400）；workspace 目录保留
+     */
+    @DeleteMapping("/api/agents/{id}")
+    public Map<String, Boolean> deleteAgent(@PathVariable String id) {
+        agentService.deleteAgent(id);
+        return Map.of("ok", true);
     }
 
     /**

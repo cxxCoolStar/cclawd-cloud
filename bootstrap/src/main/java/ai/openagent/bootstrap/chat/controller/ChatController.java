@@ -123,8 +123,8 @@ public class ChatController {
             sseStreamFactory.connect(stream, requestParam.agentId(), requestParam.sessionId());
             runCoordinator.start(requestParam.agentId(), requestParam.sessionId(), requestParam.message());
         } catch (RuntimeException error) {
-            // 回合未能开启（409 并发冲突 / 校验失败等）——释放连接，交给
-            // 全局异常处理器输出 JSON 错误响应
+            // 回合未能入队（参数校验失败等）——释放连接，交给全局异常处理器
+            // 输出 JSON 错误响应（同会话并发自 V8 起排队，不再 409）
             stream.close();
             throw error;
         }

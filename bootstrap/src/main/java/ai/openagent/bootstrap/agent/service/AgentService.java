@@ -35,4 +35,18 @@ public interface AgentService {
      * model 为空串时清除覆盖、回退种子默认值（ModelSettings）
      */
     void updateAgentProfile(String id, String name, String description, String model);
+
+    /**
+     * 创建 Agent（V8 M3）：id 生成（agt_ 前缀随机 hex），model/systemPrompt
+     * 缺省回落 ModelSettings；补种内置工具默认配置（与 DataSeeder 同源）
+     */
+    AgentVO createAgent(String name, String description, String model, String systemPrompt);
+
+    /**
+     * 删除 Agent 并级联清理（V8 M3）：sessions（+session_events/
+     * session_messages）、agent_runs（+tool_executions）、agent_tools、
+     * agent_mcp_servers 与 configs 的 skills.agentEntries.{id} 键；
+     * 种子默认 agent 拒绝删除（400）；workspace 目录保留不删
+     */
+    void deleteAgent(String id);
 }

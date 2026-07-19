@@ -48,7 +48,7 @@ class WebSearchToolTest {
 
     private static WebSearchTool tool(String endpoint, List<WebSearchProvider> providers) {
         return new WebSearchTool(
-                new ObjectMapper(), new WebSearchProperties("searxng", endpoint), providers);
+                new ObjectMapper(), new WebSearchProperties("searxng", endpoint, "", true), providers);
     }
 
     @Test

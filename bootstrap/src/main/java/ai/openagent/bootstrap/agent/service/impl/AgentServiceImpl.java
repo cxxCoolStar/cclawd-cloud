@@ -3,6 +3,7 @@ package ai.openagent.bootstrap.agent.service.impl;
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.mcp.McpClientManager;
@@ -10,6 +11,10 @@ import ai.openagent.bootstrap.persistence.AgentMcpServerRecord;
 import ai.openagent.bootstrap.persistence.AgentMcpServerRepository;
 import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.persistence.AgentRepository;
+import ai.openagent.bootstrap.persistence.AgentToolRepository;
+import ai.openagent.bootstrap.persistence.ConfigRepository;
+import ai.openagent.bootstrap.persistence.DataSeeder;
+import ai.openagent.bootstrap.tool.ToolCatalog;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.exception.ServiceException;
@@ -18,8 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 智能体服务实现
@@ -30,6 +37,8 @@ public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
     private final AgentMcpServerRepository mcpServerRepository;
+    private final AgentToolRepository agentToolRepository;
+    private final ConfigRepository configRepository;
     private final McpClientManager mcpClientManager;
     private final ObjectMapper objectMapper;
     private final ModelSettings modelSettings;
@@ -104,6 +113,38 @@ public class AgentServiceImpl implements AgentService {
             // 空串 = 清除覆盖，回退种子默认值（与 DataSeeder 同源）
             agentRepository.updateModel(id, model.isBlank() ? modelSettings.name() : model, now);
         }
+    }
+
+    @Override
+    @Transactional
+    public AgentVO createAgent(String name, String description, String model, String systemPrompt) {
+        String id = "agt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        long now = System.currentTimeMillis();
+        agentRepository.insert(
+                id,
+                IdentityConstant.LOCAL_USER_ID,
+                name.trim(),
+                value(description),
+                DataSeeder.DEFAULT_PROVIDER_ID,
+                model == null || model.isBlank() ? value(modelSettings.name()) : model,
+                systemPrompt == null || systemPrompt.isBlank() ? value(modelSettings.systemPrompt()) : systemPrompt,
+                now);
+        // 与 DataSeeder 同源：补种内置工具默认启停
+        for (ToolCatalog tool : ToolCatalog.BUILTIN_TOOLS) {
+            agentToolRepository.upsert(id, tool.name(), tool.enabledDefault(), "{}");
+        }
+        return getAgent(id);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAgent(String id) {
+        if (DataSeeder.DEFAULT_AGENT_ID.equals(id)) {
+            throw new ClientException("the default agent cannot be deleted", BaseErrorCode.PARAM_VERIFY_ERROR);
+        }
+        getAgent(id);
+        agentRepository.deleteCascade(id);
+        configRepository.delete(ConfigService.KEY_SKILLS_AGENT_ENTRIES_PREFIX + id);
     }
 
     private String writeJson(Object value, String emptyFallback) {

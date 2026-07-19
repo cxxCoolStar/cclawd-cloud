@@ -77,4 +77,19 @@ public class AgentRepository {
     public void updateModel(String id, String model, long now) {
         jdbc.update("UPDATE agents SET model = ?, updated_at = ? WHERE id = ?", model, now, id);
     }
+
+    /**
+     * 删除 Agent 及全部关联数据（V8 M3 级联删除；workspace 目录保留不删，
+     * 对齐 fastclaw 软语义）；configs 表键由调用方清理
+     */
+    public void deleteCascade(String id) {
+        jdbc.update("DELETE FROM session_events WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM session_messages WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM sessions WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM tool_executions WHERE run_id IN (SELECT id FROM agent_runs WHERE agent_id = ?)", id);
+        jdbc.update("DELETE FROM agent_runs WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM agent_tools WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM agent_mcp_servers WHERE agent_id = ?", id);
+        jdbc.update("DELETE FROM agents WHERE id = ?", id);
+    }
 }

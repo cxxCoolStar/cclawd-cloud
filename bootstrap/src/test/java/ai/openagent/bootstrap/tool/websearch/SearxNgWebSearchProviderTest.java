@@ -44,7 +44,8 @@ class SearxNgWebSearchProviderTest {
     }
 
     private SearxNgWebSearchProvider provider(String endpoint) {
-        return new SearxNgWebSearchProvider(new WebSearchProperties("searxng", endpoint), new ObjectMapper());
+        return new SearxNgWebSearchProvider(
+                new WebSearchProperties("searxng", endpoint, "", true), new ObjectMapper());
     }
 
     @Test

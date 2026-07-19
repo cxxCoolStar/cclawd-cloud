@@ -28,6 +28,11 @@ spring:
 openagent:
   version: ${OPENAGENT_VERSION:0.1.0-SNAPSHOT}
   registration-open: ${OPENAGENT_REGISTRATION_OPEN:false}
+  llm:
+    fallback:
+      base-url: ${OPENAGENT_LLM_FALLBACK_BASE_URL:}
+      api-key: ${OPENAGENT_LLM_FALLBACK_API_KEY:}
+      model: ${OPENAGENT_LLM_FALLBACK_MODEL:}
   model:
     provider: ${OPENAGENT_MODEL_PROVIDER:openai}
     api-base: ${OPENAGENT_MODEL_API_BASE:https://api.openai.com/v1}
@@ -55,6 +60,8 @@ openagent:
     max-file-chars: ${OPENAGENT_MEMORY_MAX_FILE_CHARS:32768}
   skills:
     dir: ${OPENAGENT_SKILLS_DIR:./skills}
+  chat:
+    queue-wait-timeout: ${OPENAGENT_CHAT_QUEUE_WAIT_TIMEOUT:60s}
   workspace:
     history-enabled: ${OPENAGENT_WORKSPACE_HISTORY_ENABLED:true}
   tools:
@@ -65,8 +72,10 @@ openagent:
     web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:false}
     web-fetch-max-bytes: ${OPENAGENT_WEB_FETCH_MAX_BYTES:1048576}
     web-search:
-      order: ${OPENAGENT_WEB_SEARCH_ORDER:searxng}
+      order: ${OPENAGENT_WEB_SEARCH_ORDER:searxng,tavily}
       searxng-endpoint: ${OPENAGENT_WEB_SEARCH_SEARXNG_ENDPOINT:}
+      tavily-api-key: ${OPENAGENT_WEB_SEARCH_TAVILY_API_KEY:}
+      tavily-enabled: ${OPENAGENT_WEB_SEARCH_TAVILY_ENABLED:true}
 
 management:
   endpoints:
