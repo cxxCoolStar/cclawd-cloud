@@ -19,50 +19,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
- * ConfigService 单测（内存 StubConfigRepository，不触数据库，V7 方案 4 M1）
+ * ConfigService 单测（共享内存仓储夹具，不触数据库，V7 方案 4 M1；
+ * V9 M3 起仓储按 scope 寻址，无身份上下文等价 system scope 语义）
  */
 class ConfigServiceTest {
 
-    /**
-     * 内存版 ConfigRepository：按 LinkedHashMap 存取
-     */
-    private static final class StubConfigRepository extends ConfigRepository {
-        private final Map<String, String> store = new LinkedHashMap<>();
-
-        StubConfigRepository() {
-            super(null);
-        }
-
-        @Override
-        public Optional<String> get(String key) {
-            return Optional.ofNullable(store.get(key));
-        }
-
-        @Override
-        public void upsert(String key, String json) {
-            store.put(key, json);
-        }
-
-        @Override
-        public void delete(String key) {
-            store.remove(key);
-        }
-
-        @Override
-        public Map<String, String> listByPrefix(String prefix) {
-            Map<String, String> result = new LinkedHashMap<>();
-            store.forEach((key, json) -> {
-                if (key.startsWith(prefix)) {
-                    result.put(key, json);
-                }
-            });
-            return result;
-        }
-    }
-
-    private final StubConfigRepository repository = new StubConfigRepository();
+    private final InMemoryConfigRepository repository = new InMemoryConfigRepository();
     private final ConfigService service = new ConfigService(
             repository,
+            new InMemoryAgentRepository(),
             new ObjectMapper(),
             new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
             new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),
@@ -160,10 +125,15 @@ class ConfigServiceTest {
     }
 
     @Test
-    void agentEntriesUsePrefixedKeys() {
+    void agentEntriesUsePrefixedKeysAtAgentScope() {
         service.patchSkillEntries("agent-1", Map.of("s", new SkillEntry(false, null, null)));
 
-        assertTrue(repository.get(ConfigService.KEY_SKILLS_AGENT_ENTRIES_PREFIX + "agent-1").isPresent());
+        assertTrue(repository
+                .get(
+                        ConfigRepository.SCOPE_AGENT,
+                        "agent-1",
+                        ConfigService.KEY_SKILLS_AGENT_ENTRIES_PREFIX + "agent-1")
+                .isPresent());
         assertEquals(
                 false,
                 service.agentSkillEntries().get("agent-1").get("s").enabled());

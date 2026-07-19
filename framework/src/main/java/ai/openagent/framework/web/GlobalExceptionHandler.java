@@ -35,6 +35,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *   <li>{@link BaseErrorCode#SERVICE_TIMEOUT_ERROR} → 429（排队等待超时等，
  *       对齐 fastclaw 队列满的 Too Many Requests 语义）</li>
  *   <li>{@link BaseErrorCode#SERVICE_UNAVAILABLE_ERROR} → 503</li>
+ *   <li>{@link BaseErrorCode#UNAUTHORIZED} → 401</li>
+ *   <li>{@link BaseErrorCode#FORBIDDEN} → 403</li>
  *   <li>其余 A 类（ClientException）→ 400</li>
  *   <li>C 类（RemoteException）→ 502</li>
  *   <li>其余 B 类（ServiceException / 兜底）→ 500</li>
@@ -138,6 +140,12 @@ public class GlobalExceptionHandler {
         }
         if (BaseErrorCode.SERVICE_UNAVAILABLE_ERROR.code().equals(ex.getErrorCode())) {
             return HttpStatus.SERVICE_UNAVAILABLE;
+        }
+        if (BaseErrorCode.UNAUTHORIZED.code().equals(ex.getErrorCode())) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (BaseErrorCode.FORBIDDEN.code().equals(ex.getErrorCode())) {
+            return HttpStatus.FORBIDDEN;
         }
         if (ex instanceof ClientException) {
             return HttpStatus.BAD_REQUEST;

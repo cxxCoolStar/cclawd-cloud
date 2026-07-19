@@ -1,7 +1,7 @@
 package ai.openagent.bootstrap.tool.service.impl;
 
 import ai.openagent.agent.tool.ToolDescriptor;
-import ai.openagent.bootstrap.persistence.AgentRepository;
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.persistence.AgentToolRecord;
 import ai.openagent.bootstrap.persistence.AgentToolRepository;
 import ai.openagent.bootstrap.tool.CatalogToolRegistry;
@@ -32,13 +32,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ToolServiceImpl implements ToolService {
 
-    private final AgentRepository agentRepository;
+    private final AgentService agentService;
     private final AgentToolRepository agentToolRepository;
     private final CatalogToolRegistry toolRegistry;
 
     @Override
     public List<AgentToolVO> listTools(String agentId) {
-        requireAgent(agentId);
+        agentService.requireAccess(agentId);
         Map<String, AgentToolRecord> configByName = agentToolRepository.listByAgent(agentId).stream()
                 .collect(Collectors.toMap(AgentToolRecord::toolName, Function.identity()));
         List<AgentToolVO> tools = new ArrayList<>();
@@ -64,7 +64,7 @@ public class ToolServiceImpl implements ToolService {
 
     @Override
     public void setToolEnabled(String agentId, String toolName, boolean enabled) {
-        requireAgent(agentId);
+        agentService.requireAccess(agentId);
         if (toolName.startsWith("mcp_")) {
             throw new ClientException(
                     "mcp tools are enabled via mcp server configuration, not per-tool toggle",
@@ -78,17 +78,11 @@ public class ToolServiceImpl implements ToolService {
 
     @Override
     public List<RegisteredToolVO> listRegisteredTools(String agentId) {
-        requireAgent(agentId);
+        agentService.requireAccess(agentId);
         return toolRegistry.availableTools(agentId).stream()
                 .map(descriptor -> new RegisteredToolVO(
                         descriptor.name(), descriptor.description(), sourceName(descriptor.source())))
                 .toList();
-    }
-
-    private void requireAgent(String agentId) {
-        if (!agentRepository.exists(agentId)) {
-            throw new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND);
-        }
     }
 
     private static String sourceName(ToolDescriptor.Source source) {

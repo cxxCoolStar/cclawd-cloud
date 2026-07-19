@@ -8,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ConfigService.SkillEntry;
+import ai.openagent.bootstrap.config.InMemoryAgentRepository;
+import ai.openagent.bootstrap.config.InMemoryConfigRepository;
 import ai.openagent.bootstrap.config.ModelSettings;
-import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
 import ai.openagent.bootstrap.skill.config.SkillProperties;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
@@ -20,10 +21,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
@@ -33,43 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
  * SkillService 单测（V5 方案 M1/M2 行为清单 + V7 方案 3.3 启停过滤）
  */
 class SkillServiceTest {
-
-    /**
-     * 内存版 ConfigRepository：按 LinkedHashMap 存取（同 ConfigServiceTest 写法）
-     */
-    private static final class StubConfigRepository extends ConfigRepository {
-        private final Map<String, String> store = new LinkedHashMap<>();
-
-        StubConfigRepository() {
-            super(null);
-        }
-
-        @Override
-        public Optional<String> get(String key) {
-            return Optional.ofNullable(store.get(key));
-        }
-
-        @Override
-        public void upsert(String key, String json) {
-            store.put(key, json);
-        }
-
-        @Override
-        public void delete(String key) {
-            store.remove(key);
-        }
-
-        @Override
-        public Map<String, String> listByPrefix(String prefix) {
-            Map<String, String> result = new LinkedHashMap<>();
-            store.forEach((key, json) -> {
-                if (key.startsWith(prefix)) {
-                    result.put(key, json);
-                }
-            });
-            return result;
-        }
-    }
 
     private static final String FULL_SKILL = """
             ---
@@ -100,7 +62,8 @@ class SkillServiceTest {
 
     private ConfigService configService() {
         return new ConfigService(
-                new StubConfigRepository(),
+                new InMemoryConfigRepository(),
+                new InMemoryAgentRepository(),
                 new ObjectMapper(),
                 new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
                 new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),

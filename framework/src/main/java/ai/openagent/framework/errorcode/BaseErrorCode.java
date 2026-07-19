@@ -37,6 +37,16 @@ public enum BaseErrorCode implements IErrorCode {
      */
     RESOURCE_CONFLICT("A000401", "资源并发冲突"),
 
+    /**
+     * 用户未认证或会话已过期（映射 HTTP 401）
+     */
+    UNAUTHORIZED("A000402", "用户未认证或会话已过期"),
+
+    /**
+     * 已认证但无权限执行该操作（映射 HTTP 403）
+     */
+    FORBIDDEN("A000403", "没有访问权限"),
+
     // ========== B 类错误：系统执行错误 ==========
 
     /**

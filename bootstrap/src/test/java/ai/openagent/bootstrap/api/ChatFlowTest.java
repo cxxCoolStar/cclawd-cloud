@@ -13,11 +13,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ai.openagent.bootstrap.OpenAgentApplication;
 import ai.openagent.bootstrap.agentrun.AgentRunCoordinator;
 import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.bootstrap.persistence.AgentRunRepository;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
+import ai.openagent.bootstrap.persistence.SessionEventRecord;
+import ai.openagent.bootstrap.persistence.UserRecord;
+import ai.openagent.bootstrap.persistence.UserRepository;
+import ai.openagent.framework.identity.RequestIdentity;
 import ai.openagent.infra.ai.LLMService;
 import ai.openagent.infra.ai.model.ModelEvent;
 import ai.openagent.infra.ai.model.ModelResponse;
 import ai.openagent.infra.ai.model.TokenUsage;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -51,6 +57,12 @@ class ChatFlowTest {
 
     @Autowired
     private ChatSessionRepository sessionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private AgentRunRepository runRepository;
 
     @Test
     void streamsAndPersistsACompleteChatTurn() throws Exception {
@@ -118,8 +130,33 @@ class ChatFlowTest {
         assertEquals("content", events.get(0).eventType());
         assertEquals("done", events.get(1).eventType());
     }
+
+    @Test
+    void asyncRunPersistsUnderIdentitySnapshottedAtSubmit() throws Exception {
+        // 异步路径身份快照（V9 M1）：提交线程的 ThreadLocal 在 start 返回后
+        // 即被清理，执行线程落库的消息/事件/run 必须归属提交时快照的用户
+        String userId = "flow-user-" + UUID.randomUUID().toString().substring(0, 8);
+        userRepository.insert(new UserRecord(
+                userId, userId, userId + "@test.invalid", "user", "Flow User", "active",
+                "", "", -1, System.currentTimeMillis()));
+        String sessionId = "snapshot-session-" + UUID.randomUUID();
+
+        TestIdentity.callAs(new RequestIdentity(userId, null, null, "user", "test"),
+                () -> runCoordinator.start("default", sessionId, "who am i").get(5, TimeUnit.SECONDS));
+
+        var messages = sessionRepository.listMessages(userId, "default", sessionId);
+        assertEquals(2, messages.size());
+        var events = sessionRepository.listEventsSince(userId, "default", sessionId, -1);
+        assertEquals(List.of("content", "done"),
+                events.stream().map(SessionEventRecord::eventType).toList());
+        var runs = runRepository.listBySession(userId, "default", sessionId, 10);
+        assertEquals(1, runs.size());
+        assertEquals(userId, runs.get(0).userId());
+    }
+
     private void turnCoordinatorStart(String sessionId, String message) throws Exception {
-        runCoordinator.start("default", sessionId, message).get(5, TimeUnit.SECONDS);
+        TestIdentity.callAs(TestIdentity.localUser(),
+                () -> runCoordinator.start("default", sessionId, message).get(5, TimeUnit.SECONDS));
     }
 
     @TestConfiguration

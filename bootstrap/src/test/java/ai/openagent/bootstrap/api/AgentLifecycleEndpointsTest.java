@@ -18,6 +18,7 @@ import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.persistence.DataSeeder;
 import ai.openagent.bootstrap.persistence.ProviderRepository;
+import ai.openagent.bootstrap.persistence.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
@@ -35,7 +36,8 @@ import org.springframework.test.web.servlet.MvcResult;
  * <p>
  * 覆盖：创建字段校验与缺省回落、级联删除（sessions/messages/events/
  * runs/tools/configs 键）、默认 agent 拒删（400）、未知 agent 404、
- * onboard 写入供应商配置与创建首个 agent、空 provider 跳过写入
+ * onboard 写入供应商配置与创建首个 agent、空 provider 跳过写入。
+ * 测试库每次运行前删除重建（V9 M2 起 onboard 建号依赖"全新部署"语义）
  * </p>
  */
 @SpringBootTest(
@@ -48,6 +50,10 @@ import org.springframework.test.web.servlet.MvcResult;
         })
 @AutoConfigureMockMvc
 class AgentLifecycleEndpointsTest {
+
+    static {
+        new java.io.File("target/agent-lifecycle-test.db").delete();
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -72,6 +78,9 @@ class AgentLifecycleEndpointsTest {
 
     @Autowired
     private ConfigRepository configRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Test
     void createsAgentWithDefaultsAndValidatesName() throws Exception {
@@ -114,7 +123,7 @@ class AgentLifecycleEndpointsTest {
                 UUID.randomUUID().toString(), IdentityConstant.LOCAL_USER_ID, id, sessionId,
                 AgentRunStatus.COMPLETED, 0, null, null, now, now, now, now));
         String skillKey = "skills.agentEntries." + id;
-        configRepository.upsert(skillKey, "{}");
+        configRepository.upsert(ConfigRepository.SCOPE_AGENT, id, skillKey, "{}");
 
         // 默认 agent 拒删（400），未知 agent 404
         mockMvc.perform(delete("/api/agents/default")).andExpect(status().isBadRequest());
@@ -135,7 +144,7 @@ class AgentLifecycleEndpointsTest {
         assertTrue(runRepository
                 .listBySession(IdentityConstant.LOCAL_USER_ID, id, sessionId, 10).isEmpty());
         assertTrue(agentToolRepository.listByAgent(id).isEmpty());
-        assertTrue(configRepository.get(skillKey).isEmpty());
+        assertTrue(configRepository.get(ConfigRepository.SCOPE_AGENT, id, skillKey).isEmpty());
         // 默认 agent 及其数据不受影响
         assertTrue(agentRepository.exists(DataSeeder.DEFAULT_AGENT_ID));
     }
@@ -147,7 +156,7 @@ class AgentLifecycleEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "username": "alice", "email": "a@b.c", "password": "secret6",
+                                  "username": "alice", "email": "a@b.c", "password": "secret123",
                                   "provider": "deepseek", "apiBase": "https://api.deepseek.com",
                                   "apiKey": "sk-onboard-test", "model": "deepseek-v4-pro",
                                   "agentName": "%s"
@@ -163,8 +172,9 @@ class AgentLifecycleEndpointsTest {
         assertEquals("deepseek-v4-pro", provider.model());
         assertEquals("deepseek-v4-pro",
                 agentRepository.findById(DataSeeder.DEFAULT_AGENT_ID).orElseThrow().model());
-        // 首个业务 agent 已创建
-        assertTrue(agentRepository.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
+        // V9 M2：全新部署 onboard 建号，首个业务 agent 归属新建账号
+        String ownerId = userRepository.findByUsername("alice").orElseThrow().id();
+        assertTrue(agentRepository.listByUser(ownerId).stream()
                 .anyMatch(agent -> agent.name().equals(agentName)));
     }
 

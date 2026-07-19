@@ -1,6 +1,7 @@
 package ai.openagent.bootstrap.agent.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentFileService;
+import ai.openagent.bootstrap.agent.service.AgentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class AgentFileController {
 
     private final AgentFileService agentFileService;
+    private final AgentService agentService;
 
     /**
      * 列出 workspace 文件（sessionId 作用域过滤）
@@ -43,6 +45,7 @@ public class AgentFileController {
     @GetMapping("/api/agents/{agentId}/files")
     public Map<String, List<AgentFileService.WorkspaceFileEntry>> listFiles(
             @PathVariable String agentId, @RequestParam(required = false) String sessionId) {
+        agentService.requireAccess(agentId);
         return Map.of("files", agentFileService.listFiles(agentId, sessionId));
     }
 
@@ -57,6 +60,7 @@ public class AgentFileController {
             @PathVariable String agentId,
             @RequestParam(required = false) String sessionId,
             @RequestParam("file") List<MultipartFile> files) throws IOException {
+        agentService.requireAccess(agentId);
         List<AgentFileService.UploadFile> uploads = new java.util.ArrayList<>();
         for (MultipartFile file : files) {
             String filename = file.getOriginalFilename();
@@ -77,6 +81,7 @@ public class AgentFileController {
             @RequestParam(required = false) String download,
             HttpServletRequest request,
             HttpServletResponse response) throws IOException {
+        agentService.requireAccess(agentId);
         String uri = request.getRequestURI();
         String prefix = "/api/agents/" + agentId + "/files/";
         String encoded = uri.substring(uri.indexOf(prefix) + prefix.length());

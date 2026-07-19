@@ -5,7 +5,6 @@ import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
 import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ModelSettings;
-import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.mcp.McpClientManager;
 import ai.openagent.bootstrap.persistence.AgentMcpServerRecord;
 import ai.openagent.bootstrap.persistence.AgentMcpServerRepository;
@@ -18,6 +17,8 @@ import ai.openagent.bootstrap.tool.ToolCatalog;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.exception.ServiceException;
+import ai.openagent.framework.identity.RequestContext;
+import ai.openagent.framework.identity.RequestIdentity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
@@ -44,17 +45,36 @@ public class AgentServiceImpl implements AgentService {
     private final ModelSettings modelSettings;
 
     @Override
+    public AgentRecord requireAccess(String id) {
+        AgentRecord agent = agentRepository
+                .findById(id)
+                .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
+        RequestIdentity identity = RequestContext.current()
+                .orElseThrow(() -> new ClientException("unauthorized", BaseErrorCode.UNAUTHORIZED));
+        if (!identity.isPlatformAdmin() && !agent.userId().equals(identity.userId())) {
+            // 越权按不存在处理，不暴露 agent 存在性
+            throw new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (!identity.allowedAgentIds().isEmpty() && !identity.allowedAgentIds().contains(id)) {
+            throw new ClientException("api key is not scoped to this agent", BaseErrorCode.FORBIDDEN);
+        }
+        return agent;
+    }
+
+    @Override
     public List<AgentVO> listAgents() {
-        return agentRepository.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
+        java.util.Set<String> scope = RequestContext.current()
+                .map(RequestIdentity::allowedAgentIds)
+                .orElse(java.util.Set.of());
+        return agentRepository.listByUser(RequestContext.requireUserId()).stream()
+                .filter(agent -> scope.isEmpty() || scope.contains(agent.id()))
                 .map(AgentVO::from)
                 .toList();
     }
 
     @Override
     public AgentVO getAgent(String id) {
-        return agentRepository.findById(id)
-                .map(AgentVO::from)
-                .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
+        return AgentVO.from(requireAccess(id));
     }
 
     @Override
@@ -99,8 +119,7 @@ public class AgentServiceImpl implements AgentService {
         if (name == null && description == null && model == null) {
             return;
         }
-        AgentRecord agent = agentRepository.findById(id)
-                .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
+        AgentRecord agent = requireAccess(id);
         long now = System.currentTimeMillis();
         if (name != null || description != null) {
             agentRepository.updateProfile(
@@ -122,7 +141,7 @@ public class AgentServiceImpl implements AgentService {
         long now = System.currentTimeMillis();
         agentRepository.insert(
                 id,
-                IdentityConstant.LOCAL_USER_ID,
+                RequestContext.requireUserId(),
                 name.trim(),
                 value(description),
                 DataSeeder.DEFAULT_PROVIDER_ID,

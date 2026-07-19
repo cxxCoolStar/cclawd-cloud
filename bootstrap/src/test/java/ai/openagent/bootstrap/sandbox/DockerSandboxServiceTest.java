@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.config.ConfigService;
+import ai.openagent.bootstrap.config.InMemoryAgentRepository;
+import ai.openagent.bootstrap.config.InMemoryConfigRepository;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.sandbox.DockerCli.CliResult;
@@ -14,10 +16,7 @@ import ai.openagent.bootstrap.tool.config.ToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -50,46 +49,10 @@ class DockerSandboxServiceTest {
         }
     }
 
-    /**
-     * 内存版 ConfigRepository：不触数据库，便于驱动 dockerEnabled() 的 DB 覆盖分支
-     */
-    private static final class StubConfigRepository extends ConfigRepository {
-        private final Map<String, String> store = new LinkedHashMap<>();
-
-        StubConfigRepository() {
-            super(null);
-        }
-
-        @Override
-        public Optional<String> get(String key) {
-            return Optional.ofNullable(store.get(key));
-        }
-
-        @Override
-        public void upsert(String key, String json) {
-            store.put(key, json);
-        }
-
-        @Override
-        public void delete(String key) {
-            store.remove(key);
-        }
-
-        @Override
-        public Map<String, String> listByPrefix(String prefix) {
-            Map<String, String> result = new LinkedHashMap<>();
-            store.forEach((key, json) -> {
-                if (key.startsWith(prefix)) {
-                    result.put(key, json);
-                }
-            });
-            return result;
-        }
-    }
-
-    private static ConfigService configService(StubConfigRepository repository) {
+    private static ConfigService configService(InMemoryConfigRepository repository) {
         return new ConfigService(
                 repository,
+                new InMemoryAgentRepository(),
                 new ObjectMapper(),
                 new ModelSettings("kimi", "https://api.example", "test-key", "test-model", 0.6, 4096, null),
                 new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),
@@ -97,11 +60,11 @@ class DockerSandboxServiceTest {
     }
 
     private static DockerSandboxService service(FakeDockerCli cli, String workspaceRoot) {
-        return service(cli, workspaceRoot, new StubConfigRepository());
+        return service(cli, workspaceRoot, new InMemoryConfigRepository());
     }
 
     private static DockerSandboxService service(
-            FakeDockerCli cli, String workspaceRoot, StubConfigRepository configRepository) {
+            FakeDockerCli cli, String workspaceRoot, InMemoryConfigRepository configRepository) {
         return new DockerSandboxService(
                 new SandboxProperties(true, "python:3.12-slim", "1", "512m", "bridge"),
                 new ToolProperties(Duration.ofSeconds(30), 65536, workspaceRoot, 1048576, false, 1048576),
@@ -243,23 +206,23 @@ class DockerSandboxServiceTest {
                 new SandboxProperties(false, "img", "1", "512m", "bridge"),
                 new ToolProperties(Duration.ofSeconds(30), 65536, "target/x", 1048576, false, 1048576),
                 cli,
-                configService(new StubConfigRepository()));
+                configService(new InMemoryConfigRepository()));
         service.cleanupStaleContainers();
         assertTrue(cli.calls.isEmpty());
     }
 
     @Test
     void dockerEnabledPrefersDbOverride() {
-        StubConfigRepository repository = new StubConfigRepository();
+        InMemoryConfigRepository repository = new InMemoryConfigRepository();
         DockerSandboxService service = service(new FakeDockerCli(), "target/sandbox-test-ws", repository);
 
         // 无 DB 覆盖时回退属性值（helper 中属性为 true）
         assertTrue(service.dockerEnabled());
 
-        repository.upsert(ConfigService.KEY_SANDBOX, "{\"enabled\":false}");
+        repository.upsert(ConfigRepository.SCOPE_SYSTEM, "", ConfigService.KEY_SANDBOX, "{\"enabled\":false}");
         assertTrue(!service.dockerEnabled());
 
-        repository.upsert(ConfigService.KEY_SANDBOX, "{\"enabled\":true}");
+        repository.upsert(ConfigRepository.SCOPE_SYSTEM, "", ConfigService.KEY_SANDBOX, "{\"enabled\":true}");
         assertTrue(service.dockerEnabled());
     }
 }

@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.agent.service;
 
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
+import ai.openagent.bootstrap.persistence.AgentRecord;
 import java.util.List;
 import java.util.Map;
 
@@ -11,12 +12,21 @@ import java.util.Map;
 public interface AgentService {
 
     /**
-     * 查询当前用户的智能体列表
+     * 归属与 scope 校验（V9 M2 统一防线，所有 agentId 端点在 service 入口调用）：
+     * agent 不存在或当前用户非属主（super_admin 豁免）一律 404，不暴露存在性；
+     * API Key 绑定了 agent 子集时目标 agent 不在子集内返回 403
+     *
+     * @return 校验通过后的 agent 记录
+     */
+    AgentRecord requireAccess(String id);
+
+    /**
+     * 查询当前用户的智能体列表（API Key 绑定子集时按子集过滤）
      */
     List<AgentVO> listAgents();
 
     /**
-     * 按 ID 查询智能体，不存在时抛资源不存在异常
+     * 按 ID 查询智能体（含归属校验），不存在或越权时抛资源不存在异常
      */
     AgentVO getAgent(String id);
 

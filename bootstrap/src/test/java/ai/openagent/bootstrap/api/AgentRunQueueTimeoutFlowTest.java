@@ -65,8 +65,10 @@ class AgentRunQueueTimeoutFlowTest {
         ScriptedModelConfiguration.HOLD_LATCH = new CountDownLatch(1);
         CompletableFuture<Void> first;
         try {
-            first = runCoordinator.start("default", sessionId, "hold the turn");
-            CompletableFuture<Void> second = runCoordinator.start("default", sessionId, "second message");
+            first = TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionId, "hold the turn"));
+            CompletableFuture<Void> second = TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionId, "second message"));
 
             ExecutionException error = assertThrows(ExecutionException.class,
                     () -> second.get(10, TimeUnit.SECONDS));

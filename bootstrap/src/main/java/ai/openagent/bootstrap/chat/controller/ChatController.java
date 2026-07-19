@@ -1,6 +1,7 @@
 package ai.openagent.bootstrap.chat.controller;
 
 import ai.openagent.bootstrap.agentrun.AgentRunCoordinator;
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.chat.controller.request.ChatStreamRequest;
 import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
@@ -45,6 +46,7 @@ public class ChatController {
     private final ChatService chatService;
     private final AgentRunCoordinator runCoordinator;
     private final ChatSseStreamFactory sseStreamFactory;
+    private final AgentService agentService;
 
     /**
      * 查询会话历史消息与事件 resume 游标
@@ -118,6 +120,8 @@ public class ChatController {
      */
     @PostMapping(path = "/api/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<ResponseBodyEmitter> stream(@RequestBody @Valid ChatStreamRequest requestParam) {
+        // 归属/scope 校验在开启流之前完成：越权走全局异常处理器返回 JSON 404/403
+        agentService.requireAccess(requestParam.agentId());
         ChatSseStream stream = sseStreamFactory.openTurnStream();
         try {
             sseStreamFactory.connect(stream, requestParam.agentId(), requestParam.sessionId());

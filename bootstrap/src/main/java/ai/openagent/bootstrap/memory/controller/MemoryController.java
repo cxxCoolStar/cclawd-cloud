@@ -1,8 +1,8 @@
 package ai.openagent.bootstrap.memory.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
-import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.memory.MemoryService;
+import ai.openagent.framework.identity.RequestContext;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -48,10 +48,10 @@ public class MemoryController {
     public Map<String, String> putMemory(@PathVariable String agentId, @RequestBody Map<String, String> body) {
         agentService.getAgent(agentId);
         if (body.containsKey("memory")) {
-            memoryService.saveMemory(IdentityConstant.LOCAL_USER_ID, agentId, body.get("memory"));
+            memoryService.saveMemory(RequestContext.requireUserId(), agentId, body.get("memory"));
         }
         if (body.containsKey("user")) {
-            memoryService.saveUserFile(IdentityConstant.LOCAL_USER_ID, agentId, body.get("user"));
+            memoryService.saveUserFile(RequestContext.requireUserId(), agentId, body.get("user"));
         }
         return getMemory(agentId);
     }

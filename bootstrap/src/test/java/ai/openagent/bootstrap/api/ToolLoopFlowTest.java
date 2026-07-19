@@ -78,7 +78,9 @@ class ToolLoopFlowTest {
         Files.createDirectories(workspace);
         Files.writeString(workspace.resolve("data.txt"), "136");
 
-        runCoordinator.start("default", sessionId, "read the data file").get(10, TimeUnit.SECONDS);
+        TestIdentity.callAs(TestIdentity.localUser(),
+                () -> runCoordinator.start("default", sessionId, "read the data file")
+                        .get(10, TimeUnit.SECONDS));
 
         // 消息配对持久化：user → assistant(tool_calls) → tool → assistant(final)
         List<ChatMessageRecord> messages =
@@ -123,9 +125,11 @@ class ToolLoopFlowTest {
         CompletableFuture<Void> first;
         CompletableFuture<Void> second;
         try {
-            first = runCoordinator.start("default", sessionId, "hold the turn");
+            first = TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionId, "hold the turn"));
             // 同会话第二条消息不再 409（V8 M2），排队等待首个运行终态后出队
-            second = runCoordinator.start("default", sessionId, "second message");
+            second = TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionId, "second message"));
             assertTrue(!second.isDone(), "第二条消息应处于排队状态");
             ScriptedModelConfiguration.HOLD_LATCH.countDown();
             first.get(10, TimeUnit.SECONDS);
@@ -154,9 +158,12 @@ class ToolLoopFlowTest {
         String sessionB = "parallel-b-" + UUID.randomUUID();
         ScriptedModelConfiguration.HOLD_LATCH = new CountDownLatch(1);
         try {
-            CompletableFuture<Void> runA = runCoordinator.start("default", sessionA, "hold the turn");
+            CompletableFuture<Void> runA = TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionA, "hold the turn"));
             // 会话 B 不受会话 A 的队列/持锁影响，并行完成
-            runCoordinator.start("default", sessionB, "quick question").get(10, TimeUnit.SECONDS);
+            TestIdentity.callAs(TestIdentity.localUser(),
+                    () -> runCoordinator.start("default", sessionB, "quick question")
+                            .get(10, TimeUnit.SECONDS));
             assertTrue(!runA.isDone(), "会话 A 仍应被持锁阻塞");
             ScriptedModelConfiguration.HOLD_LATCH.countDown();
             runA.get(10, TimeUnit.SECONDS);

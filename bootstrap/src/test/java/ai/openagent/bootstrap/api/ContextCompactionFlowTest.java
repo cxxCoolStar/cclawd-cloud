@@ -81,7 +81,8 @@ class ContextCompactionFlowTest {
         sessionRepository.appendMessage(userId, "default", sessionId, "assistant", "w".repeat(400), "", "");
         sessionRepository.appendMessage(userId, "default", sessionId, "user", "v".repeat(400), "", "");
 
-        runCoordinator.start("default", sessionId, "tail question").get(10, TimeUnit.SECONDS);
+        TestIdentity.callAs(TestIdentity.localUser(),
+                () -> runCoordinator.start("default", sessionId, "tail question").get(10, TimeUnit.SECONDS));
 
         // 总结调用：system prompt 为 summarizer 提示、不携带 tools
         List<ModelMessage> summaryRequest = ScriptedModelConfiguration.RECEIVED.stream()

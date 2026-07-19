@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.config.controller;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.config.controller.vo.ConfigResponseVO;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
  * 全局配置接口（V7 方案 3.2）
  *
  * <p>
- * GET 返回前端 ConfigResponse 形状（secret 打码）；POST 为 PATCH 深合并
+ * GET 返回前端 ConfigResponse 形状（secret 打码），值为当前身份的三级
+ * 合并视图（agent ⊕ user ⊕ system，V9 M3）；POST 为 PATCH 深合并
  * 语义，仅处理出现的子树：{@code agents.defaults} / {@code skills.entries} /
- * {@code skills.agentEntries} / {@code prefs} / {@code sandbox}（仅 enabled 可写）
+ * {@code skills.agentEntries} / {@code prefs} / {@code sandbox}（仅 enabled 可写）。
+ * 写路径按身份落 scope：super_admin 写 system scope，普通用户写自己的
+ * user scope；skills.agentEntries 写 agent scope 且校验 agent 归属
  * </p>
  */
 @RestController
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ConfigController {
 
     private final ConfigService configService;
+    private final AgentService agentService;
     private final ModelSettings modelSettings;
     private final SandboxProperties sandboxProperties;
 
@@ -71,8 +76,11 @@ public class ConfigController {
             }
             JsonNode agentEntries = skills.get("agentEntries");
             if (agentEntries != null) {
-                agentEntries.fields().forEachRemaining(agentEntry ->
-                        configService.patchSkillEntries(agentEntry.getKey(), agentEntry.getValue()));
+                agentEntries.fields().forEachRemaining(agentEntry -> {
+                    // agent 级配置写 agent scope，归属/scope 校验同 M2 防线（越权 404/403）
+                    agentService.requireAccess(agentEntry.getKey());
+                    configService.patchSkillEntries(agentEntry.getKey(), agentEntry.getValue());
+                });
             }
         }
         if (body.get("prefs") != null) {

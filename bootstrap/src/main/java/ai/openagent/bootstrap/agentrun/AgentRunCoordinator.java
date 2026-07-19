@@ -9,7 +9,6 @@ import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.chat.config.ChatProperties;
 import ai.openagent.bootstrap.chat.event.ChatEventPublisher;
 import ai.openagent.bootstrap.chat.event.ChatSessionKey;
-import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.memory.AutoPersistMemoryService;
 import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
@@ -19,6 +18,7 @@ import ai.openagent.bootstrap.workspace.WorkspaceHistoryService;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.exception.ServiceException;
+import ai.openagent.framework.identity.RequestContext;
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayDeque;
 import java.util.Map;
@@ -125,7 +125,9 @@ public class AgentRunCoordinator {
         }
         String key = new ChatSessionKey(agentId, sessionId).compact();
 
-        String userId = IdentityConstant.LOCAL_USER_ID;
+        // 提交时在请求线程快照当前用户：ThreadLocal 不跨线程边界，
+        // 排队/执行线程只读 command 里携带的 userId
+        String userId = RequestContext.requireUserId();
         String runId = UUID.randomUUID().toString();
         // 先落库用户消息与 run 记录（CREATED = 排队中），模型调用前的失败
         // 直接以 HTTP 错误返回；提交即落库保证同会话顺序与可见性
@@ -204,7 +206,7 @@ public class AgentRunCoordinator {
                             // 避免 session 锁被占用；失败不影响运行终态
                             try {
                                 executor.execute(() -> autoPersistMemoryService.maybePersist(
-                                        IdentityConstant.LOCAL_USER_ID,
+                                        next.command.userId(),
                                         next.command.agentId(),
                                         next.command.sessionId()));
                                 // workspace 版本历史：turn 边界快照（覆盖文件工具

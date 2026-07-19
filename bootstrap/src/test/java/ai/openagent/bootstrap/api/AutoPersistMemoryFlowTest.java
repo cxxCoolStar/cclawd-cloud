@@ -54,7 +54,9 @@ class AutoPersistMemoryFlowTest {
         String sessionId = "ap-" + UUID.randomUUID();
         Files.createDirectories(Path.of("target", "auto-persist-ws", "default"));
 
-        runCoordinator.start("default", sessionId, "I prefer concise answers").get(10, TimeUnit.SECONDS);
+        TestIdentity.callAs(TestIdentity.localUser(),
+                () -> runCoordinator.start("default", sessionId, "I prefer concise answers")
+                        .get(10, TimeUnit.SECONDS));
 
         // 自动记忆在独立异步任务中执行，轮询等待最多 5 秒
         Path memoryPath = memoryService.agentHome("default").resolve("MEMORY.md");

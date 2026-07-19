@@ -5,9 +5,9 @@ package ai.openagent.bootstrap.onboard.controller.request;
  *
  * <p>
  * 字段形状对齐前端 {@code OnboardRequest}（frontend/src/lib/api.ts）；
- * V8 单机单用户模式下只消费 provider/apiBase/apiKey/model/agentName：
- * admin 账户字段（username/email/password/displayName）留待 V9 认证落地，
- * sandbox 字段仍由环境变量配置（见 application.yml），均接收但忽略
+ * V9 M2 起账密字段（username/email/password/displayName）在全新部署时
+ * 用于创建 super_admin 账号；sandbox 字段仍由环境变量配置（见
+ * application.yml），接收但忽略
  * </p>
  */
 public record OnboardRequest(

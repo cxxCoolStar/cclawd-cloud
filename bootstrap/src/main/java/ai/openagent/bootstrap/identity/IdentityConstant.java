@@ -4,8 +4,9 @@ package ai.openagent.bootstrap.identity;
  * 身份域常量
  *
  * <p>
- * 本地单用户模式下的固定用户 ID。多用户能力落地前，各业务域通过此常量
- * 获取当前用户，避免散落的字符串字面量；届时替换为真实的用户上下文
+ * 种子本地用户 ID。V9 起业务代码经 {@code RequestContext} 获取当前用户；
+ * 本常量仅保留给种子数据（DataSeeder）、公开端点的匿名回退与存量测试，
+ * 标识"多用户改造前"的历史数据归属
  * </p>
  */
 public final class IdentityConstant {

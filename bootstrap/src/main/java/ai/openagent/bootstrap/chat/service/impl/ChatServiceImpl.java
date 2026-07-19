@@ -1,13 +1,14 @@
 package ai.openagent.bootstrap.chat.service.impl;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatMessageVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionVO;
 import ai.openagent.bootstrap.chat.service.ChatService;
-import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.SessionEventRecord;
+import ai.openagent.framework.identity.RequestContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,11 +33,13 @@ import org.springframework.stereotype.Service;
 public class ChatServiceImpl implements ChatService {
 
     private final ChatSessionRepository sessionRepository;
+    private final AgentService agentService;
     private final ObjectMapper objectMapper;
 
     @Override
     public ChatHistoryVO history(String agentId, String sessionId) {
-        String userId = IdentityConstant.LOCAL_USER_ID;
+        agentService.requireAccess(agentId);
+        String userId = RequestContext.requireUserId();
         List<ChatMessageVO> history = sessionRepository.listMessages(userId, agentId, sessionId).stream()
                 .map(record -> ChatMessageVO.from(record, objectMapper))
                 .toList();
@@ -45,8 +48,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public ChatSessionListVO sessions(String agentId) {
+        agentService.requireAccess(agentId);
         List<ChatSessionVO> sessions =
-                sessionRepository.listSessions(IdentityConstant.LOCAL_USER_ID, agentId).stream()
+                sessionRepository.listSessions(RequestContext.requireUserId(), agentId).stream()
                         .map(ChatSessionVO::from)
                         .toList();
         return new ChatSessionListVO(sessions);
@@ -54,7 +58,8 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<Map<String, Object>> replayEventsSince(String agentId, String sessionId, long since) {
-        return sessionRepository.listEventsSince(IdentityConstant.LOCAL_USER_ID, agentId, sessionId, since).stream()
+        agentService.requireAccess(agentId);
+        return sessionRepository.listEventsSince(RequestContext.requireUserId(), agentId, sessionId, since).stream()
                 .map(this::decode)
                 .toList();
     }

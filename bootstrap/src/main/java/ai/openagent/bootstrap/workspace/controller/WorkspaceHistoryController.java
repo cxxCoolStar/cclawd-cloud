@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.workspace.controller;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.workspace.WorkspaceHistoryService;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceHistoryController {
 
     private final WorkspaceHistoryService historyService;
+    private final AgentService agentService;
 
     /**
      * 列出会话历史提交（新到旧）
@@ -30,6 +32,7 @@ public class WorkspaceHistoryController {
     @GetMapping("/api/agents/{agentId}/sessions/{sessionId}/history")
     public Map<String, List<WorkspaceHistoryService.HistoryEntry>> listHistory(
             @PathVariable String agentId, @PathVariable String sessionId) {
+        agentService.requireAccess(agentId);
         return Map.of("history", historyService.listHistory(agentId, sessionId));
     }
 
@@ -41,6 +44,7 @@ public class WorkspaceHistoryController {
             @PathVariable String agentId,
             @PathVariable String sessionId,
             @RequestBody Map<String, String> body) {
+        agentService.requireAccess(agentId);
         historyService.restore(agentId, sessionId, body.get("commit"));
         return Map.of("ok", true);
     }

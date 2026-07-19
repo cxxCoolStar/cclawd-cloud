@@ -71,3 +71,46 @@
 - agentQuota 硬配额、usage 统计
 - 多副本/session 外置（`auth_sessions` 在 SQLite，重启不失效；多实例部署仍不支持——维持单机定位）
 - OAuth/SSO、密码找回邮件流
+
+## 7. 实施记录
+
+### M1：认证与用户管理（完成于 2026-07-18，verify 全绿）
+
+- **schema**：`V4__auth_and_users.sql`——users 表补 `password_hash`/`avatar_url`/`agent_quota`；新建 `auth_sessions`（token PK / user_id / created_at / expires_at，SQLite 单机，重启不失效）。
+- **端点**：`POST /api/register`（registration-open 门控；首个设密码的用户自动 super_admin 且不受门控，种子 local-user 无密码不参与计数）、`POST /api/login`（login 字段支持用户名或邮箱，用户不存在与密码错误统一 401 口径）、`POST /api/logout`、`GET/PUT /api/me`、`POST /api/me/password`。登录/注册成功写 HttpOnly + SameSite=Lax cookie（`openagent_session`，7 天）。
+- **认证设施**：`AuthFilter`（OncePerRequestFilter，/api/** 白名单 login/register/onboard/status）+ framework 层 `RequestContext`/`RequestIdentity`（ThreadLocal，请求结束清理）；BCrypt 只引 spring-security-crypto。未认证 401 响应为 fastclaw 兼容 `{"ok":false,"error":"unauthorized"}`。
+- **身份传递**：`LOCAL_USER_ID` 主代码使用点全部改从 RequestContext 取；`AgentRunCoordinator` 在提交线程快照 userId 传入异步链路；`/api/status` 保持公开，匿名回退种子 local-user 视图。
+- **测试**：`AuthEndpointsTest`（首用户超管/注册登录改密/登出失效/过期会话剔除/401/白名单放行）、`RegistrationClosedTest`；测试基建 `TestAuthSessionFilter`（自动注入种子 super_admin 会话 cookie，存量测试零改造）、`TestAuthSessionSeeder`、`TestIdentity.callAs`（绕过 Web 层的身份包裹）。
+
+### M2：归属隔离 + RBAC + API Key（完成于 2026-07-19，verify 全绿 187 测试）
+
+- **owner 校验**：统一收口为 `AgentService.requireAccess(id)`——agent 不存在或当前用户非属主（super_admin 豁免）一律 404 不暴露存在性；API key 带 agent 子集时目标不在子集内 403。铺开面（12 类端点，逐一入负向矩阵）：`AgentServiceImpl` 全部读写方法（agents CRUD + config）；`ChatServiceImpl.history/sessions/replayEventsSince` + `ChatController.stream`（chat 四端点；`AgentRunCoordinator.start` 刻意不校验——有测试以普通 user 身份直调，校验统一放在 Web/service 入口）；`AgentFileController`（files 三端点）；`MemoryController`、`SkillController`（经已有 getAgent 调用自动覆盖，含 `skills/upload?agent=`）；`ToolServiceImpl`（tools 三端点，原 exists 检查替换为 requireAccess）；`WorkspaceHistoryController`（history 两端点）。`GET /api/agents` 列表在 key 带 scope 时按子集过滤。
+- **RBAC**：`/api/users` CRUD + `POST /api/users/{id}/password`（契约对齐前端 api.ts admin 系列：列表 `{users:[...]}`、创建/更新 `{ok,user}`、重置密码后会话全失效、停用立即踢会话、不允许删除自己 400、角色/状态枚举校验、用户名/邮箱重复 409）。普通 user 调这些端点与 `/api/admin/registration` 一律 403（`UserAdminServiceImpl.requireSuperAdmin` 闸门）。`/api/admin/registration` GET/PUT `{open}`：注册开关改由 configs 表 `admin.registrationOpen` 持久化、立即生效，未设置时回落 `openagent.registration-open`（M1 门控行为与 RegistrationClosedTest 不变）；`/api/status` 的 registrationOpen 同步改读有效值。登录与会话认证均校验 `status=active`（停用账号 401 同"密码错误"口径）。
+- **API Key**：`V5__api_keys.sql`（id / user_id / name / key_hash / agent_ids JSON / created_at / last_used_at，key_hash 唯一索引）。`POST/GET/DELETE /api/apikeys` 对齐前端 apikeys 页契约：创建 `{apikey, token}`（`oag_` 前缀 64 hex 明文只返回一次，库存 SHA-256）；列表 `{apikeys:[{id,userId,name,key(打码),type,agents,createdAt,lastUsedAt}]}`；删除按属主隔离（他人 key 404）。`AuthFilter` 无 cookie 时回落 `Authorization: Bearer <key>`，命中即携带 key 的 agent 子集身份并惰性刷新 last_used_at。
+- **onboard 建号**（M1 遗留建议，前端契约清晰故落地）：onboard 页有 username/email/password 字段——三字段齐备且库内无密码用户时创建 super_admin，首个业务 agent 归属该账号；字段不全静默跳过（兼容只写供应商配置的存量调用）；已完成引导后重复 onboard 不再建号（幂等）。
+- **越权负向测试矩阵**（发布门禁）：`OwnershipIsolationTest`（B 访问 A 的 agent 12 类端点全 404 + 不存在同口径 + super_admin 豁免 200）；`ApiKeyFlowTest`（scope 内 200 / scope 外 403、列表过滤、明文一次性、打码、绑定他人 agent 404、跨用户删 key 404、删后 401、无效 key 401）；`UserAdminEndpointsTest`（普通用户管理端点全 403、超管全链路、停用/重置密码生效、注册开关读写）；`OnboardAccountTest`（建号 + agent 归属 + 幂等）。
+- **偏差与说明**：
+  - `api_keys` 表按计划无 type 列：创建时仅 `type=agent` 语义落地（存 agentIds 子集），admin/user 均为不限制；列表 type 由 agents 是否为空推导。前端的 `rotateApikey`、`setApikeyAgents`（/rotate、/agents 端点）本期未实现，页面调用会收到 404 错误提示，留待后续。
+  - Bearer 只识别 `oag_` 前缀 API key，不识别 session token（前端 cookie 为主凭证）。
+  - scope 检查对所有身份生效（super_admin 的 scoped key 同样受限）；owner 检查仅 super_admin 豁免。
+  - 密码最小长度 8（与 signup 页一致）；前端 onboard 页校验为 ≥6，6–7 位密码会被后端拒绝并回显错误——前端两页校验不一致，待前端对齐。
+  - `GET /api/agents?all=true`、`/api/admin/chats`、全局技能删除的 admin 门、agentQuota 硬配额均不在本期，维持原状。
+  - 存量 `AgentLifecycleEndpointsTest` 因 onboard 语义变化适配夹具（密码改 8 位、首个 agent 归属新建账号断言、测试库每次重建）。
+
+### M3：配置继承链（system → user → agent 三级）（完成于 2026-07-19，verify 全绿 198 测试）
+
+- **schema**：`V6__configs_scope.sql`——SQLite 不支持改主键，重建 `configs` 表：PK 改为 `(scope, scope_id, config_key)`；存量行归位约定：`skills.agentEntries.{agentId}` 键 → `scope='agent'`、`scope_id=agentId`（agent 级配置的本然归属），其余键（agents.defaults / skills.entries / prefs / sandbox / admin.registrationOpen）→ `scope='system'`、`scope_id=''`（空串为 system 的统一约定）。
+- **ConfigRepository**：全部方法按 `(scope, scopeId, key)` 三元组寻址；`delete(key)` 删除全 scope 行（agent 删除时清理 agentEntries 键）；`listByScopeAndPrefix` 取代原 `listByPrefix`。
+- **读路径（merged = agent ⊕ user ⊕ system）**：
+  - setting 类键（`agents.defaults`/`skills.entries`/`prefs`/`sandbox`，`ConfigService.SETTING_KEYS`）字段级深合并，user 覆盖 system；`skills.entries` 按技能条目再字段级合并（enabled/apiKey 覆盖、env 按键合并）。
+  - 集合外任意键按 provider/model 类语义**整对象替换**（user 行存在即整体生效，不再继承 system）——本期 configs 键空间内尚无 provider 键（provider 连接配置在 `providers` 表），规则在合并层实现并以 `providers.openai` 模拟键单测锁定，待 provider 键落入 configs 时直接生效。
+  - agent 级经 `skills.agentEntries.{agentId}` 键表达（agent scope）：`skillEnabled` 解析链 = agent scope 行 → **agent 属主**的 user scope 行 → system 行 → 默认启用（属主解析经 AgentRepository，异步运行线程无 RequestContext 也正确）；GET agentEntries 普通用户仅见自己 agent 的覆盖，super_admin 见全部。
+  - 无身份上下文（异步线程/内部调用）读侧回落 system scope 视图。
+- **写路径（按身份落 scope）**：super_admin 写 system scope；普通用户写自己的 user scope——**写隔离采用"静默落 user scope"语义**（POST /api/config 无 scope 参数、前端零改动，普通用户无从触及 system scope，而非 403）；无身份上下文的内部/测试调用回落 system scope（单机存量语义）。agent 级沿用 agentEntries 键写 agent scope，ConfigController 在写入前 `requireAccess(agentId)`（越权 404，与 M2 同口径）。`admin.registrationOpen` 恒读写 system scope。
+- **打码逐 scope 生效**：GET 回显合并视图的打码；POST 回写值与**合并视图**打码一致时不在本 scope 落值（保留本 scope 现状，无值即继续继承上级），明文新值才写入本 scope；agent scope 写入的打码比较基准为本 scope 行（GET agentEntries 回显即 agent scope 行的打码，语义与 V7 一致）。
+- **GET /api/config 响应形状不变**（前端零改动），值为当前身份的合并视图。
+- **测试**：`ConfigScopeTest`（字段级三级合并、provider 整对象替换、skillEnabled 三级链、写隔离——普通用户写不进 system scope、super_admin 落 system、跨 scope 打码回写保护、逐身份打码、agentEntries 属主可见性）；`ConfigScopeEndpointsTest`（多用户全链路：admin 写 system → 用户读合并视图、用户写只落 user scope 且不影响他人、打码回写跨 scope 保护、agentEntries 越权 404 + 属主可见性）；回归 V7 `ConfigServiceTest`/`ConfigEndpointsTest` 全绿。测试基建新增共享夹具 `InMemoryConfigRepository`/`InMemoryAgentRepository`（取代 ConfigServiceTest/SkillServiceTest/ExecToolTest/DockerSandboxServiceTest 各自的旧版内存 Stub）。
+- **偏差与说明**：
+  - `ConfigEndpointsTest` 的 agentEntries 用例 agentId 由 `agent-1` 改为种子 `default`——写入路径新增归属校验后，不存在的 agent 按 M2 口径 404。
+  - `sandboxEnabledOverride()`/`agentDefaults()`/`prefs()` 读合并视图（有身份时 user 覆盖 system）；运行时调用方（DockerSandboxService 等）在异步线程无身份，实际生效为 system scope——sandbox 属平台级关注，语义可接受，特此记录。
+  - provider 连接配置仍在 `providers` 表（onboard/种子写入），前端 models 页期待的 `/api/providers` scoped CRUD 端点本期未实现（页面调用 404，与 M2 记录一致）；GET /api/config 的 providers 段仍由 ModelSettings 派生。

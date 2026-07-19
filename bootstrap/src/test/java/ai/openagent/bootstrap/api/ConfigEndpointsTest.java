@@ -91,7 +91,7 @@ class ConfigEndpointsTest {
                                       }
                                     },
                                     "agentEntries": {
-                                      "agent-1": {"web-search": {"enabled": false}}
+                                      "default": {"web-search": {"enabled": false}}
                                     }
                                   }
                                 }
@@ -112,7 +112,7 @@ class ConfigEndpointsTest {
                 .andExpect(jsonPath("$.skills.entries.web-search.env.BRAVE_API_KEY").value("brav****8888"))
                 .andExpect(
                         jsonPath("$.skills.entries.web-search.env.BASE_URL").value("https://api.example"))
-                .andExpect(jsonPath("$.skills.agentEntries.agent-1.web-search.enabled").value(false))
+                .andExpect(jsonPath("$.skills.agentEntries.default.web-search.enabled").value(false))
                 // 响应任何位置不得泄漏明文密钥
                 .andExpect(content().string(not(containsString("brave-secret-value-9999"))))
                 .andExpect(content().string(not(containsString("brave-env-secret-8888"))));

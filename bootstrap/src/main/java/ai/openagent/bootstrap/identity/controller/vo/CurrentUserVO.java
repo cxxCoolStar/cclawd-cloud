@@ -5,9 +5,9 @@ import ai.openagent.bootstrap.persistence.UserRecord;
 /**
  * 当前用户身份视图对象（fastclaw 协议形状：{ok, user, authMethod, readOnly, deployMode}）
  *
- * @param ok         恒为 true（fastclaw 协议字段）
+ * @param ok         恒为 true（fastclaw 协议字段；失败响应走 {"ok":false,"error":...} 形状）
  * @param user       用户信息
- * @param authMethod 认证方式（本地单用户模式为 local）
+ * @param authMethod 认证方式（cookie 会话为 cookie）
  * @param readOnly   是否只读会话
  * @param deployMode 部署模式（self-hosted / hosted）
  */
@@ -21,6 +21,7 @@ public record CurrentUserVO(boolean ok, UserVO user, String authMethod, boolean 
      * @param email       邮箱
      * @param role        角色
      * @param displayName 显示名
+     * @param avatarUrl   头像地址
      * @param status      状态
      * @param agentQuota  智能体配额（-1 表示不限制）
      */
@@ -30,11 +31,12 @@ public record CurrentUserVO(boolean ok, UserVO user, String authMethod, boolean 
             String email,
             String role,
             String displayName,
+            String avatarUrl,
             String status,
             int agentQuota) {
 
         /**
-         * 由持久化记录装配（本地模式配额不限制）
+         * 由持久化记录装配
          */
         public static UserVO from(UserRecord record) {
             return new UserVO(
@@ -43,15 +45,16 @@ public record CurrentUserVO(boolean ok, UserVO user, String authMethod, boolean 
                     record.email(),
                     record.role(),
                     record.displayName(),
+                    record.avatarUrl(),
                     record.status(),
-                    -1);
+                    record.agentQuota());
         }
     }
 
     /**
-     * 本地单用户模式的身份响应
+     * 已认证用户的身份响应
      */
-    public static CurrentUserVO local(UserRecord record) {
-        return new CurrentUserVO(true, UserVO.from(record), "local", false, "self-hosted");
+    public static CurrentUserVO from(UserRecord record, String authMethod) {
+        return new CurrentUserVO(true, UserVO.from(record), authMethod, false, "self-hosted");
     }
 }

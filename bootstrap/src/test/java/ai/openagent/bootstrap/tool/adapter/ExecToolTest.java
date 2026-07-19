@@ -10,8 +10,9 @@ import ai.openagent.agent.tool.ToolExecutionContext;
 import ai.openagent.agent.tool.ToolResult;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.config.ConfigService;
+import ai.openagent.bootstrap.config.InMemoryAgentRepository;
+import ai.openagent.bootstrap.config.InMemoryConfigRepository;
 import ai.openagent.bootstrap.config.ModelSettings;
-import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.sandbox.DockerCli;
 import ai.openagent.bootstrap.sandbox.DockerSandboxService;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
@@ -21,7 +22,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -62,14 +62,9 @@ class ExecToolTest {
      * 空配置库（无 DB 覆盖）：dockerEnabled() 回退属性值
      */
     private static ConfigService configService() {
-        ConfigRepository repository = new ConfigRepository(null) {
-            @Override
-            public Optional<String> get(String key) {
-                return Optional.empty();
-            }
-        };
         return new ConfigService(
-                repository,
+                new InMemoryConfigRepository(),
+                new InMemoryAgentRepository(),
                 new ObjectMapper(),
                 new ModelSettings("kimi", "https://api.example", "test-key", "test-model", 0.6, 4096, null),
                 new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),

@@ -73,6 +73,9 @@ public class DataSeeder implements ApplicationRunner {
                 "super_admin",
                 "Local User",
                 "active",
+                "",
+                "",
+                -1,
                 now));
     }
 
