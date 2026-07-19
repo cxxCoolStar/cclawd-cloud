@@ -1,0 +1,23 @@
+id: dir-list-basic
+name: 列出目录内容
+category: core_logic
+priority: P1
+fixtures:
+  dirs:
+    - path: "workspace/project"
+      files: ["main.py", "utils.py", "README.md"]
+input: "workspace/project/ 目录下有哪些文件？"
+expected:
+  tools:
+    required: ["list_dir"]
+    forbidden: ["exec"]
+  output:
+    must_contain: ["main.py", "utils.py", "README.md"]
+  max:
+    tool_calls: 1
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试目录列表能力"

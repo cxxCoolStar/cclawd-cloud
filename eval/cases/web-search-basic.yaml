@@ -1,0 +1,19 @@
+id: web-search-basic
+name: 搜索网络信息
+category: core_logic
+priority: P1
+input: "搜索一下 Java 21 的新特性"
+expected:
+  tools:
+    required: ["web_search"]
+  output:
+    must_contain: ["Java", "21", "特性", "虚拟线程", "record", "switch"]  # 允许部分匹配
+  max:
+    tool_calls: 2  # 可能先搜索再获取详情
+    latency_ms: 15000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试网络搜索能力"

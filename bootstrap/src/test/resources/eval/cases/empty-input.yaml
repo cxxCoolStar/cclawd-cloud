@@ -1,0 +1,17 @@
+id: empty-input
+name: 空输入处理
+category: boundary
+priority: P1
+input: ""  # 空字符串
+expected:
+  tools:
+    forbidden: ["exec", "read_file", "write_file"]  # 不应乱触发
+  output:
+    must_contain: ["输入", "空", "help", "?"]  # 应提示用户
+  max:
+    tool_calls: 0
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "边界测试：空输入不应崩溃或乱触发工具"

@@ -1,0 +1,22 @@
+id: file-read-basic
+name: 读取文件并总结内容
+category: core_logic
+priority: P0
+input: "请读取 workspace/project/README.md 文件，并总结它的主要内容"
+expected:
+  tools:
+    required: ["read_file"]
+    forbidden: ["write_file", "edit_file", "exec"]
+  output:
+    must_contain: ["README", "项目", "介绍"]  # 允许语义相近的表达
+    forbidden: ["错误", "无法读取", "找不到"]
+  max:
+    tool_calls: 2
+    latency_ms: 8000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试最基本的文件读取能力，不应触发编辑或执行工具"

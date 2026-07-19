@@ -118,6 +118,7 @@ public class DataSeeder implements ApplicationRunner {
         if (agentRepository.exists(DEFAULT_AGENT_ID)) {
             return;
         }
+        String systemPrompt = resolveSystemPrompt();
         agentRepository.insert(
                 DEFAULT_AGENT_ID,
                 IdentityConstant.LOCAL_USER_ID,
@@ -125,8 +126,38 @@ public class DataSeeder implements ApplicationRunner {
                 "Default local chatbot",
                 DEFAULT_PROVIDER_ID,
                 modelSettings.name(),
-                modelSettings.systemPrompt(),
+                systemPrompt,
                 now);
+    }
+
+    /**
+     * 解析系统提示词：优先级
+     * 1. 环境变量 OPENAGENT_SYSTEM_PROMPT
+     * 2. 文件 system-prompt.md (classpath)
+     * 3. 最简默认值
+     */
+    private String resolveSystemPrompt() {
+        // 1. 环境变量
+        String envPrompt = modelSettings.systemPrompt();
+        if (envPrompt != null && !envPrompt.isBlank()) {
+            log.info("[seed] using system prompt from environment");
+            return envPrompt;
+        }
+
+        // 2. 从 classpath 加载 system-prompt.md
+        try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream("system-prompt.md")) {
+            if (is != null) {
+                String filePrompt = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                log.info("[seed] loaded system prompt from classpath:system-prompt.md ({} chars)", filePrompt.length());
+                return filePrompt;
+            }
+        } catch (Exception e) {
+            log.warn("[seed] failed to load system-prompt.md: {}", e.getMessage());
+        }
+
+        // 3. 最简默认值
+        log.warn("[seed] using minimal default system prompt");
+        return "You are OpenAgent, a helpful AI assistant with access to tools.";
     }
 
     /**

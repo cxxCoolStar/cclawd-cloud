@@ -1,0 +1,34 @@
+# Eval Profile: 独立的 Eval 测试配置
+# 使用时: -Dspring.profiles.active=eval
+#
+# 注意：Eval 测试使用真实 LLM 调用（从主配置继承）
+# 需要环境变量: OPENAGENT_MODEL_API_KEY, OPENAGENT_MODEL_API_BASE, OPENAGENT_MODEL
+
+spring:
+  datasource:
+    # Eval 使用内存数据库，完全隔离
+    url: jdbc:sqlite:file::memory:?cache=shared
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  sql:
+    init:
+      mode: never
+
+openagent:
+  eval:
+    # 测试用例路径（classpath 下的 eval/cases）
+    cases:
+      path: classpath:eval/cases
+    # 临时工作空间根目录（使用系统临时目录）
+    workspace-root: ${java.io.tmpdir}/openagent-eval-workspaces
+    # 运行结束后是否清理工作空间
+    cleanup-on-finish: true
+
+# 日志配置
+logging:
+  level:
+    ai.openagent.bootstrap.eval: DEBUG
+    ai.openagent.agent.eval: DEBUG

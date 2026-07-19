@@ -1,0 +1,18 @@
+id: web-fetch-basic
+name: 获取网页内容
+category: core_logic
+priority: P1
+input: "获取 https://docs.oracle.com/javase/8/docs/api/java/lang/String.html 的标题"
+expected:
+  tools:
+    required: ["web_fetch"]
+    forbidden: []  # 允许搜索辅助
+  output:
+    must_contain: ["String", "Class", "java.lang"]
+  max:
+    tool_calls: 1
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "测试网页获取能力"

@@ -1,0 +1,21 @@
+id: efficiency-budget
+name: 效率预算控制
+category: efficiency
+priority: P1
+input: "用尽可能少的步骤，告诉我 workspace/ 下有多少个 .txt 文件"
+expected:
+  tools:
+    required: ["list_dir"]  # 应优先用 list_dir
+    forbidden: ["exec"]  # 不应用 exec ls 等命令
+  max:
+    tool_calls: 1  # 应一步完成
+    latency_ms: 3000
+    total_tokens: 500
+  scoring:
+    efficiency_bonus: true  # 超高效完成有额外加分
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  efficiency_penalty_per_extra_call: 10
+notes: "效率测试：应选择最优工具路径，避免冗余调用"

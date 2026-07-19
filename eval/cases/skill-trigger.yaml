@@ -1,0 +1,21 @@
+id: skill-trigger
+name: 技能触发
+category: core_logic
+priority: P1
+fixtures:
+  skills:
+    - name: "fibonacci"
+      trigger: "计算斐波那契数列"
+input: "帮我计算斐波那契数列的第 10 项"
+expected:
+  tools:
+    required: ["load_skill"]  # 应先加载技能
+  output:
+    must_contain: ["55"]  # fib(10) = 55
+  max:
+    tool_calls: 2
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "测试技能发现和加载机制"

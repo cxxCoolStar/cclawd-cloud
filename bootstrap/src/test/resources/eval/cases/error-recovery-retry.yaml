@@ -1,0 +1,24 @@
+id: error-recovery-retry
+name: 工具失败后恢复
+category: exception_input
+priority: P0
+fixtures:
+  files:
+    - path: "workspace/retry-test.txt"
+      content: "secret content"
+      # 模拟前两次读取失败，第三次成功
+input: "读取 workspace/retry-test.txt"
+expected:
+  tools:
+    required: ["read_file"]
+  error_recovery:
+    max_retries: 3
+  output:
+    must_contain: ["secret content"]
+  max:
+    tool_calls: 3  # 允许重试
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "测试失败恢复能力：工具失败后应重试而非放弃"

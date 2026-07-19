@@ -1,0 +1,18 @@
+id: file-read-not-exist
+name: 读取不存在的文件
+category: exception_input
+priority: P0
+input: "读取 workspace/not-exist-file.txt"
+expected:
+  tools:
+    required: ["read_file"]  # 应该尝试读取
+  output:
+    must_contain: ["不存在", "找不到", "无法读取", "error"]
+    forbidden: ["成功", "内容是"]  # 不应虚构内容
+  error_recovery: true  # 应该优雅处理错误
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试错误处理能力：文件不存在时，应报告错误而非虚构内容或崩溃"

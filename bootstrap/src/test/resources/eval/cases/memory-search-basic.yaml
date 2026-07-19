@@ -1,0 +1,21 @@
+id: memory-search-basic
+name: 记忆搜索
+category: core_logic
+priority: P1
+fixtures:
+  memory:
+    - "项目使用 Java 17 和 Spring Boot 3"
+    - "数据库是 PostgreSQL"
+input: "我们项目用什么数据库？"
+expected:
+  tools:
+    required: ["memory_search"]
+  output:
+    must_contain: ["PostgreSQL", "数据库"]
+  max:
+    tool_calls: 1
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "测试长期记忆搜索能力"

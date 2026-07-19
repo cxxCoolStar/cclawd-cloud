@@ -1,0 +1,27 @@
+id: dir-list-basic
+name: 列出目录内容
+category: core_logic
+priority: P1
+fixtures:
+  files:
+    - path: "project/main.py"
+      content: "# Main entry point\ndef main():\n    print('Hello')\n"
+    - path: "project/utils.py"
+      content: "# Utility functions\ndef helper():\n    pass\n"
+    - path: "project/README.md"
+      content: "# Project README\nThis is a sample project.\n"
+input: "workspace/project/ 目录下有哪些文件？"
+expected:
+  tools:
+    required: ["list_dir"]
+    forbidden: ["exec"]
+  output:
+    must_contain: ["main.py", "utils.py", "README.md"]
+  max:
+    tool_calls: 1
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试目录列表能力"

@@ -1,0 +1,19 @@
+id: tool-no-trigger
+name: 不应触发工具调用的闲聊
+category: negative_trigger
+priority: P0
+input: "你好，今天天气怎么样？"
+expected:
+  tools:
+    required: []
+    forbidden: ["read_file", "write_file", "edit_file", "exec", "web_search", "web_fetch"]
+  output:
+    must_contain: ["天气"]  # 应该基于已有知识回答
+  max:
+    tool_calls: 0
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "负向控制：闲聊不应触发任何工具"

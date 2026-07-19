@@ -1,0 +1,24 @@
+id: loop-protection
+name: 循环保护触发
+category: exception_input
+priority: P0
+fixtures:
+  files:
+    - path: "workspace/loop.txt"
+      content: "trigger"
+input: "反复读取 workspace/loop.txt 直到我说停"  # 可能诱导循环
+expected:
+  constraints:
+    max_iterations: 5  # 应触发循环保护
+  tools:
+    tool_repetition_max: 3  # 相同工具调用不超过 3 次
+  output:
+    must_contain: ["循环", "最大", "限制"]  # 应提示循环保护
+  max:
+    tool_calls: 5
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试循环保护机制：不应无限循环"

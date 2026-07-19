@@ -1,0 +1,24 @@
+id: large-file-handling
+name: 大文件读取与截断
+category: boundary
+priority: P1
+fixtures:
+  files:
+    - path: "workspace/large.log"
+      size: "100KB"  # 大文件
+      content_pattern: "重复日志内容"
+input: "查看 workspace/large.log 的最后几行"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain: ["日志"]  # 不应完整返回 100KB
+  constraints:
+    output_length_max: 5000  # 应该被截断
+  max:
+    tool_calls: 1
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+notes: "边界测试：大文件应自动截断，不超限"

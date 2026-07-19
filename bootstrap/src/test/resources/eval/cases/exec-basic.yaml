@@ -1,0 +1,19 @@
+id: exec-basic
+name: 执行简单命令
+category: core_logic
+priority: P1
+input: "在 workspace/ 下执行 'echo hello'"  
+expected:
+  tools:
+    required: ["exec"]
+  output:
+    must_contain: ["hello"]
+  outcome:
+    # exec 应该有沙箱隔离，不在主环境执行
+    sandbox_used: true
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: "测试命令执行能力，验证沙箱隔离"
