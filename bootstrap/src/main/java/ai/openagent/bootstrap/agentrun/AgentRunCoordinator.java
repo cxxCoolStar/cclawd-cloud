@@ -136,7 +136,7 @@ public class AgentRunCoordinator {
         long now = System.currentTimeMillis();
         runRepository.insert(new AgentRunRecord(
                 runId, userId, agentId, sessionId, AgentRunStatus.CREATED, 0, null, null,
-                now, null, now, now));
+                0, 0, 0, 0, now, null, now, now));
 
         AgentRunCommand command = new AgentRunCommand(
                 runId,

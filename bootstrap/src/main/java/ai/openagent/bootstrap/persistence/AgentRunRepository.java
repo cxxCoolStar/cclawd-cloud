@@ -1,6 +1,7 @@
 package ai.openagent.bootstrap.persistence;
 
 import ai.openagent.agent.AgentRunStatus;
+import ai.openagent.infra.ai.model.TokenUsage;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Repository;
 public class AgentRunRepository {
 
     private static final String SELECT_COLUMNS =
-            "SELECT id, user_id, agent_id, session_id, status, tool_iterations, error_code, error_message, started_at, completed_at, created_at, updated_at FROM agent_runs";
+            "SELECT id, user_id, agent_id, session_id, status, tool_iterations, error_code, error_message, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, started_at, completed_at, created_at, updated_at FROM agent_runs";
 
     private static final RowMapper<AgentRunRecord> ROW_MAPPER = (rs, row) -> new AgentRunRecord(
             rs.getString("id"),
@@ -27,6 +28,10 @@ public class AgentRunRepository {
             rs.getInt("tool_iterations"),
             rs.getString("error_code"),
             rs.getString("error_message"),
+            rs.getLong("input_tokens"),
+            rs.getLong("output_tokens"),
+            rs.getLong("cache_read_tokens"),
+            rs.getLong("cache_write_tokens"),
             rs.getLong("started_at"),
             (Long) rs.getObject("completed_at"),
             rs.getLong("created_at"),
@@ -39,7 +44,7 @@ public class AgentRunRepository {
      */
     public void insert(AgentRunRecord run) {
         jdbc.update(
-                "INSERT INTO agent_runs (id, user_id, agent_id, session_id, status, tool_iterations, error_code, error_message, started_at, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO agent_runs (id, user_id, agent_id, session_id, status, tool_iterations, error_code, error_message, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, started_at, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 run.id(),
                 run.userId(),
                 run.agentId(),
@@ -48,6 +53,10 @@ public class AgentRunRepository {
                 run.toolIterations(),
                 run.errorCode(),
                 run.errorMessage(),
+                run.inputTokens(),
+                run.outputTokens(),
+                run.cacheReadTokens(),
+                run.cacheWriteTokens(),
                 run.startedAt(),
                 run.completedAt(),
                 run.createdAt(),
@@ -69,6 +78,21 @@ public class AgentRunRepository {
                 "UPDATE agent_runs SET status = ?, tool_iterations = ?, updated_at = ? WHERE id = ?",
                 status.name(),
                 toolIterations,
+                System.currentTimeMillis(),
+                id);
+    }
+
+    /**
+     * 累加一次模型调用的 token 用量（AFTER_MODEL_CALL hook 逐次增量，
+     * 见 EVALUATION_PLAN.md Phase 1.1——hook 无状态，跨调用聚合靠 SQL 自增）
+     */
+    public void addTokenUsage(String id, TokenUsage usage) {
+        jdbc.update(
+                "UPDATE agent_runs SET input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, cache_read_tokens = cache_read_tokens + ?, cache_write_tokens = cache_write_tokens + ?, updated_at = ? WHERE id = ?",
+                usage.inputTokens(),
+                usage.outputTokens(),
+                usage.cacheReadTokens(),
+                usage.cacheWriteTokens(),
                 System.currentTimeMillis(),
                 id);
     }

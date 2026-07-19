@@ -121,7 +121,7 @@ class AgentLifecycleEndpointsTest {
         long now = System.currentTimeMillis();
         runRepository.insert(new AgentRunRecord(
                 UUID.randomUUID().toString(), IdentityConstant.LOCAL_USER_ID, id, sessionId,
-                AgentRunStatus.COMPLETED, 0, null, null, now, now, now, now));
+                AgentRunStatus.COMPLETED, 0, null, null, 0, 0, 0, 0, now, now, now, now));
         String skillKey = "skills.agentEntries." + id;
         configRepository.upsert(ConfigRepository.SCOPE_AGENT, id, skillKey, "{}");
 

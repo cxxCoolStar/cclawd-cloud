@@ -10,6 +10,7 @@ import ai.openagent.bootstrap.OpenAgentApplication;
 import ai.openagent.agent.AgentRunStatus;
 import ai.openagent.bootstrap.agentrun.ToolExecutionStatus;
 import ai.openagent.bootstrap.identity.IdentityConstant;
+import ai.openagent.infra.ai.model.TokenUsage;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,8 @@ class AgentRunRepositoryTest {
     private static AgentRunRecord newRun(String id, AgentRunStatus status) {
         long now = System.currentTimeMillis();
         return new AgentRunRecord(
-                id, IdentityConstant.LOCAL_USER_ID, "default", "session-1", status, 0, null, null, now, null, now, now);
+                id, IdentityConstant.LOCAL_USER_ID, "default", "session-1", status, 0, null, null,
+                0, 0, 0, 0, now, null, now, now);
     }
 
     @Test
@@ -62,6 +64,23 @@ class AgentRunRepositoryTest {
         assertEquals(AgentRunStatus.COMPLETED, completed.status());
         assertNotNull(completed.completedAt());
         assertTrue(completed.status().isTerminal());
+    }
+
+    @Test
+    void addTokenUsageAccumulatesAcrossModelCalls() {
+        String runId = "run-" + UUID.randomUUID();
+        runRepository.insert(newRun(runId, AgentRunStatus.RUNNING));
+        assertEquals(0, runRepository.findById(runId).orElseThrow().inputTokens());
+
+        // ReAct 循环多次模型调用逐次增量累加（EVALUATION_PLAN.md Phase 1.1）
+        runRepository.addTokenUsage(runId, new TokenUsage(100, 20, 60, 0));
+        runRepository.addTokenUsage(runId, new TokenUsage(40, 15, 200, 5));
+
+        AgentRunRecord run = runRepository.findById(runId).orElseThrow();
+        assertEquals(140, run.inputTokens());
+        assertEquals(35, run.outputTokens());
+        assertEquals(260, run.cacheReadTokens());
+        assertEquals(5, run.cacheWriteTokens());
     }
 
     @Test
