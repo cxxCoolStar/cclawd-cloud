@@ -2,8 +2,13 @@ package ai.openagent.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ai.openagent.agent.hook.AgentHook;
+import ai.openagent.agent.hook.HookContext;
+import ai.openagent.agent.hook.HookPoint;
+import ai.openagent.agent.hook.HookRegistry;
 import ai.openagent.agent.tool.AgentTool;
 import ai.openagent.agent.tool.ToolDescriptor;
 import ai.openagent.agent.tool.ToolErrorCode;
@@ -163,6 +168,13 @@ class ReActAgentKernelTest {
         static Harness of(FakeModel model, FakeTools tools) {
             FakeConversation conversation = new FakeConversation();
             ReActAgentKernel kernel = new ReActAgentKernel(model, tools, tools, conversation);
+            List<AgentEvent> events = new ArrayList<>();
+            return new Harness(kernel, model, tools, conversation, events, events::add);
+        }
+
+        static Harness of(FakeModel model, FakeTools tools, HookRegistry hooks) {
+            FakeConversation conversation = new FakeConversation();
+            ReActAgentKernel kernel = new ReActAgentKernel(model, tools, tools, conversation, hooks);
             List<AgentEvent> events = new ArrayList<>();
             return new Harness(kernel, model, tools, conversation, events, events::add);
         }
@@ -437,5 +449,248 @@ class ReActAgentKernelTest {
         harness.run();
 
         assertInstanceOf(AgentEvent.Done.class, harness.events().get(harness.events().size() - 1));
+    }
+
+    // ==================== Hook 机制 ====================
+
+    /**
+     * 为 7 个挂载点各注册一个记录 hook，返回触发序列
+     */
+    private static List<HookPoint> recordingHooks(HookRegistry registry) {
+        List<HookPoint> fired = new ArrayList<>();
+        for (HookPoint point : HookPoint.values()) {
+            registry.register(new AgentHook() {
+                @Override
+                public HookPoint point() {
+                    return point;
+                }
+
+                @Override
+                public void onHook(HookContext context) {
+                    fired.add(point);
+                }
+            });
+        }
+        return fired;
+    }
+
+    @Test
+    void hookPointsFireInExpectedOrderAndCounts() {
+        // 文本直接完成路径：无工具挂载点
+        HookRegistry textRegistry = new HookRegistry();
+        List<HookPoint> textFired = recordingHooks(textRegistry);
+        Harness textHarness = Harness.of(
+                new FakeModel().enqueue(textResponse("chat")),
+                new FakeTools(call -> ToolResult.success("unused")),
+                textRegistry);
+
+        textHarness.run();
+
+        assertEquals(
+                List.of(
+                        HookPoint.BEFORE_SYSTEM_PROMPT,
+                        HookPoint.AFTER_SYSTEM_PROMPT,
+                        HookPoint.BEFORE_MODEL_CALL,
+                        HookPoint.AFTER_MODEL_CALL,
+                        HookPoint.POST_TURN),
+                textFired);
+
+        // 工具往返路径：工具挂载点夹在两次模型调用之间
+        HookRegistry toolRegistry = new HookRegistry();
+        List<HookPoint> toolFired = recordingHooks(toolRegistry);
+        Harness toolHarness = Harness.of(
+                new FakeModel()
+                        .enqueue(toolCallResponse("call_1", "{}"))
+                        .enqueue(textResponse("done")),
+                new FakeTools(call -> ToolResult.success("ok")),
+                toolRegistry);
+
+        toolHarness.run();
+
+        assertEquals(
+                List.of(
+                        HookPoint.BEFORE_SYSTEM_PROMPT,
+                        HookPoint.AFTER_SYSTEM_PROMPT,
+                        HookPoint.BEFORE_MODEL_CALL,
+                        HookPoint.AFTER_MODEL_CALL,
+                        HookPoint.BEFORE_TOOL_CALL,
+                        HookPoint.AFTER_TOOL_CALL,
+                        HookPoint.BEFORE_MODEL_CALL,
+                        HookPoint.AFTER_MODEL_CALL,
+                        HookPoint.POST_TURN),
+                toolFired);
+    }
+
+    @Test
+    void beforeModelCallRequestReplacementTakesEffect() {
+        HookRegistry registry = new HookRegistry();
+        registry.register(new AgentHook() {
+            @Override
+            public HookPoint point() {
+                return HookPoint.BEFORE_MODEL_CALL;
+            }
+
+            @Override
+            public void onHook(HookContext context) {
+                ModelRequest original = context.modelRequest();
+                context.modelRequest(new ModelRequest(
+                        original.provider(),
+                        "hook-swapped-model",
+                        original.messages(),
+                        original.tools(),
+                        original.temperature(),
+                        original.maxTokens()));
+            }
+        });
+        Harness harness = Harness.of(
+                new FakeModel().enqueue(textResponse("ok")),
+                new FakeTools(call -> ToolResult.success("unused")),
+                registry);
+
+        AgentRunResult result = harness.run();
+
+        assertEquals(AgentRunStatus.COMPLETED, result.status());
+        // 修正 fastclaw 修改不生效 bug：模型实际收到 hook 替换后的请求
+        assertEquals("hook-swapped-model", harness.model().requests.get(0).model());
+    }
+
+    @Test
+    void beforeToolCallRejectionSkipsExecutionAndFeedsBackObservation() {
+        HookRegistry registry = new HookRegistry();
+        List<ToolResult> afterToolResults = new ArrayList<>();
+        registry.register(new AgentHook() {
+            @Override
+            public HookPoint point() {
+                return HookPoint.BEFORE_TOOL_CALL;
+            }
+
+            @Override
+            public void onHook(HookContext context) {
+                context.reject("policy: tool blocked");
+            }
+        });
+        registry.register(new AgentHook() {
+            @Override
+            public HookPoint point() {
+                return HookPoint.AFTER_TOOL_CALL;
+            }
+
+            @Override
+            public void onHook(HookContext context) {
+                afterToolResults.add(context.toolResult());
+            }
+        });
+        FakeModel model = new FakeModel()
+                .enqueue(toolCallResponse("call_1", "{}"))
+                .enqueue(textResponse("recovered without tool"));
+        FakeTools tools = new FakeTools(call -> ToolResult.success("should not run"));
+        Harness harness = Harness.of(model, tools, registry);
+
+        AgentRunResult result = harness.run();
+
+        // 工具未执行，运行仍收敛
+        assertEquals(AgentRunStatus.COMPLETED, result.status());
+        assertEquals(0, harness.tools().invoked.size(), "被拒绝的工具不得执行");
+        // AFTER_TOOL_CALL 照常触发，携带 TOOL_CALL_REJECTED 失败结果
+        assertEquals(1, afterToolResults.size());
+        assertEquals(ToolErrorCode.TOOL_CALL_REJECTED, afterToolResults.get(0).errorCode());
+        // 拒绝 observation 配对闭合回灌模型
+        ModelRequest second = model.requests.get(1);
+        assertTrue(second.messages().stream()
+                .anyMatch(m -> m.role() == ModelMessage.Role.TOOL
+                        && m.toolCallId().equals("call_1")
+                        && m.content().contains(ToolErrorCode.TOOL_CALL_REJECTED)));
+    }
+
+    @Test
+    void throwingHookDoesNotInterruptRun() {
+        HookRegistry registry = new HookRegistry();
+        for (HookPoint point : HookPoint.values()) {
+            registry.register(new AgentHook() {
+                @Override
+                public HookPoint point() {
+                    return point;
+                }
+
+                @Override
+                public void onHook(HookContext context) {
+                    throw new IllegalStateException("hook bug at " + point);
+                }
+            });
+        }
+        Harness harness = Harness.of(
+                new FakeModel()
+                        .enqueue(toolCallResponse("call_1", "{}"))
+                        .enqueue(textResponse("fine")),
+                new FakeTools(call -> ToolResult.success("ok")),
+                registry);
+
+        AgentRunResult result = harness.run();
+
+        // fail-open：全部挂载点都抛异常也不影响主流程
+        assertEquals(AgentRunStatus.COMPLETED, result.status());
+        assertEquals("fine", result.finalContent());
+        assertEquals(1, harness.tools().invoked.size());
+    }
+
+    @Test
+    void afterModelCallCarriesErrorWhenModelFails() {
+        HookRegistry registry = new HookRegistry();
+        List<Throwable> afterErrors = new ArrayList<>();
+        List<ModelResponse> afterResponses = new ArrayList<>();
+        registry.register(new AgentHook() {
+            @Override
+            public HookPoint point() {
+                return HookPoint.AFTER_MODEL_CALL;
+            }
+
+            @Override
+            public void onHook(HookContext context) {
+                afterErrors.add(context.error());
+                afterResponses.add(context.modelResponse());
+            }
+        });
+        FakeModel model = new FakeModel(); // 脚本为空，首次调用即抛异常
+        Harness harness = Harness.of(model, new FakeTools(call -> ToolResult.success("unused")), registry);
+
+        AgentRunResult result = harness.run();
+
+        assertEquals(AgentRunStatus.FAILED, result.status());
+        assertEquals(1, afterErrors.size());
+        assertInstanceOf(IllegalStateException.class, afterErrors.get(0));
+        assertNull(afterResponses.get(0), "失败时不得携带 modelResponse");
+        assertEquals(1, harness.count(AgentEvent.RunFailed.class));
+        assertEquals(1, harness.count(AgentEvent.Done.class));
+    }
+
+    @Test
+    void postTurnFiresExactlyOnceWithCounts() {
+        HookRegistry registry = new HookRegistry();
+        List<HookContext> postTurns = new ArrayList<>();
+        registry.register(new AgentHook() {
+            @Override
+            public HookPoint point() {
+                return HookPoint.POST_TURN;
+            }
+
+            @Override
+            public void onHook(HookContext context) {
+                postTurns.add(context);
+            }
+        });
+        Harness harness = Harness.of(
+                new FakeModel()
+                        .enqueue(toolCallResponse("call_1", "{}"))
+                        .enqueue(textResponse("done")),
+                new FakeTools(call -> ToolResult.success("ok")),
+                registry);
+
+        harness.run();
+
+        assertEquals(1, postTurns.size(), "POST_TURN 必须恰好触发一次");
+        HookContext postTurn = postTurns.get(0);
+        assertEquals(1, postTurn.iterations());
+        assertEquals(1, postTurn.toolCallCount());
+        assertEquals(AgentRunStatus.COMPLETED, postTurn.runStatus());
     }
 }

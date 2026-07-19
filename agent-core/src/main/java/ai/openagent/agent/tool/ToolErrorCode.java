@@ -21,5 +21,11 @@ public final class ToolErrorCode {
      */
     public static final String TOOL_RESULT_MISSING = "TOOL_RESULT_MISSING";
 
+    /**
+     * hook 在 BEFORE_TOOL_CALL 拒绝执行（V2 方案 6.1：策略拒绝作为
+     * observation 回灌模型，由模型决定后续，不是运行终态）
+     */
+    public static final String TOOL_CALL_REJECTED = "TOOL_CALL_REJECTED";
+
     private ToolErrorCode() {}
 }
