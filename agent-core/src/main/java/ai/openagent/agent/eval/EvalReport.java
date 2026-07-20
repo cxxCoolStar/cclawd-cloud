@@ -37,6 +37,8 @@ public record EvalReport(
      * @param deductions  扣分详情
      * @param evidence    证据
      * @param durationMs  执行时长
+     * @param reasoning   模型的推理过程（reasoning_content）
+     * @param output      模型输出内容
      */
     public record CaseResult(
             String caseId,
@@ -46,11 +48,28 @@ public record EvalReport(
             int score,
             List<Deduction> deductions,
             List<String> evidence,
-            long durationMs) {
+            long durationMs,
+            String reasoning,
+            String output) {
 
         public CaseResult {
             deductions = deductions == null ? Collections.emptyList() : deductions;
             evidence = evidence == null ? Collections.emptyList() : evidence;
+        }
+
+        /**
+         * 兼容旧代码的构造器（不包含 reasoning 和 output）
+         */
+        public CaseResult(
+                String caseId,
+                String caseName,
+                String category,
+                boolean passed,
+                int score,
+                List<Deduction> deductions,
+                List<String> evidence,
+                long durationMs) {
+            this(caseId, caseName, category, passed, score, deductions, evidence, durationMs, null, null);
         }
     }
 

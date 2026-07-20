@@ -242,6 +242,8 @@ public class ReActAgentKernel implements AgentKernel {
             ModelResponse response = llmService.stream(hookContext.modelRequest(), event -> {
                 if (event instanceof ModelEvent.TextDelta delta) {
                     sink.emit(new AgentEvent.ContentDelta(delta.text()));
+                } else if (event instanceof ModelEvent.ReasoningDelta delta) {
+                    sink.emit(new AgentEvent.ReasoningDelta(delta.text()));
                 }
             });
             hookContext.modelResponse(response);

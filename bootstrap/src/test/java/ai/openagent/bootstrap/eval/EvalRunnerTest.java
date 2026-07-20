@@ -167,7 +167,9 @@ public class EvalRunnerTest {
                         0,
                         List.of(new Deduction("EXCEPTION", 100, e.getMessage())),
                         List.of(e.toString()),
-                        0));
+                        0,
+                        null,
+                        null));
             }
             // Rate limit 保护：每个用例之间等待 10 秒（除了最后一个）
             // 腾讯云 kimi-k2.5 有严格的 TPM 限制，需要更长的间隔
@@ -219,6 +221,7 @@ public class EvalRunnerTest {
         // 4. 运行 Agent
         AgentRunResult runResult;
         String finalOutput;
+        String finalReasoning;
         List<EvalContext.ToolCall> toolCalls;
         EvalContext.TokenUsage tokenUsage;
         Instant endTime;
@@ -227,6 +230,7 @@ public class EvalRunnerTest {
             RunResult result = runAgent(evalCase, runId, workspaceDir.toString());
             runResult = result.runResult();
             finalOutput = result.output();
+            finalReasoning = result.reasoning();
             toolCalls = result.toolCalls();
             tokenUsage = result.tokenUsage();
             endTime = Instant.now();
@@ -245,7 +249,9 @@ public class EvalRunnerTest {
                     0,
                     List.of(new Deduction("EXECUTION", 100, "Execution failed: " + e.getMessage())),
                     List.of(e.toString()),
-                    durationMs);
+                    durationMs,
+                    null,
+                    null);
         }
 
         long durationMs = Duration.between(startTime, endTime).toMillis();
@@ -317,7 +323,9 @@ public class EvalRunnerTest {
                 score,
                 deductions,
                 allEvidence,
-                durationMs);
+                durationMs,
+                finalReasoning,
+                finalOutput);
     }
 
     /**
@@ -368,6 +376,7 @@ public class EvalRunnerTest {
 
         // 收集事件和输出
         StringBuilder outputBuilder = new StringBuilder();
+        StringBuilder reasoningBuilder = new StringBuilder();
         List<EvalContext.ToolCall> toolCalls = new ArrayList<>();
         CountDownLatch doneLatch = new CountDownLatch(1);
         Map<String, PendingToolCall> pendingToolCalls = new ConcurrentHashMap<>();
@@ -375,6 +384,8 @@ public class EvalRunnerTest {
         AgentEventSink eventSink = event -> {
             if (event instanceof AgentEvent.ContentDelta) {
                 outputBuilder.append(((AgentEvent.ContentDelta) event).delta());
+            } else if (event instanceof AgentEvent.ReasoningDelta) {
+                reasoningBuilder.append(((AgentEvent.ReasoningDelta) event).delta());
             } else if (event instanceof AgentEvent.Content) {
                 AgentEvent.Content content = (AgentEvent.Content) event;
                 if (content.content() != null) {
@@ -417,7 +428,7 @@ public class EvalRunnerTest {
         // 获取 token 用量
         EvalContext.TokenUsage tokenUsage = fetchTokenUsage(runId);
 
-        return new RunResult(result, outputBuilder.toString().trim(), toolCalls, tokenUsage);
+        return new RunResult(result, outputBuilder.toString().trim(), reasoningBuilder.toString().trim(), toolCalls, tokenUsage);
     }
 
     /**
@@ -482,6 +493,7 @@ public class EvalRunnerTest {
     private record RunResult(
             AgentRunResult runResult,
             String output,
+            String reasoning,
             List<EvalContext.ToolCall> toolCalls,
             EvalContext.TokenUsage tokenUsage) {
     }

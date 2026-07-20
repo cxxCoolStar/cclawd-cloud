@@ -19,6 +19,11 @@ public sealed interface AgentEvent {
     record ContentDelta(String delta) implements AgentEvent {}
 
     /**
+     * 思考过程增量（DeepSeek/Kimi 等模型的 reasoning_content，瞬时，不入库）
+     */
+    record ReasoningDelta(String delta) implements AgentEvent {}
+
+    /**
      * 一段完整正文（模型返回 tool calls 前的 preamble 或最终回答）
      */
     record Content(String content, Map<String, Object> metadata) implements AgentEvent {
