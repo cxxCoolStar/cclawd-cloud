@@ -195,18 +195,6 @@ public class EvalRunnerTest {
                         null,
                         null));
             }
-            // Rate limit 保护：每个用例之间等待 10 秒（除了最后一个）
-            // 腾讯云 kimi-k2.5 有严格的 TPM 限制，需要更长的间隔
-            if (caseIndex < cases.size()) {
-                try {
-                    log.debug("Rate limit protection: waiting 10s before next case...");
-                    Thread.sleep(10000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Rate limit wait interrupted");
-                    break;
-                }
-            }
         }
 
         // 生成报告
