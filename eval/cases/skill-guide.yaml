@@ -1,18 +1,18 @@
-id: skill-fastclaw-guide
-name: Skill - FastClaw Skill开发指南触发
+id: skill-guide
+name: Skill - OpenAgent Skill开发指南触发
 category: skill
 priority: P2
 fixtures:
   skills:
-    - name: "fastclaw-skill-guide"
-      trigger: "Create new skills for FastClaw agents"
+    - name: "skill-guide"
+      trigger: "Create new skills for OpenAgent agents"
       content: |
         A skill is a directory whose required entry file is SKILL.md.
         SKILL.md starts with YAML frontmatter containing name and description,
         followed by Markdown instructions. Put executable helpers in scripts/
         and supporting documentation in references/. Only add those directories
         when the skill needs them.
-input: "我想学习如何为 FastClaw 创建一个 skill，请告诉我 skill 的目录结构和 SKILL.md 的格式要求"
+input: "我想学习如何为 OpenAgent 创建一个 skill，请告诉我 skill 的目录结构和 SKILL.md 的格式要求"
 expected:
   tools:
     required: ["load_skill"]
@@ -28,4 +28,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "验证模型加载 FastClaw skill 开发指南并复述明确的目录和格式约束"
+notes: "验证模型加载 skill-guide 并复述明确的目录和格式约束"

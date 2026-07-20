@@ -60,12 +60,12 @@ import lombok.extern.slf4j.Slf4j;
 public class ReActAgentKernel implements AgentKernel {
 
     /**
-     * 相同 (工具, arguments) 连续出现次数阈值（fastclaw 同值）
+     * 相同 (工具, arguments) 连续出现次数阈值
      */
     private static final int LOOP_PROTECTION_THRESHOLD = 3;
 
     /**
-     * 连续全失败轮数阈值（fastclaw failedRoundsLimit 同值）
+     * 连续全失败轮数阈值
      */
     private static final int FAILED_ROUNDS_LIMIT = 3;
 

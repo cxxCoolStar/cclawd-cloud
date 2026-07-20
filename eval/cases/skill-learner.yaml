@@ -1,5 +1,5 @@
-id: skill-fastclaw-learner
-name: Skill - FastClaw Skill学习器触发
+id: skill-learner
+name: Skill - OpenAgent Skill学习器触发
 category: skill
 priority: P2
 fixtures:
@@ -17,7 +17,7 @@ fixtures:
         Agent: [配置 Prettier]
         Agent: [创建配置文件]
   skills:
-    - name: "fastclaw-skill-learner"
+    - name: "skill-learner"
       trigger: "Analyze conversations to extract reusable skill patterns"
       content: |
         Read the conversation source before analysis.
@@ -39,4 +39,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "验证模型加载 skill learner、读取对话并提取 React 项目初始化工作流"
+notes: "验证模型加载 skill-learner、读取对话并提取 React 项目初始化工作流"
