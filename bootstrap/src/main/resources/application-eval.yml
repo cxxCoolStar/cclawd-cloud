@@ -25,7 +25,7 @@ openagent:
   model:
     provider: ${OPENAGENT_MODEL_PROVIDER:openai-compatible}
     api-base: ${OPENAGENT_MODEL_API_BASE:https://api.lkeap.cloud.tencent.com/coding/v3}
-    api-key: ${OPENAGENT_MODEL_API_KEY:sk-sp-ZgVdy2NGnK0PDtd6Icsar4J687Km8eZwVkQ7DJCZZf2S55st}
+    api-key: ${OPENAGENT_MODEL_API_KEY:}
     name: ${OPENAGENT_MODEL:k2.5}
 
   sandbox:

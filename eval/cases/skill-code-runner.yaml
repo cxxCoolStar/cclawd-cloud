@@ -1,6 +1,5 @@
 id: skill-code-runner
 name: Skill - 代码执行器触发
- category: skill
 category: skill
 priority: P1
 fixtures:

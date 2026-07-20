@@ -64,6 +64,11 @@ public class WriteFileTool extends AbstractFileTool {
         }
         String content = contentNode.asText();
         Path target = WorkspacePaths.resolve(context.workspace(), path);
+        if (Files.exists(target) && !Files.isDirectory(target)) {
+            return ToolResult.failure(
+                    ToolErrorCode.TOOL_ARGUMENT_INVALID,
+                    "file already exists; confirmation required before overwrite: " + path);
+        }
         if (Files.isDirectory(target)) {
             return ToolResult.failure(
                     ToolErrorCode.TOOL_ARGUMENT_INVALID,

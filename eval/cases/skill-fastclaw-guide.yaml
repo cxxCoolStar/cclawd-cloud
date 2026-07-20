@@ -9,7 +9,7 @@ fixtures:
 input: "我想学习如何为 FastClaw 创建一个 skill，请告诉我 skill 的目录结构和 SKILL.md 的格式要求"
 expected:
   tools:
-    required: []
+    required: ["load_skill"]
   output:
     must_contain: ["SKILL.md", "frontmatter", "scripts", "references", "description"]
     forbidden: ["抱歉", "我不知道"]
