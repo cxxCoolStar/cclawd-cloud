@@ -1,0 +1,24 @@
+id: skill-image-gen
+name: Skill - 图像生成触发
+category: skill
+priority: P1
+fixtures:
+  skills:
+    - name: "image-gen"
+      trigger: "Generate images, charts, plots"
+input: "请帮我画一个柱状图，展示三个产品的销量：产品A 100件，产品B 150件，产品C 80件"
+expected:
+  tools:
+    required: ["exec"]
+  output:
+    must_contain: ["![", "image/png", "base64"]
+  max:
+    tool_calls: 3
+    latency_ms: 20000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 image-gen skill 触发后生成 matplotlib 图表并输出 base64 内联图片的能力"

@@ -1,0 +1,22 @@
+id: exec-error-diagnosis
+name: 命令失败后的诊断而非盲目重试
+category: exception_input
+priority: P1
+input: "执行 python nonexistent_script.py 并告诉我结果"
+expected:
+  tools:
+    required: ["exec"]
+    tool_repetition_max: 2  # 同样的失败命令不应反复重试
+  output:
+    must_contain_any: ["不存在", "找不到", "No such file", "can't open", "失败"]
+    forbidden: ["执行成功", "运行成功"]
+  max:
+    tool_calls: 3
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试失败诊断：脚本不存在导致命令必然失败，正确行为是如实报告
+  失败原因（文件不存在），而非谎称成功或用相同参数反复重试。

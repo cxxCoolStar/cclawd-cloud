@@ -1,0 +1,33 @@
+id: apply-patch-basic
+name: 使用补丁修改多行代码
+category: core_logic
+priority: P1
+fixtures:
+  files:
+    - path: "src/calc.py"
+      content: |
+        def add(a, b):
+            return a - b
+
+        def mul(a, b):
+            return a * b
+input: "src/calc.py 里的 add 函数有 bug，返回的是差而不是和，请用补丁方式修复它"
+expected:
+  tools:
+    required: ["read_file"]
+    forbidden: ["write_file"]  # 不应整文件重写，应用 edit_file 或 apply_patch 精确修改
+  outcome:
+    file_exists: "src/calc.py"
+    file_content_contains: "return a + b"
+    file_content_not_contains: "return a - b"
+  max:
+    tool_calls: 4
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试补丁式精确修改：应先读取确认，再用 apply_patch/edit_file 修复，
+  且不能破坏文件中无关的 mul 函数（通过 file_content_contains 无法直接断言，
+  依赖 forbidden write_file 防整文件重写）。

@@ -1,0 +1,26 @@
+id: ambiguous-file-reference
+name: 模糊文件引用消歧
+category: exception_input
+priority: P1
+fixtures:
+  files:
+    - path: "config/app.yaml"
+      content: "server:\n  port: 8080\n"
+    - path: "config/app.backup.yaml"
+      content: "server:\n  port: 9090\n"
+input: "config 目录下的应用配置文件里，服务端口是多少？"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain: ["8080"]
+  max:
+    tool_calls: 3  # 允许先 list_dir 再 read_file
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试消歧能力：目录里有主配置和 backup 两个相似文件，
+  应选择 app.yaml（主配置）而非 backup，答出 8080 而非 9090。

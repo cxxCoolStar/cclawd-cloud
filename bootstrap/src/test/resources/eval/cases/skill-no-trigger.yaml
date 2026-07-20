@@ -1,0 +1,25 @@
+id: skill-no-trigger
+name: 无关技能不应被加载
+category: negative_trigger
+priority: P2
+fixtures:
+  skills:
+    - name: "fibonacci"
+      trigger: "计算斐波那契数列"
+      content: "使用 F(0)=0、F(1)=1 的定义计算斐波那契数列。"
+input: "帮我算一下 15 乘以 8 等于多少"
+expected:
+  tools:
+    forbidden: ["load_skill", "exec"]  # 简单算术既不需要技能也不需要执行
+  output:
+    must_contain: ["120"]
+  max:
+    tool_calls: 0
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  与 skill-trigger 成对的负向用例：存在可用技能，但请求与其无关，
+  不应无脑加载技能，也不应为简单算术调用 exec。

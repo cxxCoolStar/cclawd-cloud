@@ -1,0 +1,40 @@
+id: multi-step-refactor
+name: 多文件一致性修改
+category: core_logic
+priority: P1
+fixtures:
+  files:
+    - path: "src/config.js"
+      content: |
+        const API_TIMEOUT = 3000;
+        module.exports = { API_TIMEOUT };
+    - path: "src/client.js"
+      content: |
+        const { API_TIMEOUT } = require('./config');
+        // 当前超时: 3000ms，见 config.js
+        fetch(url, { timeout: API_TIMEOUT });
+    - path: "docs/settings.md"
+      content: |
+        # 配置说明
+
+        API 超时时间：3000 毫秒（在 src/config.js 中定义）
+input: "把 API 超时从 3000 改成 5000，注意所有提到这个值的地方都要同步更新"
+expected:
+  tools:
+    required: ["read_file", "edit_file"]
+  outcome:
+    file_exists: "src/config.js"
+    file_content_contains: "5000"
+    file_content_not_contains: "3000"
+  max:
+    tool_calls: 10
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试跨文件一致性：值定义在 config.js，但 client.js 注释和
+  docs/settings.md 也硬编码了 3000。合格线是 config.js 改对；
+  高质量行为是三处全部同步（outcome 目前只能断言单文件，
+  其余靠人工复核或后续多 outcome 支持）。

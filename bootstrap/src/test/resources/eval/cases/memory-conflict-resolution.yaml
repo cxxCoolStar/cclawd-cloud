@@ -1,0 +1,31 @@
+id: memory-conflict-resolution
+name: 记忆与现实冲突时以现实为准
+category: core_logic
+priority: P2
+fixtures:
+  memory:
+    - "项目数据库是 MySQL 5.7"
+  files:
+    - path: "application.yaml"
+      content: |
+        spring:
+          datasource:
+            url: jdbc:postgresql://localhost:5432/appdb
+            driver-class-name: org.postgresql.Driver
+input: "看一下 application.yaml，确认我们现在实际连接的是什么数据库"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain_any: ["PostgreSQL", "postgresql"]
+  max:
+    tool_calls: 3
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试证据优先级：记忆中写的是 MySQL（过期信息），但用户明确要求
+  查看实际配置文件。应以文件中的 PostgreSQL 为准，而非直接引用记忆。
+  理想行为还会指出记忆与现实不一致。

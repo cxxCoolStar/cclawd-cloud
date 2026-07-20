@@ -1,0 +1,22 @@
+id: knowledge-vs-tool-boundary
+name: 已知知识不应触发工具
+category: negative_trigger
+priority: P1
+input: "Java 里 ArrayList 和 LinkedList 的区别是什么？"
+expected:
+  tools:
+    required: []
+    forbidden: ["web_search", "web_fetch", "read_file", "exec", "memory_search"]
+  output:
+    must_contain_any: ["数组", "链表", "随机访问", "插入"]
+  max:
+    tool_calls: 0
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  负向控制：通用编程知识问答应直接回答，
+  不应画蛇添足地搜索网络或读取文件。与 tool-no-trigger（闲聊）
+  互补，覆盖"有实质内容但仍不需要工具"的场景。

@@ -1,0 +1,34 @@
+id: skill-data-analysis
+name: Skill - 数据分析触发
+category: skill
+priority: P1
+fixtures:
+  files:
+    - path: "data/sales.csv"
+      content: |
+        month,revenue,cost
+        Jan,10000,6000
+        Feb,12000,7000
+        Mar,15000,8000
+        Apr,13000,7500
+        May,16000,9000
+  skills:
+    - name: "data-analysis"
+      trigger: "Analyze data, process CSV/JSON files"
+input: "请分析 data/sales.csv 文件，计算每月的利润，并找出利润最高的月份"
+expected:
+  tools:
+    required: ["read_file", "exec"]
+  output:
+    must_contain: ["May", "7000", "利润"]
+    forbidden: ["错误", "无法读取"]
+  max:
+    tool_calls: 4
+    latency_ms: 20000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 data-analysis skill 触发后对 CSV 数据进行分析的能力"
