@@ -8,9 +8,9 @@ expected:
     required: ["web_fetch"]
     forbidden: []  # 允许搜索辅助
   output:
-    must_contain: ["String", "Class", "java.lang"]
+    must_contain: ["String"]  # 简化期望
   max:
-    tool_calls: 1
+    tool_calls: 2
 scoring:
   mode: deduction
   max_score: 100

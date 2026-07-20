@@ -1,6 +1,8 @@
 package ai.openagent.agent;
 
+import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * 一次 Agent 运行命令（V2 方案 7.1）
@@ -16,7 +18,8 @@ public record AgentRunCommand(
         String agentId,
         String sessionId,
         String userMessage,
-        AgentRuntimeConfig config) {
+        AgentRuntimeConfig config,
+        Path workspacePathOverride) {
 
     public AgentRunCommand {
         runId = Objects.requireNonNull(runId, "runId");
@@ -25,5 +28,25 @@ public record AgentRunCommand(
         sessionId = Objects.requireNonNull(sessionId, "sessionId");
         userMessage = Objects.requireNonNull(userMessage, "userMessage");
         config = Objects.requireNonNull(config, "config");
+    }
+
+    /**
+     * 构造命令（不带工作空间覆盖，使用默认路径）
+     */
+    public AgentRunCommand(
+            String runId,
+            String userId,
+            String agentId,
+            String sessionId,
+            String userMessage,
+            AgentRuntimeConfig config) {
+        this(runId, userId, agentId, sessionId, userMessage, config, null);
+    }
+
+    /**
+     * 获取工作空间路径覆盖（如果指定了）
+     */
+    public Optional<Path> getWorkspacePathOverride() {
+        return Optional.ofNullable(workspacePathOverride);
     }
 }

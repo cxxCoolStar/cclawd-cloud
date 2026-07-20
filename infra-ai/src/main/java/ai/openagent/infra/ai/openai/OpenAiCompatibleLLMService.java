@@ -316,8 +316,9 @@ public class OpenAiCompatibleLLMService implements LLMService {
                 }
                 // usage 随 include_usage 的终章 chunk（choices 为空）到达
                 JsonNode usageNode = chunk.path("usage");
-                if (usageNode.isObject()) {
+                if (usageNode.isObject() && !usageNode.isEmpty()) {
                     usage = parseUsage(usageNode);
+                    log.debug("[llm] usage chunk 解析: {}", usageNode.toString());
                 }
                 JsonNode choices = chunk.path("choices");
                 if (!choices.isArray() || choices.isEmpty()) {
@@ -377,6 +378,12 @@ public class OpenAiCompatibleLLMService implements LLMService {
     private TokenUsage parseUsage(JsonNode usageNode) {
         long promptTokens = usageNode.path("prompt_tokens").asLong(0);
         long completionTokens = usageNode.path("completion_tokens").asLong(0);
+        long totalTokens = usageNode.path("total_tokens").asLong(0);
+        
+        // 注意：不再根据 total_tokens 伪造 input/output 分割
+        // 如果供应商只返回 total_tokens，则 input/output 保持为 0
+        // 避免伪造数据污染用量统计和成本计算
+        
         long cachedTokens = usageNode.path("prompt_tokens_details").path("cached_tokens").asLong(0);
         // 对齐 fastclaw openaiUsageToProvider：inputTokens 为未命中缓存的
         // 剩余部分，input + cacheRead 之和仍等于完整 prompt 大小

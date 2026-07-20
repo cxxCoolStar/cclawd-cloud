@@ -1,0 +1,2 @@
+- 项目使用 Java 17 和 Spring Boot 3
+- 数据库是 PostgreSQL

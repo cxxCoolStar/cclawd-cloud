@@ -3,6 +3,24 @@ name: 读取文件并总结内容
 category: core_logic
 priority: P0
 input: "请读取 workspace/project/README.md 文件，并总结它的主要内容"
+fixtures:
+  files:
+    - path: "workspace/project/README.md"
+      content: |
+        # 示例项目
+
+        这是一个用于测试的示例项目。
+
+        ## 项目介绍
+
+        本项目展示了基本的文件读取能力测试。Agent 应该能够：
+        1. 定位到正确的文件路径
+        2. 读取文件内容
+        3. 总结主要内容
+
+        ## 使用说明
+
+        请勿修改此文件，仅用于测试读取操作。
 expected:
   tools:
     required: ["read_file"]

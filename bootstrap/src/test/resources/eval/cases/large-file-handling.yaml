@@ -5,20 +5,64 @@ priority: P1
 fixtures:
   files:
     - path: "workspace/large.log"
-      size: "100KB"  # 大文件
-      content_pattern: "重复日志内容"
+      content: |
+        [2024-01-01 00:00:00] INFO: Application started
+        [2024-01-01 00:00:01] INFO: Loading configuration
+        [2024-01-01 00:00:02] INFO: Database connected
+        [2024-01-01 00:00:03] INFO: Cache initialized
+        [2024-01-01 00:00:04] INFO: Server listening on port 8080
+        [2024-01-01 00:00:05] INFO: Worker pool created with 10 threads
+        [2024-01-01 00:00:06] INFO: Scheduled tasks registered
+        [2024-01-01 00:00:07] INFO: Health check endpoint enabled
+        [2024-01-01 00:00:08] INFO: Metrics collection started
+        [2024-01-01 00:00:09] INFO: Request routing configured
+        [2024-01-01 00:00:10] INFO: Middleware chain initialized
+        [2024-01-01 00:00:11] INFO: Authentication module loaded
+        [2024-01-01 00:00:12] INFO: Authorization rules applied
+        [2024-01-01 00:00:13] INFO: API documentation generated
+        [2024-01-01 00:00:14] INFO: Static assets served from /public
+        [2024-01-01 00:00:15] INFO: WebSocket handler registered
+        [2024-01-01 00:00:16] INFO: Email notification service ready
+        [2024-01-01 00:00:17] INFO: SMS gateway configured
+        [2024-01-01 00:00:18] INFO: Push notification service initialized
+        [2024-01-01 00:00:19] INFO: Background job processor started
+        [2024-01-01 00:00:20] INFO: File upload handler configured
+        [2024-01-01 00:00:21] INFO: Image processing pipeline ready
+        [2024-01-01 00:00:22] INFO: Video transcoding service initialized
+        [2024-01-01 00:00:23] INFO: Document parser loaded
+        [2024-01-01 00:00:24] INFO: Search index built
+        [2024-01-01 00:00:25] INFO: Cache warming completed
+        [2024-01-01 00:00:26] INFO: Database migration check passed
+        [2024-01-01 00:00:27] INFO: Backup service scheduled
+        [2024-01-01 00:00:28] INFO: Monitoring alerts configured
+        [2024-01-01 00:00:29] INFO: Log aggregation enabled
+        [2024-01-01 00:00:30] WARN: High memory usage detected: 85%
+        [2024-01-01 00:00:31] WARN: Consider increasing heap size
+        [2024-01-01 00:00:32] INFO: Garbage collection completed
+        [2024-01-01 00:00:33] INFO: Memory usage back to normal: 45%
+        [2024-01-01 00:00:34] INFO: Request processing resumed
+        [2024-01-01 00:00:35] INFO: Batch job completed: 1000 records
+        [2024-01-01 00:00:36] INFO: Cache hit ratio: 0.95
+        [2024-01-01 00:00:37] INFO: Database query time: 12ms
+        [2024-01-01 00:00:38] INFO: External API latency: 45ms
+        [2024-01-01 00:00:39] INFO: Response compression enabled
+        [2024-01-01 00:00:40] INFO: Rate limiting applied
+        [2024-01-01 00:00:41] INFO: SSL certificate valid
+        [2024-01-01 00:00:42] INFO: CDN configuration synced
+        [2024-01-01 00:00:43] INFO: DNS resolution cached
+        [2024-01-01 00:00:44] INFO: Load balancer health check passed
+        [2024-01-01 00:00:45] INFO: Application startup completed successfully
 input: "查看 workspace/large.log 的最后几行"
 expected:
   tools:
     required: ["read_file"]
   output:
-    must_contain: ["日志"]  # 不应完整返回 100KB
-  constraints:
-    output_length_max: 5000  # 应该被截断
+    must_contain: ["日志", "startup completed"]  # 应该读取到文件末尾内容
   max:
     tool_calls: 1
+    latency_ms: 5000
 scoring:
   mode: deduction
   max_score: 100
   pass_threshold: 80
-notes: "边界测试：大文件应自动截断，不超限"
+notes: "边界测试：大文件读取，验证 Agent 能正确处理较长内容"

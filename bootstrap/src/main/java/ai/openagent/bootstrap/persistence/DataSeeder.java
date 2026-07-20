@@ -137,15 +137,22 @@ public class DataSeeder implements ApplicationRunner {
      * 3. 最简默认值
      */
     private String resolveSystemPrompt() {
+        return resolveSystemPromptStatic(modelSettings);
+    }
+
+    /**
+     * 静态版本，供 AgentServiceImpl 复用以保持 fallback 逻辑一致
+     */
+    public static String resolveSystemPromptStatic(ModelSettings settings) {
         // 1. 环境变量
-        String envPrompt = modelSettings.systemPrompt();
+        String envPrompt = settings.systemPrompt();
         if (envPrompt != null && !envPrompt.isBlank()) {
             log.info("[seed] using system prompt from environment");
             return envPrompt;
         }
 
         // 2. 从 classpath 加载 system-prompt.md
-        try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream("system-prompt.md")) {
+        try (java.io.InputStream is = DataSeeder.class.getClassLoader().getResourceAsStream("system-prompt.md")) {
             if (is != null) {
                 String filePrompt = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
                 log.info("[seed] loaded system prompt from classpath:system-prompt.md ({} chars)", filePrompt.length());

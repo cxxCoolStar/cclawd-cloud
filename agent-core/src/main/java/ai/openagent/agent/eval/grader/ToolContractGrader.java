@@ -66,11 +66,36 @@ public class ToolContractGrader implements Grader {
         }
 
         // 检查调用顺序（如果 ordered=true）
+        // 允许工具重复调用，但要求相对顺序正确
         if (tools.isOrdered() && required != null && required.size() > 1) {
             List<String> requiredInOrder = actualTools.stream()
                     .filter(required::contains)
                     .collect(Collectors.toList());
-            if (!requiredInOrder.equals(required)) {
+            // 检查相对顺序：required 中的每个工具必须在 required[i+1] 之前出现
+            boolean orderCorrect = true;
+            for (int i = 0; i < required.size() - 1 && orderCorrect; i++) {
+                String current = required.get(i);
+                String next = required.get(i + 1);
+                int currentIndex = requiredInOrder.indexOf(current);
+                int nextIndex = requiredInOrder.indexOf(next);
+                // next 必须在 current 的某次出现之后
+                if (currentIndex == -1 || nextIndex == -1) {
+                    orderCorrect = false; // 缺少必需工具
+                } else {
+                    // 找到 current 的最后一次出现位置
+                    int lastCurrentIndex = -1;
+                    for (int j = 0; j < requiredInOrder.size(); j++) {
+                        if (requiredInOrder.get(j).equals(current)) {
+                            lastCurrentIndex = j;
+                        }
+                    }
+                    // next 必须在 current 最后一次出现之后
+                    if (nextIndex <= lastCurrentIndex) {
+                        orderCorrect = false;
+                    }
+                }
+            }
+            if (!orderCorrect) {
                 totalDeduction += testCase.getScoring().getProcessViolationPenalty();
                 reasonBuilder.append("工具调用顺序错误，期望: ").append(required)
                         .append(", 实际: ").append(requiredInOrder).append("; ");

@@ -129,9 +129,14 @@ public class MemoryService {
 
     /**
      * agent 级 workspace 目录（fastclaw homePath 语义）
+     * <p>
+     * 如果配置了 evalWorkspaceRoot（评估模式），则使用该路径以隔离测试数据，
+     * 避免覆盖真实 agent 的 MEMORY.md
      */
     public Path agentHome(String agentId) {
-        return Path.of(toolProperties.workspaceRoot()).resolve(agentId);
+        String root = memoryProperties.getEvalWorkspaceRoot()
+                .orElse(toolProperties.workspaceRoot());
+        return Path.of(root).resolve(agentId);
     }
 
     private void scanBeforeWrite(String agentId, String file, String content) {

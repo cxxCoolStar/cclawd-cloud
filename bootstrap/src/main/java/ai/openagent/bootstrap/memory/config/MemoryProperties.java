@@ -35,4 +35,13 @@ public record MemoryProperties(
         @DefaultValue("true") boolean enabled,
         @DefaultValue("true") boolean autoPersistEnabled,
         @DefaultValue("5") @Min(1) @Max(100) int autoPersistInterval,
-        @DefaultValue("32768") @Min(1024) int maxFileChars) {}
+        @DefaultValue("32768") @Min(1024) int maxFileChars,
+        String evalWorkspaceRoot) {
+
+    /**
+     * 获取 Eval 模式下的工作空间根目录（如果配置）
+     */
+    public java.util.Optional<String> getEvalWorkspaceRoot() {
+        return java.util.Optional.ofNullable(evalWorkspaceRoot);
+    }
+}

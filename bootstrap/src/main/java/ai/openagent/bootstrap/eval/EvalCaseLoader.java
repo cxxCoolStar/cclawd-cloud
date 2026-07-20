@@ -53,6 +53,7 @@ public class EvalCaseLoader {
     public List<EvalCase> loadAll(String path) {
         log.info("Loading eval cases from: {}", path);
         List<EvalCase> cases = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
 
         try {
             Resource[] resources = resolver.getResources(getPattern(path));
@@ -67,12 +68,19 @@ public class EvalCaseLoader {
                             log.debug("Loaded eval case: {} - {}", evalCase.getId(), evalCase.getName());
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to load eval case from {}: {}", resource.getFilename(), e.getMessage());
+                        log.error("Failed to load eval case from {}: {}", resource.getFilename(), e.getMessage());
+                        errors.add(resource.getFilename() + ": " + e.getMessage());
                     }
                 }
             }
         } catch (IOException e) {
             log.error("Failed to load eval cases from {}: {}", path, e.getMessage());
+            throw new RuntimeException("Failed to load eval cases from " + path, e);
+        }
+
+        // 如果有加载错误，抛出异常使测试失败，避免静默跳过文件
+        if (!errors.isEmpty()) {
+            throw new RuntimeException("Failed to load " + errors.size() + " eval case(s): " + errors);
         }
 
         log.info("Loaded {} eval cases from {}", cases.size(), path);

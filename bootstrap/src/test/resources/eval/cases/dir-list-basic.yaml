@@ -3,9 +3,13 @@ name: 列出目录内容
 category: core_logic
 priority: P1
 fixtures:
-  dirs:
-    - path: "workspace/project"
-      files: ["main.py", "utils.py", "README.md"]
+  files:
+    - path: "project/main.py"
+      content: "# Main entry point\ndef main():\n    print('Hello')\n"
+    - path: "project/utils.py"
+      content: "# Utility functions\ndef helper():\n    pass\n"
+    - path: "project/README.md"
+      content: "# Project README\nThis is a sample project.\n"
 input: "workspace/project/ 目录下有哪些文件？"
 expected:
   tools:

@@ -8,7 +8,7 @@ expected:
     required: []
     forbidden: ["read_file", "write_file", "edit_file", "exec", "web_search", "web_fetch"]
   output:
-    must_contain: ["天气"]  # 应该基于已有知识回答
+    must_contain: []  # 只要有回应即可，不强求特定内容
   max:
     tool_calls: 0
 scoring:

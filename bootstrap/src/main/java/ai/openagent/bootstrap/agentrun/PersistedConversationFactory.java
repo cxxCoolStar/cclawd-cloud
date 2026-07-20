@@ -88,7 +88,9 @@ public class PersistedConversationFactory implements AgentConversationFactory {
             toModelMessage(record).ifPresent(messages::add);
         }
         Path agentHome = memoryService.agentHome(command.agentId());
-        Path workspace = agentHome.resolve("sessions").resolve(command.sessionId());
+        // 如果命令指定了工作空间覆盖路径（eval 模式），使用该路径，否则使用默认路径
+        Path workspace = command.getWorkspacePathOverride()
+                .orElseGet(() -> agentHome.resolve("sessions").resolve(command.sessionId()));
         ContextCompactor compactor = new ContextCompactor(
                 agentProperties.contextTokenThreshold(), agentProperties.contextPruneTurnAge());
         return new PersistedConversation(command, agent, provider, messages, agentHome, workspace, compactor);

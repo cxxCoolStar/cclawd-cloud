@@ -67,8 +67,8 @@ public class EvalCase {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("EvalCase id is required");
         }
-        if (input == null || input.isBlank()) {
-            throw new IllegalArgumentException("EvalCase input is required");
+        if (input == null) {
+            throw new IllegalArgumentException("EvalCase input is required (can be empty string)");
         }
         if (expected == null) {
             throw new IllegalArgumentException("EvalCase expected is required");

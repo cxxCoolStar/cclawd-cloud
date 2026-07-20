@@ -146,13 +146,26 @@ public class AgentServiceImpl implements AgentService {
                 value(description),
                 DataSeeder.DEFAULT_PROVIDER_ID,
                 model == null || model.isBlank() ? value(modelSettings.name()) : model,
-                systemPrompt == null || systemPrompt.isBlank() ? value(modelSettings.systemPrompt()) : systemPrompt,
+                resolveSystemPrompt(systemPrompt),
                 now);
         // 与 DataSeeder 同源：补种内置工具默认启停
         for (ToolCatalog tool : ToolCatalog.BUILTIN_TOOLS) {
             agentToolRepository.upsert(id, tool.name(), tool.enabledDefault(), "{}");
         }
         return getAgent(id);
+    }
+
+    /**
+     * 解析系统提示词：如果传入为空，则复用 DataSeeder 的 fallback 逻辑
+     * 优先级：1) 传入值（非空） 2) 环境变量/modelSettings 3) classpath:system-prompt.md 4) 最简默认值
+     */
+    private String resolveSystemPrompt(String inputSystemPrompt) {
+        // 1. 使用传入值
+        if (inputSystemPrompt != null && !inputSystemPrompt.isBlank()) {
+            return inputSystemPrompt;
+        }
+        // 2. 复用 DataSeeder 的完整 fallback 链（env → classpath file → default）
+        return DataSeeder.resolveSystemPromptStatic(modelSettings);
     }
 
     @Override

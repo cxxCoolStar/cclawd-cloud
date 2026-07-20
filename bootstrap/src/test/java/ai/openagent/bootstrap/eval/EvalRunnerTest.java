@@ -23,10 +23,9 @@ import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.agentrun.trace.TraceService;
 import ai.openagent.bootstrap.agentrun.trace.TraceVO;
-import ai.openagent.bootstrap.chat.event.ChatEventHub;
-import ai.openagent.bootstrap.chat.event.ChatSessionKey;
 import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
+import ai.openagent.bootstrap.persistence.AgentToolRepository;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -81,6 +80,9 @@ public class EvalRunnerTest {
     private AgentService agentService;
 
     @Autowired
+    private AgentToolRepository agentToolRepository;
+
+    @Autowired
     private TraceService traceService;
 
     @Autowired
@@ -88,9 +90,6 @@ public class EvalRunnerTest {
 
     @Autowired
     private ToolProperties toolProperties;
-
-    @Autowired
-    private ChatEventHub chatEventHub;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -134,7 +133,7 @@ public class EvalRunnerTest {
         // 生成报告
         generateReport(List.of(result));
 
-        assertTrue(result.passed() || true, // 调试模式不强制失败
+        assertTrue(result.passed(),
                 "Case " + caseId + " failed: " + result.deductions());
     }
 
@@ -150,7 +149,9 @@ public class EvalRunnerTest {
         assertFalse(cases.isEmpty(), "No eval cases found");
 
         List<CaseResult> results = new ArrayList<>();
+        int caseIndex = 0;
         for (EvalCase evalCase : cases) {
+            caseIndex++;
             try {
                 CaseResult result = executeAndGrade(evalCase);
                 results.add(result);
@@ -167,6 +168,18 @@ public class EvalRunnerTest {
                         List.of(new Deduction("EXCEPTION", 100, e.getMessage())),
                         List.of(e.toString()),
                         0));
+            }
+            // Rate limit 保护：每个用例之间等待 10 秒（除了最后一个）
+            // 腾讯云 kimi-k2.5 有严格的 TPM 限制，需要更长的间隔
+            if (caseIndex < cases.size()) {
+                try {
+                    log.debug("Rate limit protection: waiting 10s before next case...");
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Rate limit wait interrupted");
+                    break;
+                }
             }
         }
 
@@ -200,7 +213,10 @@ public class EvalRunnerTest {
             workspaceManager.createFixtures(runId, DEFAULT_AGENT_ID, evalCase.getFixtures());
         }
 
-        // 3. 运行 Agent
+        // 3. 启用用例所需的工具
+        enableRequiredTools(evalCase);
+
+        // 4. 运行 Agent
         AgentRunResult runResult;
         String finalOutput;
         List<EvalContext.ToolCall> toolCalls;
@@ -251,6 +267,8 @@ public class EvalRunnerTest {
         int totalDeduction = 0;
         List<String> allEvidence = new ArrayList<>();
 
+        int maxScore = evalCase.getScoring() != null ? evalCase.getScoring().getMaxScore() : 100;
+        
         for (Grader grader : graders) {
             try {
                 GraderResult result = grader.grade(evalCase, context);
@@ -264,15 +282,16 @@ public class EvalRunnerTest {
                 allEvidence.addAll(result.evidence());
             } catch (Exception e) {
                 log.error("Grader failed: {}", grader.getClass().getSimpleName(), e);
+                // Grader 崩溃应视为严重错误，扣除全部分数
                 deductions.add(new Deduction(
                         grader.getClass().getSimpleName(),
-                        0,
+                        maxScore,
                         "Grader error: " + e.getMessage()));
+                totalDeduction += maxScore;
             }
         }
 
         // 计算最终分数
-        int maxScore = evalCase.getScoring() != null ? evalCase.getScoring().getMaxScore() : 100;
         int score = Math.max(0, maxScore - totalDeduction);
 
         // 如果运行状态是失败，直接 0 分
@@ -302,6 +321,31 @@ public class EvalRunnerTest {
     }
 
     /**
+     * 启用用例所需的工具
+     * 根据用例的 expected.tools.required 自动启用相应工具
+     */
+    private void enableRequiredTools(EvalCase evalCase) {
+        if (evalCase.getExpected() == null || evalCase.getExpected().getTools() == null) {
+            return;
+        }
+        
+        List<String> requiredTools = evalCase.getExpected().getTools().getRequired();
+        if (requiredTools == null || requiredTools.isEmpty()) {
+            return;
+        }
+        
+        for (String toolName : requiredTools) {
+            try {
+                // Upsert 工具配置（启用状态）
+                agentToolRepository.upsert(DEFAULT_AGENT_ID, toolName, true, "{}");
+                log.debug("Enabled tool {} for eval case {}", toolName, evalCase.getId());
+            } catch (Exception e) {
+                log.warn("Failed to enable tool {} for eval case {}: {}", toolName, evalCase.getId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
      * 运行 Agent
      */
     private RunResult runAgent(EvalCase evalCase, String runId, String workspacePath) throws Exception {
@@ -319,7 +363,8 @@ public class EvalRunnerTest {
                 DEFAULT_AGENT_ID,
                 sessionId,
                 evalCase.getInput(),
-                runtimeConfig);
+                runtimeConfig,
+                Path.of(workspacePath));
 
         // 收集事件和输出
         StringBuilder outputBuilder = new StringBuilder();
@@ -359,11 +404,6 @@ public class EvalRunnerTest {
                 doneLatch.countDown();
             }
         };
-
-        // 创建订阅以接收事件
-        chatEventHub.subscribe(DEFAULT_AGENT_ID, sessionId, envelope -> {
-            // 这里可以根据需要处理持久化后的事件
-        });
 
         // 运行 Agent
         AgentRunResult result = agentKernel.run(command, eventSink);

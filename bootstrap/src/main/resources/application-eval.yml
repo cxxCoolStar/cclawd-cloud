@@ -18,6 +18,9 @@ spring:
       mode: never
 
 openagent:
+  memory:
+    # Eval 模式下使用独立的 workspace 根目录，避免覆盖真实 agent 的 MEMORY.md
+    eval-workspace-root: ${java.io.tmpdir}/openagent-eval-workspaces/memory
   eval:
     # 测试用例路径（classpath 下的 eval/cases）
     cases:

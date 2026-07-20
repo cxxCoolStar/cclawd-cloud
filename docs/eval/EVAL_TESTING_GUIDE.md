@@ -114,18 +114,21 @@ scoring:
 
 # 夹具：测试前置条件
 fixtures:
-  # 预置文件
+  # 预置文件（已支持）
   files:
     - path: "project/README.md"
       content: |
         # OpenAgent 项目
         这是一个基于 ReAct 架构的 AI Agent 实现。
+    - path: "project/main.py"
+      content: "print('hello')"
   
-  # 预置记忆（预留）
+  # 预置记忆（已支持）
   memory:
-    - "用户偏好使用中文"
+    - "项目使用 Java 17 和 Spring Boot 3"
+    - "数据库是 PostgreSQL"
   
-  # 预置技能（预留）
+  # 预置技能（预留，暂未实现）
   skills:
     - name: "代码审查"
       trigger: "review"
@@ -149,9 +152,58 @@ scoring:
 
 ---
 
-## 3. 评分机制
+## 3. Fixtures（前置条件）
 
-### 3.1 评分器列表
+Fixtures 用于在测试运行前准备环境，支持三种类型：
+
+### 3.1 文件 Fixtures（`files`）
+
+在 workspace 目录下创建预置文件：
+
+```yaml
+fixtures:
+  files:
+    - path: "project/README.md"        # 相对于 workspace 的路径
+      content: "# 项目介绍\n这是内容"
+    - path: "data/users.csv"           # 会自动创建父目录
+      content: |
+        name,age
+        Alice,25
+        Bob,30
+```
+
+**注意事项：**
+- `path` 可以带或不带 `workspace/` 前缀，系统会自动处理
+- 父目录会自动创建
+- 文件内容支持多行字符串（使用 `|`）
+
+### 3.2 记忆 Fixtures（`memory`）
+
+向 Agent 的长期记忆中写入内容（用于测试 memory_search 等场景）：
+
+```yaml
+fixtures:
+  memory:
+    - "项目使用 Java 17 和 Spring Boot 3"
+    - "数据库是 PostgreSQL"
+    - "部署在 Kubernetes 集群"
+```
+
+**实现细节：**
+- 内容会写入 `MEMORY.md` 文件
+- 使用 `eval-user` 作为 userId 以隔离测试数据
+- 需要 `MemoryService` 已启用（`memory.enabled=true`）
+- 格式：自动转换为 `- 内容` 的列表格式
+
+### 3.3 技能 Fixtures（`skills`）
+
+预留字段，暂未实现。用于预注册技能。
+
+---
+
+## 4. 评分机制
+
+### 4.1 评分器列表
 
 | 评分器 | 检查内容 | 数据来源 |
 |--------|----------|----------|
@@ -161,7 +213,7 @@ scoring:
 | `LatencyBudgetGrader` | 延迟是否超标 | 实际运行时间 |
 | `TokenBudgetGrader` | Token 是否超标 | `agent_runs` 表 |
 
-### 3.2 扣分规则
+### 4.2 扣分规则
 
 ```
 初始分数：100
@@ -176,9 +228,9 @@ scoring:
 
 ---
 
-## 4. 调试技巧
+## 5. 调试技巧
 
-### 4.1 查看详细日志
+### 5.1 查看详细日志
 
 ```bash
 # 开启 DEBUG 日志
@@ -187,7 +239,7 @@ scoring:
   -Dlogging.level.ai.openagent.bootstrap.eval=DEBUG
 ```
 
-### 4.2 查看 Trace
+### 5.2 查看 Trace
 
 每个用例运行时会生成 `runId`（如 `eval-a1b2c3d4`），可通过 API 查看完整 trace：
 
@@ -202,7 +254,7 @@ Trace 包含：
 - 每次模型调用的 Token 用量
 - 每次工具调用的参数和结果
 
-### 4.3 失败用例自动导出 Trace
+### 5.3 失败用例自动导出 Trace
 
 失败用例会自动在日志中输出关键信息：
 ```
@@ -214,9 +266,9 @@ Deductions:
 
 ---
 
-## 5. 添加新用例
+## 6. 添加新用例
 
-### 5.1 创建 YAML 文件
+### 6.1 创建 YAML 文件
 
 在 `eval/cases/` 下新建 `.yaml` 文件：
 
@@ -240,14 +292,14 @@ notes: "测试 Agent 对文件不存在场景的处理"
 EOF
 ```
 
-### 5.2 验证用例格式
+### 6.2 验证用例格式
 
 ```bash
 # 运行该用例验证
 ./mvnw test -pl bootstrap -Dtest=EvalRunnerTest#runSingleCase -DcaseId=error-handling
 ```
 
-### 5.3 用例命名规范
+### 6.3 用例命名规范
 
 | 前缀 | 用途 | 示例 |
 |------|------|------|
@@ -261,9 +313,9 @@ EOF
 
 ---
 
-## 6. CI 集成
+## 7. CI 集成
 
-### 6.1 手动触发
+### 7.1 手动触发
 
 Eval 测试默认不随常规测试运行，需显式触发：
 
@@ -272,7 +324,7 @@ Eval 测试默认不随常规测试运行，需显式触发：
 ./mvnw test -pl bootstrap -Dtest=EvalRunnerTest#runAllCases -Dspring.profiles.active=eval
 ```
 
-### 6.2 GitHub Actions（预留）
+### 7.2 GitHub Actions（预留）
 
 ```yaml
 # .github/workflows/eval.yml
@@ -285,7 +337,7 @@ on:
     types: [labeled]        # 打 run-eval label 时触发
 ```
 
-### 6.3 门禁配置（Phase 3）
+### 7.3 门禁配置（Phase 3）
 
 ```yaml
 # 预留：回归套件配置
@@ -303,7 +355,7 @@ release_gate:
 
 ---
 
-## 7. 常见问题
+## 8. 常见问题
 
 ### Q1: 运行报错 "No eval cases found"
 

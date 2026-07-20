@@ -68,6 +68,6 @@ class MemoryServiceTest {
     private static MemoryService service(Path temp, int maxChars) {
         return new MemoryService(
                 new ToolProperties(Duration.ofSeconds(30), 65536, temp.toString(), 1048576, false, 1048576),
-                new MemoryProperties(true, true, 5, maxChars));
+                new MemoryProperties(true, true, 5, maxChars, null));
     }
 }
