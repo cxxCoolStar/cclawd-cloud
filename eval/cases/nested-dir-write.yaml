@@ -1,0 +1,23 @@
+id: nested-dir-write
+name: 写入不存在的嵌套目录
+category: boundary
+priority: P1
+input: "在 reports/2026/q3/summary.txt 里写入一行文字：Q3 目标达成"
+expected:
+  tools:
+    required: ["write_file"]
+  outcome:
+    file_exists: "reports/2026/q3/summary.txt"
+    file_content_contains: "Q3 目标达成"
+  output:
+    forbidden: ["失败", "无法创建"]
+  max:
+    tool_calls: 4  # 允许先建目录（exec mkdir 或工具自动创建）
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  边界测试：目标路径的父目录不存在，Agent 应自动创建目录层级
+  （或 write_file 自身支持），而非报错放弃。

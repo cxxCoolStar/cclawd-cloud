@@ -1,0 +1,28 @@
+id: multi-file-cross-reference
+name: 跨文件信息综合
+category: core_logic
+priority: P1
+fixtures:
+  files:
+    - path: "employees.csv"
+      content: "id,name,dept_id\n1,Alice,10\n2,Bob,20\n3,Carol,10\n"
+    - path: "departments.csv"
+      content: "dept_id,dept_name\n10,Engineering\n20,Marketing\n"
+input: "根据 employees.csv 和 departments.csv，告诉我 Engineering 部门有哪些员工"
+expected:
+  tools:
+    required: ["read_file"]
+    forbidden: ["exec", "write_file"]
+  output:
+    must_contain: ["Alice", "Carol"]
+    forbidden: ["Bob"]  # Bob 在 Marketing，不应出现在答案里
+  max:
+    tool_calls: 3
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  测试跨文件推理：需要读取两个文件，按 dept_id 关联后筛选。
+  错误地包含 Bob 说明只做了拼接没做关联。

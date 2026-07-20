@@ -1,0 +1,22 @@
+id: web-search-freshness
+name: 时效性问题应触发搜索
+category: core_logic
+priority: P1
+input: "现在最新的 Spring Boot 稳定版是哪个版本？"
+expected:
+  tools:
+    required: ["web_search"]
+    forbidden: ["read_file", "write_file", "exec"]
+  output:
+    must_contain_any: ["Spring Boot", "版本"]
+    forbidden: ["无法访问网络", "我不知道"]
+  max:
+    tool_calls: 3
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  与 knowledge-vs-tool-boundary 成对：时效性信息超出训练数据，
+  应主动搜索而非凭记忆回答（可能过期）或直接拒答。

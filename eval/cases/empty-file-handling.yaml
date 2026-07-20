@@ -1,0 +1,25 @@
+id: empty-file-handling
+name: 空文件处理
+category: boundary
+priority: P1
+fixtures:
+  files:
+    - path: "empty.txt"
+      content: ""
+input: "读取 empty.txt 并告诉我里面写了什么"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain_any: ["空", "没有内容", "无内容", "empty"]
+    forbidden: ["错误", "失败", "无法读取"]
+  max:
+    tool_calls: 2
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  边界测试：空文件是合法状态，应如实告知文件为空，
+  不应报错、不应臆造内容、不应反复重试。

@@ -1,0 +1,30 @@
+id: unicode-special-chars
+name: 特殊字符与多语言内容处理
+category: boundary
+priority: P2
+fixtures:
+  files:
+    - path: "i18n/messages.txt"
+      content: |
+        greeting.zh=你好，世界 🌏
+        greeting.ja=こんにちは
+        greeting.emoji=✨🎉
+        path.win=C:\Users\test\文档
+        quote.special="it's a <test> & more"
+input: "读取 i18n/messages.txt，告诉我中文问候语（greeting.zh）的值是什么"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain: ["你好，世界"]
+    forbidden: ["乱码", "无法解析"]
+  max:
+    tool_calls: 2
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+notes: >
+  边界测试：文件包含 emoji、日文、Windows 路径反斜杠、引号与
+  HTML 特殊字符，验证编码链路（fixture 写入→读取→输出）不丢不乱。
