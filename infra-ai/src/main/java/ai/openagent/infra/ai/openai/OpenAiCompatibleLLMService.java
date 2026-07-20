@@ -32,12 +32,10 @@ import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * OpenAI 兼容协议的模型服务（V2 方案 M2，迁移自 bootstrap 的
- * OpenAiCompatibleChatModelGateway 并按 fastclaw internal/provider/openai.go
- * 语义重写）
+ * OpenAI 兼容协议的模型服务（V2 方案 M2）
  *
  * <p>
- * 关键行为对齐 fastclaw：
+ * 关键行为：
  * <ul>
  *   <li>tools 非空才携带 tools 字段；tool_choice 交由供应商默认（auto）；</li>
  *   <li>流式 tool call 分片按 index 聚合，id/name/arguments 增量合并
@@ -118,7 +116,7 @@ public class OpenAiCompatibleLLMService implements LLMService {
         body.set("messages", buildWireMessages(request.messages()));
         body.put("stream", true);
         // include_usage 请求供应商在 [DONE] 前追加一个携带 token 用量的
-        // 终章 chunk（fastclaw streamOptions 语义）；不支持的供应商会静默忽略
+        // 终章 chunk；不支持的供应商会静默忽略
         body.putObject("stream_options").put("include_usage", true);
         if (request.temperature() != null) {
             body.put("temperature", request.temperature());
@@ -204,7 +202,7 @@ public class OpenAiCompatibleLLMService implements LLMService {
     /**
      * 标记孤立 tool_calls：assistant 声明的 tool call ID 未被紧随其后的
      * tool 消息完整应答时，该 assistant 的 tool_calls 与引用它的 tool
-     * 消息都需剥离（openai.go findOrphanToolCalls）
+     * 消息都需剥离
      */
     private void markOrphanToolCalls(
             List<ModelMessage> messages, JsonNode[] rawParsed, boolean[] orphanAssistant, boolean[] orphanTool) {
@@ -239,7 +237,7 @@ public class OpenAiCompatibleLLMService implements LLMService {
 
     /**
      * 提取 assistant 消息声明的 tool call ID：优先取结构化字段，
-     * 老会话可能只在 rawAssistantJson 中携带（openai.go assistantToolCallIDs）
+     * 老会话可能只在 rawAssistantJson 中携带
      */
     private List<String> assistantToolCallIds(ModelMessage message, JsonNode rawAssistant) {
         if (!message.toolCalls().isEmpty()) {
@@ -310,7 +308,7 @@ public class OpenAiCompatibleLLMService implements LLMService {
                 try {
                     chunk = objectMapper.readTree(data);
                 } catch (IOException error) {
-                    // 对齐 fastclaw：坏 chunk 记 WARN 跳过，不中断整个流
+                    // 坏 chunk 记 WARN 跳过，不中断整个流
                     log.warn("[llm] SSE chunk 解析失败，跳过：{}", data, error);
                     continue;
                 }
@@ -357,10 +355,9 @@ public class OpenAiCompatibleLLMService implements LLMService {
     }
 
     /**
-     * 序列化供应商 wire 格式的完整 assistant 消息（fastclaw RawAssistant
-     * 语义）：tool_calls 必须包含（否则下一轮请求中 tool 回复变孤立被
-     * 供应商 400 拒绝），reasoning_content 必须回传（DeepSeek/Kimi
-     * thinking 模式要求原样回显）
+     * 序列化供应商 wire 格式的完整 assistant 消息：tool_calls 必须包含
+     *（否则下一轮请求中 tool 回复变孤立被供应商 400 拒绝），reasoning_content
+     * 必须回传（DeepSeek/Kimi thinking 模式要求原样回显）
      */
     private String buildRawAssistantJson(String content, String reasoning, List<ToolCall> calls) throws IOException {
         ObjectNode node = objectMapper.createObjectNode();
@@ -385,8 +382,7 @@ public class OpenAiCompatibleLLMService implements LLMService {
         // 避免伪造数据污染用量统计和成本计算
         
         long cachedTokens = usageNode.path("prompt_tokens_details").path("cached_tokens").asLong(0);
-        // 对齐 fastclaw openaiUsageToProvider：inputTokens 为未命中缓存的
-        // 剩余部分，input + cacheRead 之和仍等于完整 prompt 大小
+        // inputTokens 为未命中缓存的剩余部分，input + cacheRead 之和仍等于完整 prompt 大小
         return new TokenUsage(Math.max(0, promptTokens - cachedTokens), completionTokens, cachedTokens, 0);
     }
 

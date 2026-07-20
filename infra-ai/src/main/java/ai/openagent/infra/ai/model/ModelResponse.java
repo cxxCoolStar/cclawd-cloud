@@ -9,7 +9,7 @@ import java.util.Objects;
  * <p>
  * 两类结果对应 Agent 循环的两个分支：{@link Text} 表示普通文本完成，
  * {@link ToolCalls} 表示模型请求执行工具。两者都携带
- * rawAssistantJson（fastclaw RawAssistant 语义）供历史重放原样回传；
+ * rawAssistantJson 供历史重放原样回传；
  * ToolCalls 同时保留 content——模型可能在返回 tool calls 的同时输出
  * 正文，顺序必须保留（V2 方案 1.2 必测行为 5）
  * </p>

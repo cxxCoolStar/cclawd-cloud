@@ -1,12 +1,11 @@
 package ai.openagent.agent.context;
 
 /**
- * 会话总结端口（fastclaw compaction.go 中 provider.Chat 总结调用的抽象）
+ * 会话总结端口
  *
  * <p>
- * 由 bootstrap 以 LLMService + provider 配置实现（总结参数 maxTokens /
- * temperature 对齐 fastclaw 的 2048 / 0.3）；实现失败应抛出异常，
- * 由 {@link ContextCompactor} 降级为仅裁剪
+ * 由 bootstrap 以 LLMService + provider 配置实现（总结参数 maxTokens=2048,
+ * temperature=0.3）；实现失败应抛出异常，由 {@link ContextCompactor} 降级为仅裁剪
  * </p>
  */
 @FunctionalInterface

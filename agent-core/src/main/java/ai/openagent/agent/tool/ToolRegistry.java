@@ -6,9 +6,8 @@ import java.util.List;
  * 工具注册表端口（V2 方案 7.3）
  *
  * <p>
- * 只有「平台已实现 且 该 Agent 已启用」的工具会暴露给模型
- * （对齐 fastclaw registry：Only registered and enabled tools are
- * exposed）。bootstrap 侧实现基于 ToolCatalog 白名单 + agent_tools
+ * 只有「平台已实现 且 该 Agent 已启用」的工具会暴露给模型。
+ * bootstrap 侧实现基于 ToolCatalog 白名单 + agent_tools
  * 启停配置 + 已装配的 {@link AgentTool} Bean 三者取交集
  * </p>
  */

@@ -11,8 +11,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 主备切换的模型服务装饰器（V8 方案 3.1，对照 fastclaw provider
- * fallback 语义）
+ * 主备切换的模型服务装饰器（V8 方案 3.1）
  *
  * <p>
  * 主 provider 调用在<strong>首个 streamed delta 到达前</strong>遇到

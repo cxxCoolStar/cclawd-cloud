@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -99,6 +100,40 @@ class ExecToolTest {
         assertTrue(result.content().contains("partial output"));
         assertTrue(result.content().contains("Command failed with exit code 2"));
         assertTrue(result.content().contains("adjust the command before retrying"));
+    }
+
+    @Test
+    void blocksDestructiveCommandsBeforeDockerExecution() {
+        for (String command : List.of(
+                "rm -rf *",
+                "rm --recursive --force .",
+                "find . -type f -delete",
+                "mkfs.ext4 /dev/sda",
+                "wipefs -a /dev/sda",
+                "dd if=/dev/zero of=/dev/sda")) {
+            AtomicBoolean executed = new AtomicBoolean();
+            ExecTool tool = tool(true, args -> {
+                if (args.get(0).equals("exec")) {
+                    executed.set(true);
+                }
+                return new DockerCli.CliResult(0, args.get(0).equals("inspect") ? "true" : "");
+            });
+
+            String argsJson = new ObjectMapper().createObjectNode().put("command", command).toString();
+            ToolResult result = exec(tool, argsJson);
+
+            assertFalse(result.success(), command);
+            assertEquals(ToolErrorCode.TOOL_ARGUMENT_INVALID, result.errorCode(), command);
+            assertTrue(result.errorMessage().contains("destructive command blocked"), command);
+            assertFalse(executed.get(), command);
+        }
+    }
+
+    @Test
+    void destructiveCommandClassifierAllowsScopedNonRecursiveOperations() {
+        assertFalse(ExecTool.isDestructiveCommand("pwd"));
+        assertFalse(ExecTool.isDestructiveCommand("python3 -c 'print(5050)'"));
+        assertFalse(ExecTool.isDestructiveCommand("rm temporary.txt"));
     }
 
     @Test

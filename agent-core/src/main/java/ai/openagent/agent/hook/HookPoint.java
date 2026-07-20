@@ -1,13 +1,13 @@
 package ai.openagent.agent.hook;
 
 /**
- * Hook 挂载点（对齐 fastclaw internal/agent/hooks.go 的 7 个 HookPoint）
+ * Hook 挂载点
  */
 public enum HookPoint {
 
     /**
-     * system prompt 构建前（Java 版 prompt 构建在 conversation.open() 内，
-     * 与 fastclaw 语义等价，context 只带身份字段）
+     * system prompt 构建前（prompt 构建在 conversation.open() 内，
+     * context 只带身份字段）
      */
     BEFORE_SYSTEM_PROMPT,
 
@@ -18,7 +18,6 @@ public enum HookPoint {
 
     /**
      * 模型调用前：可读写 HookContext.modelRequest，kernel 触发后读回生效
-     * （修正 fastclaw 修改不生效的 bug）
      */
     BEFORE_MODEL_CALL,
 

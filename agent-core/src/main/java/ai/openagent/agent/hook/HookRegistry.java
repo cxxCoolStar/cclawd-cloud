@@ -8,11 +8,10 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Hook 注册表（对齐 fastclaw hooks.go：按注册顺序同步串行执行）
+ * Hook 注册表（按注册顺序同步串行执行）
  *
  * <p>
- * 错误隔离语义（对齐 fastclaw「store failure should not leak into the
- * agent's response path」）：每个 hook 独立 try/catch，异常只记 warn
+ * 错误隔离语义：每个 hook 独立 try/catch，异常只记 warn
  * 日志、不中断运行、不影响后续 hook（fail-open）。护栏类 hook 约定用
  * {@link HookContext#reject(String)} 表达拒绝，不靠抛异常
  * </p>

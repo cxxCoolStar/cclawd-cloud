@@ -8,12 +8,10 @@ import java.util.Objects;
  * 发送给模型的一条消息
  *
  * <p>
- * 对齐 fastclaw provider.Message 的关键字段：assistant 消息可携带
- * toolCalls；tool 消息以 toolCallId 与对应 tool call 配对；
+ * assistant 消息可携带 toolCalls；tool 消息以 toolCallId 与对应 tool call 配对；
  * rawAssistantJson 保存供应商返回的原始 assistant 消息 JSON，
- * 重放历史时优先原样回传（fastclaw RawAssistant 语义——字节一致的
- * 前缀保证 prompt cache 命中，且 reasoning_content 等供应商扩展字段
- * 不丢失）
+ * 重放历史时优先原样回传（字节一致的前缀保证 prompt cache 命中，
+ * 且 reasoning_content 等供应商扩展字段不丢失）
  * </p>
  */
 public record ModelMessage(

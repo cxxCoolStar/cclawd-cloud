@@ -10,8 +10,7 @@ import java.util.TreeMap;
  * 流式 tool call 分片聚合器
  *
  * <p>
- * 对齐 fastclaw openai.go ChatStream 的聚合规则：以 delta 中的
- * {@code index} 定位同一 tool call，id/type 后到非空值覆盖，
+ * 聚合规则：以 delta 中的 {@code index} 定位同一 tool call，id/type 后到非空值覆盖，
  * 函数名与 arguments 按到达顺序拼接；最终按 index 升序输出，
  * 保证一次响应包含多个 tool calls 时执行顺序稳定
  * </p>

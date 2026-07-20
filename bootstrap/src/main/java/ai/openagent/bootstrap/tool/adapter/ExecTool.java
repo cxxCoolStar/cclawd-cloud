@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,6 +28,15 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ExecTool extends AbstractFileTool {
+
+    private static final Pattern RECURSIVE_RM = Pattern.compile(
+            "(?i)(?:^|[;&|\\n])\\s*(?:sudo\\s+)?rm\\s+(?=[^;&|\\n]*(?:-[a-z]*r[a-z]*|--recursive)(?:\\s|$))");
+    private static final Pattern FIND_DELETE = Pattern.compile(
+            "(?i)(?:^|[;&|\\n])\\s*find\\b[^;&|\\n]*\\s-delete(?:\\s|$)");
+    private static final Pattern FILESYSTEM_DESTRUCTION = Pattern.compile(
+            "(?i)(?:^|[;&|\\n])\\s*(?:sudo\\s+)?(?:mkfs(?:\\.[a-z0-9]+)?|wipefs)\\b");
+    private static final Pattern BLOCK_DEVICE_WRITE = Pattern.compile(
+            "(?i)(?:^|[;&|\\n])\\s*(?:sudo\\s+)?dd\\b[^;&|\\n]*\\bof\\s*=\\s*/dev/");
 
     private final DockerSandboxService sandboxService;
 

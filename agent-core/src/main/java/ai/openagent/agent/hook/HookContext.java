@@ -14,7 +14,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 
 /**
- * Hook 上下文（对齐 fastclaw hooks.go 的胖 HookContext；单线程运行期内可变使用）
+ * Hook 上下文（单线程运行期内可变使用）
  *
  * <p>
  * 身份字段构造时固定；point 由 HookRegistry.fire 触发时写入；载荷字段

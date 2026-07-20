@@ -8,7 +8,7 @@ import java.util.Objects;
  *
  * <p>
  * 序列化为 OpenAI 兼容的 {@code {"type":"function","function":{...}}}
- * 结构；parameters 为 JSON Schema（对齐 fastclaw provider.ToolFunction）
+ * 结构；parameters 为 JSON Schema
  * </p>
  */
 public record ToolDefinition(String name, String description, Map<String, Object> parameters) {

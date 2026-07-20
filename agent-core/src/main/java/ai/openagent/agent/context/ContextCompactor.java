@@ -6,11 +6,10 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 上下文压缩器（V3 方案 M1，对照 fastclaw internal/agent/compaction.go
- * CompactMessages 逐段移植）
+ * 上下文压缩器（V3 方案 M1）
  *
  * <p>
- * 保留的 fastclaw 行为：
+ * 核心行为：
  * <ul>
  *   <li>token 超过阈值才触发（默认 80000，DefaultTokenThreshold）；</li>
  *   <li>两段式：Step 1 把最近 pruneTurnAge（默认 20，PruneTurnAge）条以外
@@ -22,22 +21,19 @@ import lombok.extern.slf4j.Slf4j;
  *       must be a response to a preceding message with 'tool_calls'"）；</li>
  *   <li>总结调用失败降级为仅裁剪，不让运行失败。</li>
  * </ul>
- * 与 fastclaw 的已知差异：fastclaw 总结文本只含 OriginUser 消息，
- * OpenAgent 的 ModelMessage 暂无 origin 字段，V3 对全部角色生成总结文本
- * （V3 方案 8.2 有意偏离登记）；前导 system 消息钉住不参与压缩
- * （fastclaw 的 system prompt 本就不在会话历史内，此处等价处理）
+ * 前导 system 消息钉住不参与压缩
  * </p>
  */
 @Slf4j
 public class ContextCompactor {
 
     /**
-     * 裁剪占位符（fastclaw truncatedPlaceholder 逐字一致）
+     * 裁剪占位符
      */
     public static final String TRUNCATED_PLACEHOLDER = "[Result truncated - see memory logs]";
 
     /**
-     * 总结调用的固定 system prompt（fastclaw compressOlderMessages 逐字一致）
+     * 总结调用的固定 system prompt
      */
     public static final String SUMMARIZER_SYSTEM_PROMPT =
             "You are a conversation summarizer. Summarize the following conversation history into a "
@@ -45,7 +41,7 @@ public class ContextCompactor {
                     + "Be concise but don't lose important details.";
 
     /**
-     * 超过该长度的旧 tool 消息才被裁剪（fastclaw pruneOldToolResults 的 200）
+     * 超过该长度的旧 tool 消息才被裁剪
      */
     private static final int PRUNE_CONTENT_MIN_CHARS = 200;
 
@@ -76,7 +72,7 @@ public class ContextCompactor {
         log.info("[compactor] 上下文压缩触发，tokens={}, threshold={}, messageCount={}",
                 tokensBefore, tokenThreshold, messages.size());
 
-        // 前导 system 消息钉住（fastclaw 的 system prompt 不在会话历史内）
+        // 前导 system 消息钉住
         int headCount = 0;
         while (headCount < messages.size()
                 && messages.get(headCount).role() == ModelMessage.Role.SYSTEM) {
@@ -93,7 +89,7 @@ public class ContextCompactor {
             return join(head, pruned);
         }
 
-        // Step 2：模型总结旧消息；失败降级为仅裁剪（fastclaw 同语义）
+        // Step 2：模型总结旧消息；失败降级为仅裁剪
         try {
             List<ModelMessage> compressed = compressOlderMessages(pruned, summarizer);
             log.info("[compactor] 总结完成，tokensBefore={}, tokensAfter={}",
@@ -151,7 +147,6 @@ public class ContextCompactor {
 
     /**
      * 切割点修正：前移跳过前导 tool 消息，保证尾部不以 role=tool 开头
-     * （fastclaw safeCompactionCutoff 纯函数移植）
      */
     static int safeCompactionCutoff(List<ModelMessage> messages, int cutoff) {
         int adjusted = Math.max(cutoff, 0);

@@ -25,11 +25,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * ReAct 多轮循环内核（V2 方案第 6 章状态机，对照 fastclaw
- * internal/agent/loop.go 逐段移植）
+ * ReAct 多轮循环内核（V2 方案第 6 章状态机实现）
  *
  * <p>
- * 保留的 fastclaw 行为（V2 方案 1.2 必测行为）：
+ * 核心行为（V2 方案 1.2 必测行为）：
  * <ul>
  *   <li>连续 3 次相同工具 + 相同 arguments 触发循环保护
  *       （loop.go:2194 consecutiveCount >= 3），注入提示后进入最终交付；</li>
@@ -49,13 +48,11 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  *
  * <p>
- * Hook 机制（对齐 fastclaw hooks.go，含三处修正）：7 个挂载点覆盖
- * system prompt 构建、模型调用、工具调用与整轮运行；hook 异常
- * fail-open 不影响主流程（HookRegistry 逐 hook 隔离）；仅
+ * Hook 机制：7 个挂载点覆盖 system prompt 构建、模型调用、工具调用与整轮运行；
+ * hook 异常 fail-open 不影响主流程（HookRegistry 逐 hook 隔离）；仅
  * BEFORE_TOOL_CALL 可通过 HookContext.reject() 拒绝执行，合成
  * TOOL_CALL_REJECTED 失败结果作为 observation 回灌模型（V2 方案
  * 6.1）；BEFORE_MODEL_CALL 对 modelRequest 的修改会被读回生效
- * （修正 fastclaw 修改不生效的 bug）
  * </p>
  */
 @Slf4j
@@ -116,8 +113,8 @@ public class ReActAgentKernel implements AgentKernel {
     }
 
     private AgentRunResult runLoop(AgentRunCommand command, AgentEventSink sink, HookContext postTurn) {
-        // fastclaw 中这两点夹住 system prompt 构建；Java 中 prompt 构建在
-        // open() 内，语义等价，context 只带身份字段
+        // 这两处 hook 夹住 system prompt 构建；prompt 构建在 open() 内，
+        // context 只带身份字段
         HookContext systemPrompt = baseContext(command);
         hookRegistry.fire(HookPoint.BEFORE_SYSTEM_PROMPT, systemPrompt);
         AgentConversation conversation = conversationFactory.open(command);
@@ -137,7 +134,7 @@ public class ReActAgentKernel implements AgentKernel {
         int iterations = 0;
         // 已处理的工具调用总数（POST_TURN 计数）
         int toolCallCount = 0;
-        // 循环保护触发后跳出循环、走最终交付（fastclaw loopDetected break）
+        // 循环保护触发后跳出循环、走最终交付
         boolean loopProtectionTripped = false;
 
         for (; iterations < command.config().maxToolIterations(); iterations++) {
@@ -182,7 +179,7 @@ public class ReActAgentKernel implements AgentKernel {
             conversation.appendAssistant(
                     toolCalls.content(), toolCalls.calls(), toolCalls.rawAssistantJson(), Map.of());
 
-            // 循环保护检查（fastclaw：执行前检查，触发即 break 进入最终交付；
+            // 循环保护检查（执行前检查，触发即 break 进入最终交付；
             // 已入历史的 tool calls 由 buildRequest 的孤立剥离保证协议合法）
             for (ToolCall call : toolCalls.calls()) {
                 String signature = call.name() + "#" + argumentsHash(call.arguments());
@@ -261,8 +258,7 @@ public class ReActAgentKernel implements AgentKernel {
      * 不执行工具，合成 TOOL_CALL_REJECTED 失败结果作为 observation 回灌模型
      * （V2 方案 6.1）；AFTER_TOOL_CALL 照常触发（含拒绝与异常路径）。
      * Invoker 已包装超时与异常映射，此处兜住实现漏网的 RuntimeException，
-     * 合成失败结果保证 tool call 配对闭合
-     * （V2 方案 6.1 规则 8 / fastclaw defensive backstop）
+     * 合成失败结果保证 tool call 配对闭合（V2 方案 6.1 规则 8）
      */
     private ToolResult executeSafely(
             AgentRunCommand command, AgentConversation conversation, ToolCall call, Instant runDeadline) {
@@ -313,7 +309,7 @@ public class ReActAgentKernel implements AgentKernel {
 
     /**
      * 强制最终交付：追加 nudge、不携带 tools 再调用一次模型；
-     * 总结失败才用固定兜底文本（fastclaw loop.go:2392-2411）
+     * 总结失败才用固定兜底文本
      */
     private AgentRunResult finalDelivery(
             AgentRunCommand command,
@@ -343,7 +339,7 @@ public class ReActAgentKernel implements AgentKernel {
             finalContent = "";
         }
         if (finalContent.isBlank()) {
-            // fastclaw 兜底文本语义
+            // 兜底文本
             finalContent = "I've reached the maximum number of tool iterations (" + max
                     + ") and couldn't synthesize a final response. The work above represents "
                     + "what I gathered before hitting the limit.";
@@ -366,7 +362,7 @@ public class ReActAgentKernel implements AgentKernel {
     }
 
     /**
-     * 迭代上限 nudge（fastclaw capReachedNudge 语义）
+     * 迭代上限 nudge
      */
     private static ModelMessage capReachedNudge(int maxIterations) {
         return ModelMessage.system(
@@ -386,7 +382,7 @@ public class ReActAgentKernel implements AgentKernel {
     }
 
     /**
-     * arguments 摘要（fastclaw 用 sha256 对比，等价实现）
+     * arguments 摘要（SHA-256 哈希）
      */
     private static String argumentsHash(String arguments) {
         try {

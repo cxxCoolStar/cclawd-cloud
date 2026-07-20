@@ -1,7 +1,7 @@
 package ai.openagent.agent.hook;
 
 /**
- * Agent 运行 hook（对齐 fastclaw hooks.go 的 HookFunc + 注册点）
+ * Agent 运行 hook
  *
  * <p>
  * Spring 自动收集 {@code List<AgentHook>} 注入装配层。实现必须无状态、

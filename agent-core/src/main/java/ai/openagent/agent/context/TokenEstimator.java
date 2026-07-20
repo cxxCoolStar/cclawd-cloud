@@ -5,12 +5,11 @@ import ai.openagent.infra.ai.model.ToolCall;
 import java.util.List;
 
 /**
- * token 估算器（对齐 fastclaw internal/agent/compaction.go EstimateTokens）
+ * token 估算器
  *
  * <p>
  * 粗略估算：chars/4，content 与 tool call 的 name/arguments 均计入。
- * 不引入 tokenizer 依赖，估算误差与 fastclaw 同向（偏保守即可，
- * 阈值本身也是经验值）
+ * 不引入 tokenizer 依赖，估算偏保守，阈值本身也是经验值
  * </p>
  */
 public final class TokenEstimator {

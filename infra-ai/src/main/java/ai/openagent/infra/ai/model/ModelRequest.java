@@ -7,8 +7,7 @@ import java.util.Objects;
  * 一次模型调用请求
  *
  * <p>
- * tools 为空列表时请求体不携带 tools 字段（对齐 fastclaw：
- * {@code if len(tools) > 0}），用于普通聊天与迭代上限后的最终总结调用
+ * tools 为空列表时请求体不携带 tools 字段，用于普通聊天与迭代上限后的最终总结调用
  * </p>
  */
 public record ModelRequest(

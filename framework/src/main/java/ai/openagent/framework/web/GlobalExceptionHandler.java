@@ -23,8 +23,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *
  * <p>
  * 拦截业务代码抛出的三层异常（Client/Service/Remote）并统一转换为
- * fastclaw 兼容的错误响应：HTTP 状态码 + {@code {"error": "..."}} 响应体。
- * 前端（搬自 fastclaw web）依赖该 wire 协议，因此不使用 Result 包装。
+ * 错误响应：HTTP 状态码 + {@code {"error": "..."}} 响应体。
+ * 前端依赖该 wire 协议，因此不使用 Result 包装。
  * </p>
  *
  * <p>
@@ -157,7 +157,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * fastclaw 兼容的错误响应体：{"error": "..."}
+     * 错误响应体：{"error": "..."}
      */
     private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of("error", message));

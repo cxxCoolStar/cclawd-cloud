@@ -7,7 +7,7 @@ import java.util.Map;
  *
  * <p>
  * Kernel 只表达「发生了什么」；wire 协议（seq 分配、持久化先行、
- * data 字段名与 fastclaw 前端对齐）由 bootstrap 的事件发布器负责。
+ * data 字段名与前端协议对齐）由 bootstrap 的事件发布器负责。
  * ContentDelta 为高频瞬时事件不入库，其余均先持久化再广播
  * </p>
  */
@@ -34,13 +34,13 @@ public sealed interface AgentEvent {
     }
 
     /**
-     * 模型请求执行工具（data.id/name/arguments 与 fastclaw 前端一致，
+     * 模型请求执行工具（data.id/name/arguments 与前端协议一致，
      * arguments 保持 JSON 字符串）
      */
     record ToolCallRequested(String id, String name, String arguments) implements AgentEvent {}
 
     /**
-     * 工具执行完成（data.id/name/result 与 fastclaw 前端一致）
+     * 工具执行完成（data.id/name/result 与前端协议一致）
      */
     record ToolResultProduced(String id, String name, String result) implements AgentEvent {}
 
