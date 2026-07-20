@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * SkillService 单测（V5 方案 M1/M2 行为清单 + V7 方案 3.3 启停过滤）
+ * SkillService 单元测试，覆盖技能解析、加载、安装、删除及启停过滤功能
  */
 class SkillServiceTest {
 

@@ -8,8 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * HookRegistry 语义测试（对齐 fastclaw hooks.go：注册顺序执行 +
- * fail-open 错误隔离）
+ * HookRegistry 语义测试：验证钩子按注册顺序执行以及 fail-open 错误隔离机制
  */
 class HookRegistryTest {
 

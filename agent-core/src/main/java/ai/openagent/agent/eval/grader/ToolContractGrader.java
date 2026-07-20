@@ -41,14 +41,18 @@ public class ToolContractGrader implements Grader {
         // 检查 required 工具
         List<String> required = tools.getRequired();
         if (required != null && !required.isEmpty()) {
-            Set<String> actualToolSet = new HashSet<>(actualTools);
+            Set<String> successfulToolSet = context.getToolCalls().stream()
+                    .filter(call -> call.getResult() != null
+                            && !call.getResult().startsWith("Tool failed ["))
+                    .map(EvalContext.ToolCall::getToolName)
+                    .collect(Collectors.toSet());
             List<String> missing = required.stream()
-                    .filter(r -> !actualToolSet.contains(r))
+                    .filter(tool -> !successfulToolSet.contains(tool))
                     .collect(Collectors.toList());
             if (!missing.isEmpty()) {
                 totalDeduction += testCase.getScoring().getProcessViolationPenalty();
-                reasonBuilder.append("未调用必需工具: ").append(missing).append("; ");
-                evidence.add("缺失工具: " + missing);
+                reasonBuilder.append("必需工具未成功执行: ").append(missing).append("; ");
+                evidence.add("未成功执行的必需工具: " + missing);
             }
         }
 

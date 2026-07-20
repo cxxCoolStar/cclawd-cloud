@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * 回退链与渲染单测（对照 fastclaw toolproviders.Chain 语义）
+ * WebSearchChain 回退链与 WebSearchResultRenderer 渲染功能的单元测试
  */
 class WebSearchChainTest {
 

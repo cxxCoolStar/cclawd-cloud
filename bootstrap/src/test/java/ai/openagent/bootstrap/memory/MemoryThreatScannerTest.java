@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 /**
- * 记忆安全扫描器单测（对齐 fastclaw internal/privacy/scanner.go 关键规则）
+ * 记忆安全扫描器单元测试，验证各类威胁检测规则
  */
 class MemoryThreatScannerTest {
 

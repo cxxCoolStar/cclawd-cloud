@@ -15,8 +15,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * SearXNG provider 单测（本地 HttpServer fixture，对照 fastclaw
- * searxng.go 行为：JSON 解析、count 截断、错误分类）
+ * SearXNG Web 搜索提供者的单元测试
+ *
+ * <p>使用本地 HttpServer 作为测试 fixture，验证以下功能：
+ * <ul>
+ *   <li>JSON 响应解析</li>
+ *   <li>搜索结果按 count 参数截断</li>
+ *   <li>HTTP 错误状态码分类（可重试 vs 不可重试）</li>
+ * </ul>
  */
 class SearxNgWebSearchProviderTest {
 

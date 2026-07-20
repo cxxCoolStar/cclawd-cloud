@@ -57,7 +57,7 @@ class ConfigServiceTest {
     }
 
     @Test
-    void maskSecretFollowsFastclawRules() {
+    void maskSecretFollowsStandardRules() {
         assertNull(ConfigService.maskSecret(null));
         assertEquals("", ConfigService.maskSecret(""));
         assertEquals("****", ConfigService.maskSecret("12345678"));
@@ -66,7 +66,7 @@ class ConfigServiceTest {
     }
 
     @Test
-    void looksLikeSecretMatchesFastclawKeyNames() {
+    void looksLikeSecretMatchesCommonKeyNamePatterns() {
         assertTrue(ConfigService.looksLikeSecret("BRAVE_API_KEY"));
         assertTrue(ConfigService.looksLikeSecret("bot_token"));
         assertTrue(ConfigService.looksLikeSecret("clientSecret"));

@@ -12,8 +12,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * 上下文压缩器单测（V3 方案 M1 行为清单，对照 fastclaw
- * compaction_test.go 风险点）
+ * 上下文压缩器单元测试
+ * 验证消息裁剪、Token 估算、总结生成及边界处理能力
  */
 class ContextCompactorTest {
 

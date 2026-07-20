@@ -272,7 +272,7 @@ class ReActAgentKernelTest {
 
         assertEquals(AgentRunStatus.LIMIT_REACHED, result.status());
         assertEquals("synthesized after loop", result.finalContent());
-        // 第 3 轮触发保护：该轮工具不执行（fastclaw 执行前检查）
+        // 第 3 轮触发保护：该轮工具不执行（执行前循环检测）
         assertEquals(2, harness.tools().invoked.size());
         // 最终交付调用不携带 tools 且注入循环提示
         ModelRequest last = harness.model().requests.get(harness.model().requests.size() - 1);
@@ -550,7 +550,7 @@ class ReActAgentKernelTest {
         AgentRunResult result = harness.run();
 
         assertEquals(AgentRunStatus.COMPLETED, result.status());
-        // 修正 fastclaw 修改不生效 bug：模型实际收到 hook 替换后的请求
+        // 验证 hook 替换请求生效：模型实际收到替换后的请求
         assertEquals("hook-swapped-model", harness.model().requests.get(0).model());
     }
 

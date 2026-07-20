@@ -25,7 +25,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * 文件工具族行为与安全边界测试（V2 方案 16.1：workspace 路径规范化、
- * 路径穿越、符号链接逃逸、大文件、二进制拒绝；结果文本对照 fastclaw）
+ * 路径穿越、符号链接逃逸、大文件、二进制拒绝）
  */
 class FileToolsTest {
 
@@ -82,13 +82,13 @@ class FileToolsTest {
     void readBinaryFileReturnsRefusalObservation() throws IOException {
         Files.write(workspace.resolve("img.png"), new byte[] {(byte) 0x89, 'P', 'N', 'G', 0, 1, 2});
         ToolResult result = invoke(new ReadFileTool(MAPPER, PROPS), "{\"path\":\"img.png\"}");
-        // fastclaw 语义：拒绝但作为成功 observation（模型不应重试）
+        // 二进制文件拒绝策略：返回成功 observation 并提示文件类型（模型不应重试）
         assertTrue(result.success());
         assertTrue(result.content().contains("binary file"));
     }
 
     @Test
-    void listDirMatchesFastclawFormat() throws IOException {
+    void listDirReturnsStandardFormat() throws IOException {
         Files.createDirectories(workspace.resolve("docs"));
         Files.writeString(workspace.resolve("a.txt"), "hello");
         ToolResult result = invoke(new ListDirTool(MAPPER), "{\"path\":\".\"}");
@@ -107,7 +107,7 @@ class FileToolsTest {
     // ==================== write_file / edit_file ====================
 
     @Test
-    void writeFileResultTextMatchesFastclawVerbatim() throws IOException {
+    void writeFileReturnsStandardResultText() throws IOException {
         ToolResult result = invoke(new WriteFileTool(MAPPER),
                 "{\"path\":\"out/hello.txt\",\"content\":\"hi 世界\"}");
         assertTrue(result.success());

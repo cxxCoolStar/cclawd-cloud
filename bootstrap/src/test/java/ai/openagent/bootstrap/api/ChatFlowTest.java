@@ -116,7 +116,7 @@ class ChatFlowTest {
         String sessionId = "disconnected-session-" + UUID.randomUUID();
 
         // 不建立任何 SSE 订阅直接开启回合，等价于客户端在回合开始后立刻
-        // 断开——回合必须照常完成并落库（fastclaw detached-context 语义）
+        // 断开——回合必须照常完成并落库，即使客户端断开连接
         turnCoordinatorStart(sessionId, "Stay running");
 
         var messages = sessionRepository.listMessages(IdentityConstant.LOCAL_USER_ID, "default", sessionId);
