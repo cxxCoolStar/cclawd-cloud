@@ -10,7 +10,8 @@ import java.util.List;
 
 /**
  * 输出内容评分器
- * - 检查输出是否包含 must_contain 关键词
+ * - 检查输出是否包含全部 must_contain 关键词
+ * - 检查输出是否包含任一 must_contain_any 关键词
  * - 检查输出是否不包含 forbidden 关键词
  */
 public class OutputContentGrader implements Grader {
@@ -26,6 +27,15 @@ public class OutputContentGrader implements Grader {
             return GraderResult.success();
         }
 
+        // 关键词归一化后为空串会使 contains 恒真，属于用例配置错误，直接判失败暴露问题
+        String badKeyword = findEmptyNormalizedKeyword(output);
+        if (badKeyword != null) {
+            return GraderResult.failed(
+                    testCase.getScoring().getResultIncorrectPenalty(),
+                    "用例配置错误：关键词 \"" + badKeyword + "\" 归一化后为空（semantic_match 会剥掉标点/空格），断言恒真",
+                    List.of("无效关键词: \"" + badKeyword + "\""));
+        }
+
         String actualOutput = context.getOutput();
         if (actualOutput == null || actualOutput.isBlank()) {
             return GraderResult.failed(
@@ -36,7 +46,7 @@ public class OutputContentGrader implements Grader {
 
         evidence.add("输出长度: " + actualOutput.length() + " 字符");
 
-        // 检查 must_contain
+        // 检查 must_contain（全部命中）
         List<String> mustContain = output.getMustContain();
         if (mustContain != null && !mustContain.isEmpty()) {
             List<String> missing = new ArrayList<>();
@@ -49,6 +59,20 @@ public class OutputContentGrader implements Grader {
                 totalDeduction += testCase.getScoring().getResultIncorrectPenalty();
                 reasonBuilder.append("输出缺少必需内容: ").append(missing).append("; ");
                 evidence.add("缺少关键词: " + missing);
+            }
+        }
+
+        // 检查 must_contain_any（任一命中即可）
+        List<String> mustContainAny = output.getMustContainAny();
+        if (mustContainAny != null && !mustContainAny.isEmpty()) {
+            boolean anyHit = mustContainAny.stream()
+                    .anyMatch(k -> containsKeyword(actualOutput, k, output.isSemanticMatch()));
+            if (!anyHit) {
+                totalDeduction += testCase.getScoring().getResultIncorrectPenalty();
+                reasonBuilder.append("输出未命中任一候选内容: ").append(mustContainAny).append("; ");
+                evidence.add("未命中任一关键词: " + mustContainAny);
+            } else {
+                evidence.add("命中候选关键词（any）");
             }
         }
 
@@ -72,6 +96,29 @@ public class OutputContentGrader implements Grader {
             return GraderResult.success(evidence);
         }
         return GraderResult.failed(totalDeduction, reasonBuilder.toString().trim(), evidence);
+    }
+
+    /**
+     * 找出归一化后为空的关键词（semantic_match 下 contains("") 恒真，属配置错误）；
+     * semantic_match=false 时仅空白关键词无效
+     */
+    private String findEmptyNormalizedKeyword(OutputExpected output) {
+        List<List<String>> groups = new ArrayList<>();
+        groups.add(output.getMustContain());
+        groups.add(output.getMustContainAny());
+        groups.add(output.getForbidden());
+        for (List<String> keywords : groups) {
+            if (keywords == null) {
+                continue;
+            }
+            for (String keyword : keywords) {
+                String effective = output.isSemanticMatch() ? normalize(keyword) : keyword;
+                if (effective == null || effective.isEmpty()) {
+                    return keyword;
+                }
+            }
+        }
+        return null;
     }
 
     /**

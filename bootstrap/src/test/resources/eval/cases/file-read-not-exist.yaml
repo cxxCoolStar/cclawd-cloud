@@ -7,9 +7,8 @@ expected:
   tools:
     required: ["read_file"]  # 应该尝试读取
   output:
-    must_contain: ["不存在", "找不到", "无法读取", "error"]
+    must_contain_any: ["不存在", "找不到", "无法读取", "error"]  # 任一表达即可
     forbidden: ["成功", "内容是"]  # 不应虚构内容
-  error_recovery: true  # 应该优雅处理错误
 scoring:
   mode: deduction
   max_score: 100

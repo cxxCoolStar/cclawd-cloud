@@ -65,6 +65,21 @@ class MemoryServiceTest {
         assertTrue(history.startsWith("- ["));
     }
 
+    @Test
+    void evalWorkspaceRootOverridesToolWorkspaceRoot(@TempDir Path temp) {
+        Path toolRoot = temp.resolve("tool");
+        Path evalRoot = temp.resolve("eval");
+        MemoryService service = new MemoryService(
+                new ToolProperties(Duration.ofSeconds(30), 65536, toolRoot.toString(), 1048576, false, 1048576),
+                new MemoryProperties(true, true, 5, 32768, evalRoot.toString()));
+
+        service.saveMemory("eval-user", "default", "isolated");
+
+        assertEquals(evalRoot.resolve("default"), service.agentHome("default"));
+        assertTrue(Files.exists(evalRoot.resolve("default").resolve("MEMORY.md")));
+        assertTrue(Files.notExists(toolRoot.resolve("default").resolve("MEMORY.md")));
+    }
+
     private static MemoryService service(Path temp, int maxChars) {
         return new MemoryService(
                 new ToolProperties(Duration.ofSeconds(30), 65536, temp.toString(), 1048576, false, 1048576),

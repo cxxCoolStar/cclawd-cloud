@@ -66,34 +66,27 @@ public class ToolContractGrader implements Grader {
         }
 
         // 检查调用顺序（如果 ordered=true）
-        // 允许工具重复调用，但要求相对顺序正确
+        // 子序列匹配：required 依次在实际序列中找到即可，允许穿插重复调用
+        // （如 read → write → read 回读验证，required=[read, write] 应判通过）
         if (tools.isOrdered() && required != null && required.size() > 1) {
             List<String> requiredInOrder = actualTools.stream()
                     .filter(required::contains)
                     .collect(Collectors.toList());
-            // 检查相对顺序：required 中的每个工具必须在 required[i+1] 之前出现
+            int searchFrom = 0;
             boolean orderCorrect = true;
-            for (int i = 0; i < required.size() - 1 && orderCorrect; i++) {
-                String current = required.get(i);
-                String next = required.get(i + 1);
-                int currentIndex = requiredInOrder.indexOf(current);
-                int nextIndex = requiredInOrder.indexOf(next);
-                // next 必须在 current 的某次出现之后
-                if (currentIndex == -1 || nextIndex == -1) {
-                    orderCorrect = false; // 缺少必需工具
-                } else {
-                    // 找到 current 的最后一次出现位置
-                    int lastCurrentIndex = -1;
-                    for (int j = 0; j < requiredInOrder.size(); j++) {
-                        if (requiredInOrder.get(j).equals(current)) {
-                            lastCurrentIndex = j;
-                        }
-                    }
-                    // next 必须在 current 最后一次出现之后
-                    if (nextIndex <= lastCurrentIndex) {
-                        orderCorrect = false;
+            for (String tool : required) {
+                int found = -1;
+                for (int j = searchFrom; j < actualTools.size(); j++) {
+                    if (actualTools.get(j).equals(tool)) {
+                        found = j;
+                        break;
                     }
                 }
+                if (found == -1) {
+                    orderCorrect = false;
+                    break;
+                }
+                searchFrom = found + 1;
             }
             if (!orderCorrect) {
                 totalDeduction += testCase.getScoring().getProcessViolationPenalty();

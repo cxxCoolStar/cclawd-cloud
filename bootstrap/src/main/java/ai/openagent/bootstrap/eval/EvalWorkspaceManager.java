@@ -117,6 +117,23 @@ public class EvalWorkspaceManager {
     }
 
     /**
+     * Removes agent-level memory shared by eval cases from the eval-specific memory root.
+     */
+    public void resetAgentMemory(String agentId) {
+        Path agentHome = memoryService.agentHome(agentId);
+        for (String file : List.of(
+                MemoryService.MEMORY_FILE,
+                MemoryService.USER_FILE,
+                MemoryService.HISTORY_FILE)) {
+            try {
+                Files.deleteIfExists(agentHome.resolve(file));
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to reset eval memory file: " + file, e);
+            }
+        }
+    }
+
+    /**
      * 创建夹具（仅文件系统）
      *
      * @param runId   运行 ID

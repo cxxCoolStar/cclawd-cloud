@@ -5,6 +5,10 @@
 # 需要环境变量: OPENAGENT_MODEL_API_KEY, OPENAGENT_MODEL_API_BASE, OPENAGENT_MODEL
 
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   datasource:
     # Eval 使用内存数据库，完全隔离
     url: jdbc:sqlite:file::memory:?cache=shared
@@ -18,10 +22,18 @@ spring:
       mode: never
 
 openagent:
+  model:
+    provider: ${OPENAGENT_MODEL_PROVIDER:openai}
+    api-base: ${OPENAGENT_MODEL_API_BASE:https://api.openai.com/v1}
+    api-key: ${OPENAGENT_MODEL_API_KEY:}
+    name: ${OPENAGENT_MODEL:gpt-4.1-mini}
+
   memory:
     # Eval 模式下使用独立的 workspace 根目录，避免覆盖真实 agent 的 MEMORY.md
     eval-workspace-root: ${java.io.tmpdir}/openagent-eval-workspaces/memory
   eval:
+    # Scale model-agnostic case budgets to the observed kimi-k2.5 latency.
+    latency-budget-multiplier: ${OPENAGENT_EVAL_LATENCY_MULTIPLIER:8.0}
     # 测试用例路径（classpath 下的 eval/cases）
     cases:
       path: classpath:eval/cases

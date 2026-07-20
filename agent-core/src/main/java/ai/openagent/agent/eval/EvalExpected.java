@@ -68,9 +68,14 @@ public class EvalExpected {
     @Data
     public static class OutputExpected {
         /**
-         * 输出必须包含的关键词
+         * 输出必须包含的关键词（全部命中）
          */
         private List<String> mustContain = Collections.emptyList();
+
+        /**
+         * 输出应包含的关键词（任一命中即可）
+         */
+        private List<String> mustContainAny = Collections.emptyList();
 
         /**
          * 输出禁止包含的关键词
@@ -97,6 +102,11 @@ public class EvalExpected {
          * 文件内容应包含的字符串
          */
         private String fileContentContains;
+
+        /**
+         * 文件内容禁止包含的字符串
+         */
+        private String fileContentNotContains;
 
         /**
          * 预期目录存在

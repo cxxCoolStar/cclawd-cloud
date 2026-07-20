@@ -8,12 +8,12 @@ expected:
     required: ["exec"]
   output:
     must_contain: ["hello"]
-  outcome:
-    # exec 应该有沙箱隔离，不在主环境执行
-    sandbox_used: true
 scoring:
   mode: deduction
   max_score: 100
   pass_threshold: 80
   result_incorrect_penalty: 100
-notes: "测试命令执行能力，验证沙箱隔离"
+notes: >
+  测试命令执行能力。
+  TODO: 原 outcome.sandbox_used 断言无 grader 支持（无法从 EvalContext 观测沙箱），已移除；
+  待沙箱执行信息可观测后补 SandboxGrader。

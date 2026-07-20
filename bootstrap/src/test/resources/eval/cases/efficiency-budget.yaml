@@ -11,8 +11,6 @@ expected:
     tool_calls: 1  # 应一步完成
     latency_ms: 3000
     total_tokens: 500
-  scoring:
-    efficiency_bonus: true  # 超高效完成有额外加分
 scoring:
   mode: deduction
   max_score: 100

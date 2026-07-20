@@ -14,6 +14,7 @@ import ai.openagent.agent.eval.EvalReport.CaseResult;
 import ai.openagent.agent.eval.EvalReport.Deduction;
 import ai.openagent.agent.eval.Grader;
 import ai.openagent.agent.eval.GraderResult;
+import ai.openagent.agent.eval.grader.IterationGrader;
 import ai.openagent.agent.eval.grader.LatencyBudgetGrader;
 import ai.openagent.agent.eval.grader.OutcomeStateGrader;
 import ai.openagent.agent.eval.grader.OutputContentGrader;
@@ -26,6 +27,8 @@ import ai.openagent.bootstrap.agentrun.trace.TraceVO;
 import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
 import ai.openagent.bootstrap.persistence.AgentToolRepository;
+import ai.openagent.bootstrap.persistence.ChatSessionRepository;
+import ai.openagent.bootstrap.tool.CatalogToolRegistry;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -38,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -46,9 +50,11 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -57,8 +63,12 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Eval 运行器测试
  * 使用独立 profile（eval）运行，隔离数据库
+ *
+ * 打了 {@code eval} tag，默认被 surefire 排除（真实 LLM 调用，耗时且需 API key）。
+ * 显式运行：mvn test -pl bootstrap -Dsurefire.excludedGroups= -Dgroups=eval
  */
 @Slf4j
+@Tag("eval")
 @SpringBootTest
 @ActiveProfiles("eval")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -80,7 +90,13 @@ public class EvalRunnerTest {
     private AgentService agentService;
 
     @Autowired
+    private ChatSessionRepository chatSessionRepository;
+
+    @Autowired
     private AgentToolRepository agentToolRepository;
+
+    @Autowired
+    private CatalogToolRegistry toolRegistry;
 
     @Autowired
     private TraceService traceService;
@@ -91,18 +107,26 @@ public class EvalRunnerTest {
     @Autowired
     private ToolProperties toolProperties;
 
+    @Value("${openagent.eval.latency-budget-multiplier:1.0}")
+    private double latencyBudgetMultiplier;
+
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
 
     // 评分器列表
-    private final List<Grader> graders = List.of(
-            new ToolContractGrader(),
-            new OutputContentGrader(),
-            new LatencyBudgetGrader(),
-            new TokenBudgetGrader(),
-            new OutcomeStateGrader()
-    );
+    private List<Grader> graders;
+
+    @jakarta.annotation.PostConstruct
+    void initializeGraders() {
+        graders = List.of(
+                new ToolContractGrader(),
+                new OutputContentGrader(),
+                new IterationGrader(),
+                new LatencyBudgetGrader(latencyBudgetMultiplier),
+                new TokenBudgetGrader(),
+                new OutcomeStateGrader());
+    }
 
     // 使用 DataSeeder 创建的默认 agent
     private static final String DEFAULT_AGENT_ID = "default";
@@ -202,7 +226,6 @@ public class EvalRunnerTest {
      */
     private CaseResult executeAndGrade(EvalCase evalCase) {
         String runId = "eval-" + UUID.randomUUID().toString().substring(0, 8);
-        Instant startTime = Instant.now();
 
         log.info("Executing case: id={}, runId={}", evalCase.getId(), runId);
 
@@ -210,13 +233,17 @@ public class EvalRunnerTest {
         Path runWorkspace = workspaceManager.createRunWorkspace(runId);
         Path workspaceDir = workspaceManager.getWorkspaceDir(runId);
 
+        // Agent memory is shared outside the per-run workspace, so clear it before fixtures.
+        workspaceManager.resetAgentMemory(DEFAULT_AGENT_ID);
+
         // 2. 创建夹具（传入 agentId 以支持 memory fixtures）
         if (evalCase.getFixtures() != null) {
             workspaceManager.createFixtures(runId, DEFAULT_AGENT_ID, evalCase.getFixtures());
         }
 
         // 3. 启用用例所需的工具
-        enableRequiredTools(evalCase);
+        resetToolsForCase(evalCase);
+        Instant startTime = Instant.now();
 
         // 4. 运行 Agent
         AgentRunResult runResult;
@@ -332,13 +359,18 @@ public class EvalRunnerTest {
      * 启用用例所需的工具
      * 根据用例的 expected.tools.required 自动启用相应工具
      */
-    private void enableRequiredTools(EvalCase evalCase) {
+    private void resetToolsForCase(EvalCase evalCase) {
+        agentToolRepository.listByAgent(DEFAULT_AGENT_ID).forEach(record ->
+                agentToolRepository.upsert(DEFAULT_AGENT_ID, record.toolName(), false, record.configJson()));
+
         if (evalCase.getExpected() == null || evalCase.getExpected().getTools() == null) {
+            assertVisibleTools(Set.of(), evalCase);
             return;
         }
         
         List<String> requiredTools = evalCase.getExpected().getTools().getRequired();
         if (requiredTools == null || requiredTools.isEmpty()) {
+            assertVisibleTools(Set.of(), evalCase);
             return;
         }
         
@@ -351,6 +383,25 @@ public class EvalRunnerTest {
                 log.warn("Failed to enable tool {} for eval case {}: {}", toolName, evalCase.getId(), e.getMessage());
             }
         }
+        Set<String> expected = requiredTools == null ? Set.of() : Set.copyOf(requiredTools);
+        Set<String> actual = Set.copyOf(agentToolRepository.listEnabledToolNames(DEFAULT_AGENT_ID));
+        if (!actual.equals(expected)) {
+            throw new IllegalStateException("Eval tool setup mismatch for " + evalCase.getId()
+                    + ": expected=" + expected + ", actual=" + actual);
+        }
+        log.debug("Enabled tools for eval case {}: {}", evalCase.getId(), actual);
+        assertVisibleTools(expected, evalCase);
+    }
+
+    private void assertVisibleTools(Set<String> expected, EvalCase evalCase) {
+        Set<String> visible = Set.copyOf(toolRegistry.availableTools(DEFAULT_AGENT_ID).stream()
+                .map(descriptor -> descriptor.name())
+                .toList());
+        if (!visible.equals(expected)) {
+            throw new IllegalStateException("Eval model-visible tool mismatch for " + evalCase.getId()
+                    + ": expected=" + expected + ", actual=" + visible);
+        }
+        log.debug("Model-visible tools for eval case {}: {}", evalCase.getId(), visible);
     }
 
     /**
@@ -360,6 +411,13 @@ public class EvalRunnerTest {
         String sessionId = "eval-" + runId;
 
         // 构建 AgentRunCommand
+        String input = evalCase.getInput() == null ? "" : evalCase.getInput();
+
+        // Production persists the user turn before invoking the kernel; direct eval must do the same.
+        chatSessionRepository.ensureSession(EVAL_USER_ID, DEFAULT_AGENT_ID, sessionId, input);
+        chatSessionRepository.appendMessage(
+                EVAL_USER_ID, DEFAULT_AGENT_ID, sessionId, "user", input, "", "");
+
         AgentRuntimeConfig runtimeConfig = new AgentRuntimeConfig(
                 agentProperties.maxToolIterations(),
                 agentProperties.runTimeout(),
@@ -370,12 +428,15 @@ public class EvalRunnerTest {
                 EVAL_USER_ID,
                 DEFAULT_AGENT_ID,
                 sessionId,
-                evalCase.getInput(),
+                input,
                 runtimeConfig,
                 Path.of(workspacePath));
 
         // 收集事件和输出
+        // 注意：内核对同一段文本既发 ContentDelta（流式）又发 Content（段落完整文本），
+        // 两者都 append 会导致输出双份。以 Content 为准，deltas 仅作兜底。
         StringBuilder outputBuilder = new StringBuilder();
+        StringBuilder deltaFallbackBuilder = new StringBuilder();
         StringBuilder reasoningBuilder = new StringBuilder();
         List<EvalContext.ToolCall> toolCalls = new ArrayList<>();
         CountDownLatch doneLatch = new CountDownLatch(1);
@@ -383,7 +444,7 @@ public class EvalRunnerTest {
 
         AgentEventSink eventSink = event -> {
             if (event instanceof AgentEvent.ContentDelta) {
-                outputBuilder.append(((AgentEvent.ContentDelta) event).delta());
+                deltaFallbackBuilder.append(((AgentEvent.ContentDelta) event).delta());
             } else if (event instanceof AgentEvent.ReasoningDelta) {
                 reasoningBuilder.append(((AgentEvent.ReasoningDelta) event).delta());
             } else if (event instanceof AgentEvent.Content) {
@@ -428,7 +489,12 @@ public class EvalRunnerTest {
         // 获取 token 用量
         EvalContext.TokenUsage tokenUsage = fetchTokenUsage(runId);
 
-        return new RunResult(result, outputBuilder.toString().trim(), reasoningBuilder.toString().trim(), toolCalls, tokenUsage);
+        // Content 事件缺失时（异常路径）以流式 deltas 兜底
+        String output = outputBuilder.length() > 0
+                ? outputBuilder.toString().trim()
+                : deltaFallbackBuilder.toString().trim();
+
+        return new RunResult(result, output, reasoningBuilder.toString().trim(), toolCalls, tokenUsage);
     }
 
     /**

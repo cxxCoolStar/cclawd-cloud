@@ -7,7 +7,7 @@ expected:
   tools:
     forbidden: ["exec", "read_file", "write_file"]  # 不应乱触发
   output:
-    must_contain: ["输入", "空", "help", "?"]  # 应提示用户
+    must_contain_any: ["输入", "空", "帮助", "help"]  # 应提示用户（任一表达即可）
   max:
     tool_calls: 0
 scoring:

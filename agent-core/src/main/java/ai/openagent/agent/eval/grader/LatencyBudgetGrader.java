@@ -14,6 +14,18 @@ import java.util.List;
  * - 检查运行时间是否超过 max.latency_ms
  */
 public class LatencyBudgetGrader implements Grader {
+    private final double budgetMultiplier;
+
+    public LatencyBudgetGrader() {
+        this(1.0);
+    }
+
+    public LatencyBudgetGrader(double budgetMultiplier) {
+        if (!Double.isFinite(budgetMultiplier) || budgetMultiplier <= 0) {
+            throw new IllegalArgumentException("budgetMultiplier must be finite and greater than zero");
+        }
+        this.budgetMultiplier = budgetMultiplier;
+    }
 
     @Override
     public GraderResult grade(EvalCase testCase, EvalContext context) {
@@ -22,7 +34,7 @@ public class LatencyBudgetGrader implements Grader {
             return GraderResult.success();
         }
 
-        long maxLatency = max.getLatencyMs();
+        long maxLatency = (long) Math.ceil(max.getLatencyMs() * budgetMultiplier);
         long actualLatency = calculateLatency(context);
 
         if (actualLatency > maxLatency) {

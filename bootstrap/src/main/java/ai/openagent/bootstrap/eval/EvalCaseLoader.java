@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -88,10 +89,35 @@ public class EvalCaseLoader {
     }
 
     /**
+     * 已知字段白名单：防止用例里写了不被解析的断言字段（如拼错的 key）
+     * 静默失效——"以为在测，其实没测"比测试失败更危险
+     */
+    private static final Set<String> KNOWN_CASE_KEYS = Set.of(
+            "id", "name", "category", "priority", "input", "notes",
+            "expected", "scoring", "fixtures", "extensions");
+    private static final Set<String> KNOWN_EXPECTED_KEYS = Set.of(
+            "tools", "output", "outcome", "constraints", "max");
+    private static final Set<String> KNOWN_TOOLS_KEYS = Set.of(
+            "required", "forbidden", "ordered", "tool_repetition_max");
+    private static final Set<String> KNOWN_OUTPUT_KEYS = Set.of(
+            "must_contain", "must_contain_any", "forbidden", "semantic_match");
+    private static final Set<String> KNOWN_OUTCOME_KEYS = Set.of(
+            "file_exists", "file_content_contains", "file_content_not_contains", "dir_exists");
+    private static final Set<String> KNOWN_CONSTRAINTS_KEYS = Set.of("max_iterations");
+    private static final Set<String> KNOWN_MAX_KEYS = Set.of(
+            "tool_calls", "latency_ms", "total_tokens");
+    private static final Set<String> KNOWN_SCORING_KEYS = Set.of(
+            "mode", "max_score", "pass_threshold", "result_incorrect_penalty",
+            "process_violation_penalty", "efficiency_bonus", "efficiency_penalty_per_extra_call");
+    private static final Set<String> KNOWN_FIXTURES_KEYS = Set.of(
+            "files", "memory", "skills");
+
+    /**
      * 将 YAML Map 转换为 EvalCase
      */
     @SuppressWarnings("unchecked")
     private EvalCase convertToEvalCase(Map<String, Object> map) {
+        rejectUnknownKeys(map, KNOWN_CASE_KEYS, "case");
         EvalCase evalCase = new EvalCase();
         evalCase.setId(getString(map, "id"));
         evalCase.setName(getString(map, "name"));
@@ -123,11 +149,13 @@ public class EvalCaseLoader {
 
     @SuppressWarnings("unchecked")
     private EvalExpected convertToExpected(Map<String, Object> map) {
+        rejectUnknownKeys(map, KNOWN_EXPECTED_KEYS, "expected");
         EvalExpected expected = new EvalExpected();
 
         // tools
         Map<String, Object> toolsMap = (Map<String, Object>) map.get("tools");
         if (toolsMap != null) {
+            rejectUnknownKeys(toolsMap, KNOWN_TOOLS_KEYS, "expected.tools");
             ToolExpected tools = new ToolExpected();
             tools.setRequired(getStringList(toolsMap, "required"));
             tools.setForbidden(getStringList(toolsMap, "forbidden"));
@@ -139,8 +167,10 @@ public class EvalCaseLoader {
         // output
         Map<String, Object> outputMap = (Map<String, Object>) map.get("output");
         if (outputMap != null) {
+            rejectUnknownKeys(outputMap, KNOWN_OUTPUT_KEYS, "expected.output");
             OutputExpected output = new OutputExpected();
             output.setMustContain(getStringList(outputMap, "must_contain"));
+            output.setMustContainAny(getStringList(outputMap, "must_contain_any"));
             output.setForbidden(getStringList(outputMap, "forbidden"));
             output.setSemanticMatch(getBoolean(outputMap, "semantic_match", true));
             expected.setOutput(output);
@@ -149,9 +179,11 @@ public class EvalCaseLoader {
         // outcome
         Map<String, Object> outcomeMap = (Map<String, Object>) map.get("outcome");
         if (outcomeMap != null) {
+            rejectUnknownKeys(outcomeMap, KNOWN_OUTCOME_KEYS, "expected.outcome");
             OutcomeExpected outcome = new OutcomeExpected();
             outcome.setFileExists(getString(outcomeMap, "file_exists"));
             outcome.setFileContentContains(getString(outcomeMap, "file_content_contains"));
+            outcome.setFileContentNotContains(getString(outcomeMap, "file_content_not_contains"));
             outcome.setDirExists(getString(outcomeMap, "dir_exists"));
             expected.setOutcome(outcome);
         }
@@ -159,6 +191,7 @@ public class EvalCaseLoader {
         // constraints
         Map<String, Object> constraintsMap = (Map<String, Object>) map.get("constraints");
         if (constraintsMap != null) {
+            rejectUnknownKeys(constraintsMap, KNOWN_CONSTRAINTS_KEYS, "expected.constraints");
             ConstraintExpected constraints = new ConstraintExpected();
             constraints.setMaxIterations(getInteger(constraintsMap, "max_iterations"));
             expected.setConstraints(constraints);
@@ -167,6 +200,7 @@ public class EvalCaseLoader {
         // max
         Map<String, Object> maxMap = (Map<String, Object>) map.get("max");
         if (maxMap != null) {
+            rejectUnknownKeys(maxMap, KNOWN_MAX_KEYS, "expected.max");
             MaxLimits max = new MaxLimits();
             max.setToolCalls(getInteger(maxMap, "tool_calls"));
             max.setLatencyMs(getLong(maxMap, "latency_ms"));
@@ -179,6 +213,7 @@ public class EvalCaseLoader {
 
     @SuppressWarnings("unchecked")
     private EvalScoring convertToScoring(Map<String, Object> map) {
+        rejectUnknownKeys(map, KNOWN_SCORING_KEYS, "scoring");
         EvalScoring scoring = new EvalScoring();
         scoring.setMode(getString(map, "mode", "deduction"));
         scoring.setMaxScore(getInteger(map, "max_score", 100));
@@ -192,6 +227,7 @@ public class EvalCaseLoader {
 
     @SuppressWarnings("unchecked")
     private EvalFixture convertToFixtures(Map<String, Object> map) {
+        rejectUnknownKeys(map, KNOWN_FIXTURES_KEYS, "fixtures");
         EvalFixture fixtures = new EvalFixture();
 
         // files
@@ -227,6 +263,19 @@ public class EvalCaseLoader {
         }
 
         return fixtures;
+    }
+
+    /**
+     * 未知字段直接抛错，由 loadAll 汇总为加载失败
+     */
+    private void rejectUnknownKeys(Map<String, Object> map, Set<String> knownKeys, String section) {
+        List<String> unknown = map.keySet().stream()
+                .filter(k -> !knownKeys.contains(k))
+                .toList();
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unknown key(s) in " + section + ": " + unknown + " (known: " + knownKeys + ")");
+        }
     }
 
     private String getString(Map<String, Object> map, String key) {

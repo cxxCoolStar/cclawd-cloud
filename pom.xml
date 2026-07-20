@@ -21,6 +21,9 @@
         <archunit.version>1.4.1</archunit.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <!-- 默认排除 eval 评测（真实 LLM 调用），显式运行：
+             mvn test -pl bootstrap -Dsurefire.excludedGroups= -Dgroups=eval -->
+        <surefire.excludedGroups>eval</surefire.excludedGroups>
     </properties>
 
     <modules>
@@ -73,6 +76,9 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>

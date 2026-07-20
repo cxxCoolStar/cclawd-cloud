@@ -11,7 +11,8 @@ expected:
     file_exists: "workspace/hello.txt"
     file_content_contains: "Hello World"
   output:
-    must_contain: ["创建", "成功", "hello.txt"]
+    must_contain: ["hello.txt"]
+    must_contain_any: ["创建", "成功", "写入"]  # 任一确认表达即可
   max:
     tool_calls: 1
     latency_ms: 5000

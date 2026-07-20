@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * 结果状态评分器
- * - 检查文件断言（file_exists, file_content_contains）
+ * - 检查文件断言（file_exists, file_content_contains, file_content_not_contains）
  * - 检查目录断言（dir_exists）
  */
 public class OutcomeStateGrader implements Grader {
@@ -51,14 +51,15 @@ public class OutcomeStateGrader implements Grader {
             }
         }
 
-        // 检查 file_content_contains
+        // 检查 file_content_contains / file_content_not_contains（文件路径取自 file_exists）
         String contentContains = outcome.getFileContentContains();
-        if (contentContains != null && !contentContains.isBlank()) {
+        String contentNotContains = outcome.getFileContentNotContains();
+        if ((contentContains != null && !contentContains.isBlank())
+                || (contentNotContains != null && !contentNotContains.isBlank())) {
             String filePath = fileExists;
             if (filePath == null) {
-                // 如果没有 file_exists，尝试从 context 或其他方式推断
                 totalDeduction += testCase.getScoring().getResultIncorrectPenalty();
-                reasonBuilder.append("file_content_contains 需要指定文件路径").append("; ");
+                reasonBuilder.append("file_content_contains/not_contains 需要指定 file_exists 文件路径").append("; ");
                 evidence.add("未指定文件路径");
             } else {
                 Path fullPath = resolvePath(workspacePath, filePath);
@@ -69,12 +70,21 @@ public class OutcomeStateGrader implements Grader {
                         evidence.add("文件不存在: " + fullPath);
                     } else {
                         String content = Files.readString(fullPath);
-                        if (!content.contains(contentContains)) {
+                        if (contentContains != null && !contentContains.isBlank()
+                                && !content.contains(contentContains)) {
                             totalDeduction += testCase.getScoring().getResultIncorrectPenalty();
                             reasonBuilder.append("文件内容不包含预期字符串: ").append(contentContains).append("; ");
                             evidence.add("文件内容不包含: " + contentContains);
-                        } else {
+                        } else if (contentContains != null && !contentContains.isBlank()) {
                             evidence.add("文件内容包含: " + contentContains);
+                        }
+                        if (contentNotContains != null && !contentNotContains.isBlank()
+                                && content.contains(contentNotContains)) {
+                            totalDeduction += testCase.getScoring().getResultIncorrectPenalty();
+                            reasonBuilder.append("文件内容包含禁止字符串: ").append(contentNotContains).append("; ");
+                            evidence.add("文件内容包含禁止字符串: " + contentNotContains);
+                        } else if (contentNotContains != null && !contentNotContains.isBlank()) {
+                            evidence.add("文件内容不含禁止字符串: " + contentNotContains);
                         }
                     }
                 } catch (IOException e) {

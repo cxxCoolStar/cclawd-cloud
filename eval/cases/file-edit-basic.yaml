@@ -13,6 +13,7 @@ expected:
     forbidden: ["write_file"]
     ordered: true  # 应先读取再编辑
   outcome:
+    file_exists: "workspace/config.txt"
     file_content_contains: "name=Bob"
     file_content_not_contains: "name=Alice"
   max:
