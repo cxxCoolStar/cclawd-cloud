@@ -44,9 +44,7 @@ public record ToolCatalog(String name, String description, RiskLevel riskLevel, 
     }
 
     /**
-     * 首批内置工具清单（V2 方案 3.1 表格的代码化，2026-07-17 修订：
-     * 对齐 fastclaw 核心文件工具族，砍掉自创的 get_current_time/calculator，
-     * 补入 edit_file）
+     * 首批内置工具清单（V2 方案 3.1 表格的代码化，2026-07-17 修订）
      */
     public static final List<ToolCatalog> BUILTIN_TOOLS = List.of(
             new ToolCatalog("list_dir", "列出 Agent workspace 内的文件和目录", RiskLevel.MEDIUM, true),

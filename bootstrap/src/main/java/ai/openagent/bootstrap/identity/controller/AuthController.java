@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
  * 认证控制器
  *
  * <p>
- * 注册 / 登录 / 登出。登录成功写 HttpOnly SameSite=Lax 会话 cookie
- * （对齐 fastclaw cookie session 认证，前端凭 cookie 免带 token）
+ * 处理用户注册、登录和登出。登录成功后写入 HttpOnly SameSite=Lax 会话 cookie，
+ * 前端通过 cookie 自动保持会话，无需手动携带 token
  * </p>
  */
 @RestController

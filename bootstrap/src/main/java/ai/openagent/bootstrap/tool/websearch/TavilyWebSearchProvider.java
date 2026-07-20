@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Tavily 搜索 provider（对照 fastclaw toolproviders 的托管搜索后端）
+ * Tavily 搜索 provider，基于 Tavily API 提供托管搜索服务
  *
  * <p>
  * 托管服务，需 API key：POST https://api.tavily.com/search，

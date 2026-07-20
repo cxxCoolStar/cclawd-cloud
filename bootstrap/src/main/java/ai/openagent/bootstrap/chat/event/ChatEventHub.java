@@ -15,16 +15,14 @@ import org.springframework.stereotype.Component;
  * 以 (agentId, sessionId) 为维度的进程内发布/订阅：聊天回合执行线程
  * 通过 {@link #broadcast} 推送事件，事件直接在发布线程上回调各订阅者
  * 的 listener（推模式）。SSE 连接侧由 {@code ChatSseStream} 承接回调并
- * 写出 SseEmitter，连接不再占用任何轮询线程——这是对齐 fastclaw
- * goroutine-per-connection 语义的关键：连接数不消耗线程池容量，
+ * 写出 SseEmitter，连接不再占用任何轮询线程：每个连接不消耗额外线程，
  * 客户端断开由写失败即时感知并注销
  * </p>
  *
  * <p>
  * 背压说明：listener 回调发生在发布线程上，慢消费者的网络写会短暂
  * 拖慢回合线程；listener 抛出的任何异常都视为订阅已死，就地注销，
- * 保证单个坏连接不影响回合本体与其他订阅者（对应 fastclaw hub
- * "slow consumers are skipped, not blocked" 的防御目标）
+ * 保证单个坏连接不影响回合本体与其他订阅者（防御目标：慢消费者被跳过而非阻塞）
  * </p>
  */
 @Slf4j

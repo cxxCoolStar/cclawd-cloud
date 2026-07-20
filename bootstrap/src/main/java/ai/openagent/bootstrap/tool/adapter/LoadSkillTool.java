@@ -12,12 +12,12 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * load_skill 工具（V5 方案，对照 fastclaw internal/agent/tools/load_skill.go）
+ * load_skill 工具 - 按技能名加载 SKILL.md 全文。
  *
  * <p>
  * 按技能名加载 SKILL.md 全文（Agent 私有目录优先，{baseDir} 已替换）。
  * prompt 中的 {@code <skill_catalog>} 只有一行摘要，模型经此工具按需
- * 获取完整操作指引（progressive disclosure）。只读、默认启用
+ * 获取完整操作指引（progressive disclosure）。只读、默认启用。
  * </p>
  */
 @Component

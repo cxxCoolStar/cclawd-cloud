@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 聊天会话聚合仓储（sessions / session_messages / session_events）
  *
  * <p>
- * seq 生成对齐 fastclaw store 的原子模式：在单条
+ * seq 采用原子模式生成：在单条
  * {@code INSERT ... SELECT COALESCE(MAX(seq), 0) + 1} 内完成分配，
  * 由数据库写序列化保证并发安全（SQLite 全局写锁 / PostgreSQL MVCC +
  * 唯一约束兜底），不再依赖 JVM 侧 synchronized；
@@ -219,8 +219,7 @@ public class ChatSessionRepository {
     }
 
     /**
-     * 统计用户在指定 agent 下的用户消息总数（V3 M2 auto-persist 触发门槛：
-     * fastclaw CountChatterUserMessages 语义，按 (agent, user) 维度计数）
+     * 统计用户在指定 agent 下的用户消息总数（按 (agent, user) 维度计数）
      */
     public long countUserMessages(String userId, String agentId) {
         Long value = jdbc.queryForObject(

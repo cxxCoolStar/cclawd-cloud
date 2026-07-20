@@ -19,10 +19,10 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 /**
- * Docker 沙箱服务（V4 方案 4.2，对照 fastclaw internal/sandbox/docker.go）
+ * Docker 沙箱服务（V4 方案 4.2）
  *
  * <p>
- * 保留的 fastclaw 行为：docker CLI 管理长驻容器（{@code tail -f /dev/null}）、
+ * 核心功能：使用 docker CLI 管理长驻容器（{@code tail -f /dev/null}）、
  * 首次 exec 懒创建、agent 级容器复用、agent home 绑定挂载到 /workspace、
  * 资源限额（cpus/memory/network）、关闭时 {@code docker rm -f}。
  * 有意收缩：不做 skill 挂载、端口发布与代理继承（V4 范围外）。
@@ -119,7 +119,7 @@ public class DockerSandboxService {
     }
 
     /**
-     * 懒创建/复用 agent 级容器（fastclaw Create 语义：create + start；
+     * 懒创建/复用 agent 级容器（create + start；
      * 已运行则复用，已停止则启动，启动失败则删除重建）
      */
     String ensureContainer(String agentId) {
@@ -225,7 +225,7 @@ public class DockerSandboxService {
     }
 
     /**
-     * 进程关闭时移除本进程可见的沙箱容器（fastclaw Close 语义，尽力而为）
+     * 进程关闭时移除本进程可见的沙箱容器（close 语义，尽力而为）
      */
     @PreDestroy
     public void closeAll() {

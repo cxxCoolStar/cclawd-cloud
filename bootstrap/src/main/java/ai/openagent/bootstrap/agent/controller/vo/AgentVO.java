@@ -3,7 +3,7 @@ package ai.openagent.bootstrap.agent.controller.vo;
 import ai.openagent.bootstrap.persistence.AgentRecord;
 
 /**
- * 智能体视图对象（fastclaw 协议形状）
+ * 智能体视图对象
  *
  * <p>
  * role/workspace/isPublic/shareModelConfig 等字段当前为单用户模式下的

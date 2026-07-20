@@ -3,7 +3,7 @@ package ai.openagent.bootstrap.tool.websearch;
 import java.util.List;
 
 /**
- * 网页搜索 provider 端口（对照 fastclaw toolproviders.Provider）
+ * 网页搜索 provider 接口
  *
  * <p>
  * 每个 provider 是一个无状态后端：配置由属性注入、实例可被所有请求共享。
@@ -19,8 +19,8 @@ public interface WebSearchProvider {
     String name();
 
     /**
-     * 是否已配置可用凭证/端点（fastclaw Chain.Available 语义：
-     * 无凭证的 provider 在链中被跳过）
+     * 是否已配置可用凭证/端点
+     * 返回 false 时表示该 provider 缺少必要配置，在回退链中会被跳过
      */
     boolean configured();
 

@@ -18,7 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
  * <p>
  * 封装一个无超时的 {@link ResponseBodyEmitter}：事件由 {@code ChatEventHub}
  * 在发布线程上经 {@link #onEvent} 推入，本类负责协议编码与连接生命周期，
- * 连接本身不占用任何轮询线程。协议对齐 fastclaw：帧格式为
+ * 连接本身不占用任何轮询线程。SSE 协议帧格式：
  * {@code id: <seq>} 行 + {@code data: <json>}（冒号后带空格——前端 POST
  * 流的手写解析器按 {@code "data: "} 前缀匹配，故不使用 Spring SseEmitter
  * 的自动编帧）；帧以 UTF-8 字节直写，绕过字符串转换器的默认字符集
@@ -28,7 +28,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
  * 回放/实时竞态用闸门解决：{@code live=false} 期间（subscribe 端点回放
  * 持久化事件时）实时事件先进 backlog，{@link #goLive} 后按 seq 去重刷出，
  * 保证「回放中落库的事件要么在回放范围内、要么在 backlog 里，不重不漏」
- * （对齐 fastclaw handleChatSubscribe 的 subscribe-before-replay 语义）。
+ * （subscribe 先于回放，确保事件完整性）。
  * 任何写失败即视为客户端已断开：立即注销 hub 订阅并结束连接——这是
  * 方案的核心，死连接不再滞留等待下一次心跳超时
  * </p>

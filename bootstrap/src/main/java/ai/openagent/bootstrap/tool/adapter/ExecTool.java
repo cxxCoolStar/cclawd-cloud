@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  * 执行路径；双重门控——agent_tools 启停之外，全局
  * {@code openagent.sandbox.docker-enabled} 也必须打开。
  * 非零退出码不是工具失败：输出附带 Exit code 行作为 observation 回传
- * 模型（fastclaw Exec 附 Error 行的等价语义），由模型决定修正或换路
+ * 模型（相当于在输出中附加错误信息行），由模型决定修正或换路
  * </p>
  */
 @Component

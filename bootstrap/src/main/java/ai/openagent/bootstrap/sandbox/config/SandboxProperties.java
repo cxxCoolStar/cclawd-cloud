@@ -24,8 +24,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param image         沙箱容器镜像（默认 python:3.12-slim，代码执行实用性）
  * @param cpus          容器 CPU 限额（docker --cpus）
  * @param memory        容器内存限额（docker --memory）
- * @param network       容器网络模式（docker --network；默认 bridge 对齐
- *                      fastclaw——沙箱需要出网做 pip install，可配 none 收紧）
+ * @param network       容器网络模式（docker --network；默认 bridge，便于
+ *                      沙箱出网执行 pip install，可配置为 none 收紧安全策略）
  */
 @ConfigurationProperties(prefix = "openagent.sandbox")
 public record SandboxProperties(

@@ -1,7 +1,7 @@
 package ai.openagent.bootstrap.tool.websearch;
 
 /**
- * 搜索失败（对照 fastclaw toolproviders 的错误分类）
+ * 搜索失败异常
  *
  * <p>
  * retriable=true（网络错误、超时、429、5xx、无结果）时链回退到下一个
@@ -12,7 +12,7 @@ package ai.openagent.bootstrap.tool.websearch;
 public class WebSearchException extends RuntimeException {
 
     /**
-     * 请求成功但结果为空（fastclaw ErrNoResults 语义，可回退）
+     * 请求成功但结果为空，可回退到下一个 provider
      */
     public static final WebSearchException NO_RESULTS = new WebSearchException("no results", true);
 

@@ -15,12 +15,12 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * edit_file 工具（对齐 fastclaw file.go makeEditFile / applyEdit）
+ * edit_file 工具 - 通过精确子串替换来编辑文件。
  *
  * <p>
- * 精确子串替换：old_string 必须唯一命中（除非 replace_all），
- * 错误消息与 fastclaw 语义一致（引导模型重读文件 / 提供更多上下文），
- * 结果文本 {@code Edited <path> (N replacement(s))} 逐字对齐
+ * 实现精确子串替换功能：old_string 必须唯一命中（除非 replace_all），
+ * 错误消息设计用于引导用户重读文件或提供更多上下文，
+ * 结果文本格式为 {@code Edited <path> (N replacement(s))}
  * </p>
  */
 @Component
@@ -80,7 +80,7 @@ public class EditFileTool extends AbstractFileTool {
         String newString = newNode.asText();
         boolean replaceAll = args.path("replace_all").asBoolean(false);
 
-        // fastclaw applyEdit 的前置校验语义
+        // 前置校验：old_string 不能为空
         if (oldString.isEmpty()) {
             return ToolResult.failure(
                     ToolErrorCode.TOOL_ARGUMENT_INVALID,

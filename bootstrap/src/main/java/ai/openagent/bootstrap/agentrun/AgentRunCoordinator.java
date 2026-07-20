@@ -40,8 +40,8 @@ import org.springframework.stereotype.Component;
  * Agent 运行协调器（V2 方案第 5 章；V8 M2 会话级 FIFO 队列）
  *
  * <p>
- * 生命周期职责：同会话 FIFO 排队（对齐 fastclaw internal/taskqueue 的
- * per-chat 队列语义，V8 起替代同会话并发 409）、agent_runs 状态持久化
+ * 生命周期职责：同会话 FIFO 排队（实现 per-chat 队列语义，V8 起替代同会话并发 409）、
+ * agent_runs 状态持久化
  * （CREATED 排队 → RUNNING → 终态 + tool_iterations）、独立线程池异步
  * 执行 Kernel、落库用户消息后再入队。浏览器断开只影响 SSE 订阅，不取消
  * 排队/运行中的 run（V2 方案 6.1 规则 7）；Kernel 内部保证 error/done
@@ -50,7 +50,7 @@ import org.springframework.stereotype.Component;
  * <p>
  * 队列语义：提交即落库用户消息与 run 记录（CREATED）并入队，同会话
  * 按提交顺序串行执行；跨会话并行，全局并发由 chatTurnExecutor 有界
- * 线程池承载（fastclaw 全局信号量等价物）。排队超过
+ * 线程池承载。排队超过
  * {@code openagent.chat.queue-wait-timeout}（默认 60s）的 run 被移出
  * 队列、标记 FAILED（QUEUE_WAIT_TIMEOUT）并补发 error/done 瞬时事件
  * 收敛前端，返回的 future 以超时业务错误（429）完成。activeRuns 保留

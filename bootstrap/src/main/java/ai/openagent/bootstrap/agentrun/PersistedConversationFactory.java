@@ -97,9 +97,9 @@ public class PersistedConversationFactory implements AgentConversationFactory {
     }
 
     /**
-     * system prompt = agent 提示词 + 记忆段落注入（V3 M2，对齐 fastclaw
-     * context.go BuildSystemPromptAs：MEMORY.md/USER.md 随每轮请求注入；
-     * 记忆关闭或文件为空时不拼接）
+     * 构建系统提示词：整合 agent 基础提示词、长期记忆、用户画像和技能摘要
+     *
+     * <p>MEMORY.md 和 USER.md 随每轮请求注入；记忆功能关闭或文件为空时不拼接</p>
      */
     private String buildSystemPrompt(AgentRecord agent) {
         String base = agent.systemPrompt();
@@ -225,7 +225,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
         }
 
         /**
-         * 压缩总结调用（fastclaw prov.Chat(summaryPrompt, nil, model, 2048, 0.3)）
+         * 创建对话总结器，用于上下文压缩时调用 LLM 生成对话摘要
          */
         private ConversationSummarizer summarizer() {
             return conversationText -> {
@@ -248,7 +248,8 @@ public class PersistedConversationFactory implements AgentConversationFactory {
 
         /**
          * 压缩前把完整历史写入 {agentHome}/memory/logs/history_*.jsonl
-         * （fastclaw writeHistoryLog）；写盘失败只告警不阻断
+         *
+         * <p>写盘失败只告警不阻断压缩流程</p>
          */
         private void writeHistoryLogQuietly() {
             try {

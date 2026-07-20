@@ -28,8 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 对齐前端 api.ts 的消费形状：GET /api/agents/{id}/files?sessionId=...
  * 返回 {"files": [{path, size, modTime}]}；GET /api/agents/{id}/files/{path...}
  * 返回原始文件内容（fileUrl 逐段 URL 编码，?download=1 时附件下载）。
- * 响应头对齐 fastclaw setFileResponseHeaders：按扩展名推导 Content-Type、
- * nosniff、HTML 加 CSP sandbox
+ * 响应头设置：按扩展名推导 Content-Type、nosniff、HTML 加 CSP sandbox
  * </p>
  */
 @RestController
@@ -51,7 +50,7 @@ public class AgentFileController {
 
     /**
      * 上传文件到会话 workspace（前端回形针按钮，multipart 字段名 "file"
-     * 可多值；fastclaw 同款 64MB 解析上限已在 application.yml 配置）
+     * 可多值；64MB 解析上限已在 application.yml 配置）
      *
      * @return {"files": [{path, size}]}，path 为 agent 相对路径
      */
@@ -98,7 +97,7 @@ public class AgentFileController {
         response.setContentType(contentTypeOf(file.getFileName().toString(), extension));
         response.setHeader("X-Content-Type-Options", "nosniff");
         if ("html".equals(extension) || "htm".equals(extension)) {
-            // 与 fastclaw 一致：Agent 生成的 HTML 不能触达应用 cookie/storage
+            // Agent 生成的 HTML 不能触达应用 cookie/storage
             response.setHeader("Content-Security-Policy", "sandbox allow-scripts");
         }
         if ("1".equals(download)) {

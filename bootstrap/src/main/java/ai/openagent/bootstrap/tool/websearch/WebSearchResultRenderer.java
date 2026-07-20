@@ -3,8 +3,7 @@ package ai.openagent.bootstrap.tool.websearch;
 import java.util.List;
 
 /**
- * 搜索结果渲染（对照 fastclaw toolproviders/websearch/websearch.go 的
- * render/cleanSnippet，逐字对齐输出格式）
+ * 搜索结果渲染器，统一格式化搜索结果输出
  */
 public final class WebSearchResultRenderer {
 
@@ -29,8 +28,7 @@ public final class WebSearchResultRenderer {
     }
 
     /**
-     * 剥离搜索引擎漏进 snippet 的 HTML 标签并还原实体（fastclaw
-     * cleanSnippet：避免"脏数据"触发模型抓原文验证的反射行为）
+     * 剥离搜索引擎漏进 snippet 的 HTML 标签并还原 HTML 实体
      */
     public static String cleanSnippet(String snippet) {
         if (snippet == null) {

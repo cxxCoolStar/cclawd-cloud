@@ -23,15 +23,14 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * web_fetch 工具（对齐 fastclaw web_fetch.go 的 SSRF 防护语义）
+ * web_fetch 工具 - 安全地获取网页内容并返回纯文本
  *
  * <p>
  * 安全规则（V2 方案 12.2）：仅 http/https；DNS 解析后逐地址校验，
  * 拒绝 loopback / private / link-local / multicast / CGNAT / 云元数据段；
- * 重定向不自动跟随——每一跳的目标重新走完整校验（Java HttpClient 无
- * fastclaw safeDialContext 的拨号钩子，改为 NEVER redirect + 手动逐跳，
- * 等价关闭 DNS 重绑定的 TOCTOU 窗口收窄为单跳内）；限制重定向次数、
- * 响应大小与总耗时；不携带凭证；HTML 粗略去标签后作为不可信文本返回
+ * 重定向不自动跟随——每一跳的目标重新走完整校验（Java HttpClient 使用
+ * NEVER redirect + 手动逐跳，等价关闭 DNS 重绑定的 TOCTOU 窗口收窄为单跳内）；
+ * 限制重定向次数、响应大小与总耗时；不携带凭证；HTML 粗略去标签后作为不可信文本返回
  * </p>
  */
 @Component
@@ -188,8 +187,8 @@ public class WebFetchTool extends AbstractFileTool {
     }
 
     /**
-     * 封禁地址分类（fastclaw isBlockedAddr 同规则）：loopback、link-local、
-     * multicast、unspecified、RFC1918/ULA 私网、CGNAT 100.64/10、169.254/16
+     * 封禁地址分类：loopback、link-local、multicast、unspecified、
+     * RFC1918/ULA 私网、CGNAT 100.64/10、169.254/16
      */
     static boolean isBlockedAddress(InetAddress address) {
         if (address.isLoopbackAddress()
@@ -207,7 +206,7 @@ public class WebFetchTool extends AbstractFileTool {
             if (b0 == 100 && (b1 & 0xc0) == 0x40) {
                 return true;
             }
-            // 169.254/16（isLinkLocalAddress 已覆盖，显式列出对齐 fastclaw 注释）
+            // 169.254/16（isLinkLocalAddress 已覆盖，显式列出以保持一致性）
             if (b0 == 169 && b1 == 254) {
                 return true;
             }

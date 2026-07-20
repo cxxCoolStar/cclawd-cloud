@@ -3,7 +3,7 @@ package ai.openagent.bootstrap.chat.controller.vo;
 import java.util.List;
 
 /**
- * 会话列表视图对象（fastclaw 协议形状：{sessions}）
+ * 会话列表视图对象（包装会话摘要列表）
  *
  * @param sessions 会话摘要列表
  */

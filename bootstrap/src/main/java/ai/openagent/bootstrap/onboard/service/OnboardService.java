@@ -18,11 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Onboard 初始化服务（V8 M3，对照 fastclaw handlers_admin.go 的
- * onboard 语义裁剪为单机版）
+ * Onboard 初始化服务（V8 M3）
  *
  * <p>
- * 语义 = 首次初始化：账密字段齐备且库内无密码用户（全新部署）时创建
+ * 负责系统首次初始化：账密字段齐备且库内无密码用户（全新部署）时创建
  * super_admin 账号（V9 M2，首个业务 agent 归属该账号）；provider + apiKey
  * 非空时写入默认供应商连接配置（apiBase 缺省保留现值；model 同步到默认
  * agent）；agentName 非空且非 "default" 时创建首个业务 agent（"default"
@@ -57,7 +56,7 @@ public class OnboardService {
                         IdentityConstant.LOCAL_USER_ID, null, null, "super_admin", "onboard"));
         RequestContext.set(identity);
         try {
-            // 对齐前端注释的 guard：provider 与 apiKey 同时非空才写供应商配置
+            // guard：provider 与 apiKey 同时非空才写供应商配置
             if (request.provider() != null && !request.provider().isBlank()
                     && request.apiKey() != null && !request.apiKey().isBlank()) {
                 ProviderRecord current = providerRepository.findById(DataSeeder.DEFAULT_PROVIDER_ID).orElse(null);

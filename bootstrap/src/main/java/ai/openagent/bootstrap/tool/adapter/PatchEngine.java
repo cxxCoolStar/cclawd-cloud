@@ -5,8 +5,12 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * apply_patch 的存储无关补丁引擎（移植 fastclaw apply_patch.go：
- * 解析 → 内存中全部锚定成功 → 才产出写/删计划的两阶段语义）
+ * apply_patch 的存储无关补丁引擎。
+ *
+ * <p>
+ * 采用两阶段语义：先解析补丁并在内存中完成全部 hunk 锚定，
+ * 成功后才会产出写/删计划，确保不会部分写入。
+ * </p>
  *
  * <p>
  * 支持 OpenAI Codex DSL：Add File / Update File（多 hunk、可选
@@ -115,7 +119,7 @@ final class PatchEngine {
     }
 
     /**
-     * 结果摘要（fastclaw runApplyPatch 输出格式：A/D/U/M 行）
+     * 生成补丁操作的结果摘要，输出格式：A（Add）、D（Delete）、U（Update）、M（Move）行。
      */
     static String summary(List<PatchOp> ops) {
         StringBuilder sb = new StringBuilder();
@@ -344,8 +348,8 @@ final class PatchEngine {
     }
 
     /**
-     * 四级渐进宽松锚定：identity → 去尾空白 → 全 trim → Unicode 归一化
-     * （fastclaw findHunkAnchor / Codex seek_sequence）
+     * 四级渐进宽松锚定：identity → 去尾空白 → 全 trim → Unicode 归一化。
+     * 逐级尝试匹配，直到找到匹配的锚点位置。
      */
     private static int findHunkAnchor(List<String> lines, List<String> pattern, boolean anchorEof, int searchFrom) {
         List<UnaryOperator<String>> transforms = List.of(
@@ -404,7 +408,7 @@ final class PatchEngine {
 
     /**
      * 归一化 LLM 常替换的印刷体字形（破折号/引号/各类空格 → ASCII），
-     * 归一化后再 strip（fastclaw normalizeForFuzzy）
+     * 归一化后再 strip，用于模糊匹配。
      */
     private static String normalizeForFuzzy(String s) {
         if (s.chars().allMatch(c -> c < 128)) {

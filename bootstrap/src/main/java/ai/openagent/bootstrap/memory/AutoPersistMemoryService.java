@@ -27,13 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 自动记忆提取服务（V3 方案 M2，对照 fastclaw internal/agent/memory.go
- * AutoPersistMemory）
+ * 自动记忆提取服务（V3 方案 M2）
  *
  * <p>
  * 触发规则：记忆总开关与 auto-persist 开关均开启时，统计 (agent, user) 的
- * 用户消息总数，每 N 条触发一次提取（fastclaw
- * CountChatterUserMessages % EveryNTurns == 0）。
+ * 用户消息总数，每 N 条触发一次提取（用户消息数 % 间隔数 == 0）。
  * 提取过程：取当前会话最近 20 条消息（跳过 system），让 LLM 输出 JSON
  * {"memory_facts": [...], "user_notes": [...]}，追加到 MEMORY.md / USER.md。
  * 所有失败均 WARN 后跳过，不影响运行终态。
@@ -166,9 +164,9 @@ public class AutoPersistMemoryService {
                         List.of(ModelMessage.user(prompt)),
                         List.of(),
                         0.3,
-                        // 有意偏离 fastclaw 的 200：kimi-k2.5 等 reasoning 模型
-                        // 会先消耗 reasoning 预算，200 会导致正文为空
-                        // （model returned an empty response），实测 2000 可稳定产出
+                        // kimi-k2.5 等 reasoning 模型会先消耗 reasoning 预算，
+                        // 200 tokens 会导致正文为空（model returned an empty response），
+                        // 实测 2000 可稳定产出
                         2000),
                 event -> {});
         String json = response instanceof ModelResponse.Text text
@@ -213,7 +211,7 @@ public class AutoPersistMemoryService {
     }
 
     /**
-     * 移除模型在 JSON 外包裹的 ```json 围栏（fastclaw memory.go stripJSONFence）
+     * 移除模型在 JSON 外包裹的 ```json 围栏
      */
     static String stripJSONFence(String text) {
         String trimmed = text.trim();

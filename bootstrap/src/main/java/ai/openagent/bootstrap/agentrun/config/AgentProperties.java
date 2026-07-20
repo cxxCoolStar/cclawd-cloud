@@ -20,17 +20,13 @@ import org.springframework.validation.annotation.Validated;
  * </pre>
  * </p>
  *
- * @param maxToolIterations 单次运行最大工具迭代轮数。默认 8 为有意偏离
- *                          FastClaw 的默认 20（V2 方案 20.2 问题 4）：
- *                          本地单机 + 首批只读工具，8 轮足够且减少失控消耗；
- *                          上限 20 与 FastClaw 对齐
+ * @param maxToolIterations 单次运行最大工具迭代轮数。默认 8 轮，
+ *                          本地单机 + 首批只读工具场景下足够使用且减少失控消耗；
+ *                          上限 20 轮
  * @param runTimeout        单次 Agent 运行总超时
- * @param contextTokenThreshold 上下文压缩触发阈值（token 估算值），默认
- *                          80000 对齐 fastclaw DefaultTokenThreshold
- * @param contextPruneTurnAge   近期保留完整的消息条数，默认 20 对齐
- *                          fastclaw PruneTurnAge
+ * @param contextTokenThreshold 上下文压缩触发阈值（token 估算值），默认 80000
+ * @param contextPruneTurnAge   近期保留完整的消息条数，默认保留 20 条
  * @param contextSummaryMaxTokens 压缩总结调用的 maxTokens，默认 2048
- *                          对齐 fastclaw compressOlderMessages
  */
 @Validated
 @ConfigurationProperties(prefix = "openagent.agent")

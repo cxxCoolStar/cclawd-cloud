@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
  * Workspace 版本历史服务
  *
  * <p>
- * 设计（与 fastclaw 提案一致）：
+ * 设计说明：
  * <ul>
  *   <li>bare 仓库在 workspace 外：{workspaceRoot}/.history/{agentId}/{sessionId}.git，
  *       agent 的文件工具（会话作用域）与列表接口都看不到它；</li>

@@ -21,11 +21,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * MCP 客户端管理器（V6 方案 4.1，对照 fastclaw internal/mcp/manager.go）
+ * MCP 客户端管理器
  *
  * <p>
- * 保留的 fastclaw 行为：工具名前缀 {@code mcp_<sanitizedServerName>_<tool>}，
- * prefixed → (server, tool) 路由；按 server 懒连接、工具发现、失败驱逐。
+ * 管理 Agent 的 MCP 服务器连接，提供工具发现和调用功能。
+ * 工具名使用前缀格式 {@code mcp_<sanitizedServerName>_<tool>}，
+ * 支持按 server 名称路由；按 server 懒连接、工具发现、失败驱逐。
  * 传输经官方 MCP Java SDK：stdio 子进程 + Streamable HTTP
  * </p>
  */
@@ -79,8 +80,11 @@ public class McpClientManager {
     }
 
     /**
-     * 调用 MCP 工具（fastclaw CallTool 语义：按 prefixed 名路由到 server；
-     * isError=true 映射为失败结果；异常时驱逐客户端下次重连）
+     * 调用 MCP 工具
+     * <p>
+     * 按 server 名称和工具名路由调用指定 MCP 工具。
+     * isError=true 时映射为失败结果；发生异常时驱逐客户端，下次调用将重试连接。
+     * </p>
      */
     public ToolResult callTool(String agentId, String serverName, String toolName, String argumentsJson) {
         AgentMcpServerRecord server = repository.listByAgent(agentId).stream()
@@ -119,8 +123,11 @@ public class McpClientManager {
     }
 
     /**
-     * 工具名前缀（fastclaw prefixToolName 对齐：mcp_<sanitizedServer>_<tool>，
-     * server 名非字母数字下划线化）
+     * 生成工具名前缀
+     * <p>
+     * 格式：{@code mcp_<sanitizedServer>_<tool>}，
+     * server 名称中的非字母数字字符会被替换为下划线。
+     * </p>
      */
     public static String prefixToolName(String serverName, String toolName) {
         return "mcp_" + serverName.replaceAll("[^a-zA-Z0-9_]", "_") + "_" + toolName;

@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 搜索 provider 回退链（对照 fastclaw toolproviders.Chain.Execute）
+ * 搜索 provider 回退链
  *
  * <p>
  * 按 Order 顺序尝试：未配置的 provider 跳过；retriable 失败（网络、
@@ -23,8 +23,8 @@ public class WebSearchChain {
     }
 
     /**
-     * 链是否可用（fastclaw Chain.Available：至少一个 provider 已配置；
-     * 不可用时工具侧应隐藏/拒绝，模型看不到一个用不了的工具）
+     * 链是否可用（至少一个 provider 已配置）
+     * 不可用时工具侧应隐藏/拒绝，模型看不到一个用不了的工具
      */
     public boolean available() {
         return providers.stream().anyMatch(WebSearchProvider::configured);

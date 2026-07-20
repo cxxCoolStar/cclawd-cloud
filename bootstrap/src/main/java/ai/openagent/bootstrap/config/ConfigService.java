@@ -49,9 +49,9 @@ import org.springframework.stereotype.Service;
  * </p>
  *
  * <p>
- * 密钥回显一律打码（{@link #maskSecret}，对齐 fastclaw maskAPIKey），逐 scope
- * 生效；POST 收到的值若仍是打码形态（与合并视图中的打码结果一致），不在本
- * scope 落值——保留本 scope 现状（无值即继续继承上级），明文新值才覆盖。
+ * 密钥回显一律打码（{@link #maskSecret}），逐 scope 生效；POST 收到的值若
+ * 仍是打码形态（与合并视图中的打码结果一致），不在本 scope 落值——保留本
+ * scope 现状（无值即继续继承上级），明文新值才覆盖。
  * </p>
  */
 @Service
@@ -180,9 +180,9 @@ public class ConfigService {
     }
 
     /**
-     * 某 agent 某技能是否启用（V7 方案 3.3，对齐 fastclaw skills.go；V9 M3 三级链）：
-     * agent scope 覆盖条目的 enabled 优先，其次 agent 属主的 user scope 条目，
-     * 再次 system scope 条目；均无条目默认启用
+     * 某 agent 某技能是否启用（V7 方案 3.3；V9 M3 三级链）：agent scope 覆盖条目的
+     * enabled 优先，其次 agent 属主的 user scope 条目，再次 system scope 条目；
+     * 均无条目默认启用
      */
     public boolean skillEnabled(String agentId, String name) {
         Boolean enabled = enabledOf(
@@ -362,8 +362,7 @@ public class ConfigService {
     }
 
     /**
-     * 密钥打码（对齐 fastclaw maskAPIKey）：≤8 位 → {@code ****}，
-     * 否则前 4 位 + {@code ****} + 后 4 位
+     * 密钥打码：≤8 位 → {@code ****}，否则前 4 位 + {@code ****} + 后 4 位
      */
     public static String maskSecret(String value) {
         if (value == null || value.isEmpty()) {
@@ -376,7 +375,7 @@ public class ConfigService {
     }
 
     /**
-     * 键名是否疑似密钥（对齐 fastclaw looksLikeSecret）
+     * 键名是否疑似密钥（检查是否包含 KEY、TOKEN、SECRET、PASSWORD、CREDENTIAL 等关键字）
      */
     public static boolean looksLikeSecret(String keyName) {
         String upper = keyName.toUpperCase(Locale.ROOT);

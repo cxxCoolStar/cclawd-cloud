@@ -16,12 +16,14 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * read_file 工具（对齐 fastclaw file.go makeReadFile）
+ * read_file 工具 - 读取文件内容
  *
  * <p>
- * 与 fastclaw 一致的行为：二进制文件（前 8KB 含 NUL 字节）拒绝读取并
- * 返回引导性文本（防止字节涌入上下文）；成功时结果即文件原文。
- * V2 附加：单文件大小上限（方案 3.1 默认 1 MiB），超限返回 FILE_TOO_LARGE
+ * 功能说明：
+ * - 读取指定路径的文本文件内容并返回原文
+ * - 二进制文件检测：若文件前 8KB 含 NUL 字节则视为二进制文件，拒绝读取并
+ *   返回引导性文本（防止字节涌入上下文）
+ * - 单文件大小限制：超过配置上限（默认 1 MiB）返回 FILE_TOO_LARGE
  * </p>
  */
 @Component
@@ -67,15 +69,16 @@ public class ReadFileTool extends AbstractFileTool {
         }
         byte[] data = Files.readAllBytes(target);
         if (looksBinary(data)) {
-            // fastclaw binaryRefusal 语义：拒绝读取但作为成功 observation
-            // 返回引导文本（不是错误——模型应改走其他路径而非重试）
+            // 二进制文件拒绝读取：返回引导文本而非错误
+            // 模型应改走其他路径而非重试
             return ToolResult.success(binaryRefusal(path, data.length));
         }
         return ToolResult.success(new String(data, StandardCharsets.UTF_8));
     }
 
     /**
-     * 前 8KB 含 NUL 字节即视为二进制（fastclaw looksBinary 同规则）
+     * 检测文件内容是否为二进制文件
+     * 规则：扫描前 8KB，若包含 NUL 字节则视为二进制
      */
     static boolean looksBinary(byte[] data) {
         int limit = Math.min(data.length, 8192);
@@ -88,7 +91,7 @@ public class ReadFileTool extends AbstractFileTool {
     }
 
     /**
-     * 二进制拒绝文本（fastclaw binaryRefusal 语义，按 V2 无 skill 环境收窄）
+     * 生成二进制文件拒绝读取的引导文本
      */
     static String binaryRefusal(String path, int size) {
         return "[read_file refused: \"" + path + "\" is a binary file (" + size

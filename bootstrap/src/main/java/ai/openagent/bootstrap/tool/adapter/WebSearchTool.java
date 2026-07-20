@@ -16,7 +16,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * web_search 工具（对照 fastclaw RegisterWebSearchChain）
+ * web_search 工具
  *
  * <p>
  * 一个工具背后是一条 provider 回退链（当前内置 SearXNG，brave/exa 预留）。

@@ -6,12 +6,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 记忆写入安全扫描器（对照 fastclaw internal/privacy/scanner.go）
+ * 记忆写入安全扫描器
  *
  * <p>
- * 三组规则与 fastclaw 对齐：提示注入（ignore previous instructions 等）、
+ * 检测文本中的潜在安全威胁，包括三类：提示注入（ignore previous instructions 等）、
  * 凭证泄漏（私钥 / AKIA / ghp_ / xoxb / Discord token）、SSH 后门
- * （authorized_keys、curl|bash）。语义保持一致：检出威胁只用于告警，
+ * （authorized_keys、curl|bash）。检出威胁只用于告警，
  * 不阻断写入（避免数据丢失）
  * </p>
  */

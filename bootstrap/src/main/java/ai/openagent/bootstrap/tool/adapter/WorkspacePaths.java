@@ -7,19 +7,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Workspace 路径安全解析（V2 方案 12.1，对齐 fastclaw localfs.resolvePath
- * 并按方案要求加强符号链接校验）
+ * Workspace 路径安全解析（V2 方案 12.1）
  *
  * <p>
  * 规则：
  * <ul>
  *   <li>拒绝绝对路径与盘符路径（模型只能使用 workspace 相对路径）；</li>
  *   <li>normalize 后必须仍位于 workspace 根之下（{@code ..} 穿越拒绝，
- *       fastclaw 以 {@code Clean("/"+path)} 剥前导 ..，此处显式拒绝——
- *       给模型明确的错误比静默重定向更可恢复）；</li>
+ *       此处显式拒绝路径穿越——给模型明确的错误比静默重定向更可恢复）；</li>
  *   <li>对最近已存在的祖先目录做 {@code toRealPath()} 校验，不跟随
- *       逃出 workspace 的符号链接（方案 12.1 对 fastclaw 的有意加强，
- *       fastclaw 将 symlink 视为用户自担边界）。</li>
+ *       逃出 workspace 的符号链接。</li>
  * </ul>
  * 校验失败以 {@link PathViolation} 表达，调用方转为
  * WORKSPACE_PATH_FORBIDDEN 工具失败结果

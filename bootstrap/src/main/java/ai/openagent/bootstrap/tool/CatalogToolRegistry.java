@@ -20,8 +20,7 @@ import org.springframework.stereotype.Component;
  * 工具注册表实现（V2 方案 7.3）
  *
  * <p>
- * 三重取交集决定模型可见工具（对齐 fastclaw registry「只有已注册且
- * 启用的工具能暴露给模型」）：
+ * 三重取交集决定模型可见工具（只有已注册且启用的工具能暴露给模型）：
  * <ol>
  *   <li>{@link ToolCatalog} 白名单——平台声明支持的工具；</li>
  *   <li>Spring 容器中实际装配的 {@link AgentTool} 实现（M4 落地）；</li>

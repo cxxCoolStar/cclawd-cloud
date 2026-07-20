@@ -17,7 +17,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * SearXNG 搜索 provider（对照 fastclaw toolproviders/websearch/searxng.go）
+ * SearXNG Web 搜索 provider，通过自建 SearXNG 实例提供搜索服务。
  *
  * <p>
  * 无需 API key，只需自建实例 endpoint：GET {endpoint}/search?q=&format=json，

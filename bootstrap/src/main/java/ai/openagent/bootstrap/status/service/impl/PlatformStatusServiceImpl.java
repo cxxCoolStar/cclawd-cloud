@@ -86,7 +86,7 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
     }
 
     /**
-     * 紧凑时长格式（对齐 fastclaw 的 uptime 展示，如 "1d 2h 3m 4s"）
+     * 将时长格式化为紧凑的人类可读字符串（如 "1d 2h 3m 4s"）
      */
     static String formatDuration(Duration duration) {
         long seconds = Math.max(0, duration.toSeconds());

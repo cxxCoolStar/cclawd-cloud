@@ -13,10 +13,10 @@ import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
- * list_dir 工具（对齐 fastclaw file.go makeListDir）
+ * list_dir 工具 - 列出目录中的文件和子目录
  *
  * <p>
- * 结果格式与 fastclaw 逐行一致：目录 {@code d <name>/}，
+ * 结果格式：目录 {@code d <name>/}，
  * 文件 {@code f <name> (<size> bytes)}。目录不存在时返回空列表
  * （workspace 惰性创建，空会话列目录不是错误）
  * </p>

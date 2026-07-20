@@ -13,12 +13,12 @@ import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
 /**
- * Agent workspace 文件服务（对照 fastclaw handleAgentFileList /
- * handleAgentFile）
+ * Agent workspace 文件服务
  *
  * <p>
- * 宿主布局与 fastclaw 一致：{workspaceRoot}/{agentId}/ 为 agent 根，
- * 会话文件在 sessions/{sessionId}/ 下。返回路径保持 agent 相对
+ * 管理 Agent 工作空间中的文件操作，包括文件列表、读取和上传。
+ * 目录结构：{workspaceRoot}/{agentId}/ 为 agent 根目录，
+ * 会话文件存放在 sessions/{sessionId}/ 下。返回路径保持 agent 相对
  * （如 "sessions/{sid}/fib.py"），与前端 FileTreeView 的 rootPrefix
  * 及 fileUrl 消费方式对齐；sessionId 非空时按会话作用域过滤
  * </p>
@@ -61,7 +61,7 @@ public class AgentFileService {
 
     /**
      * 解析 agent 相对路径为宿主路径；越界 400、不存在 404
-     * （fastclaw handleAgentFile 的 path escape 防护）
+     * 包含路径逃逸防护：解析后的路径必须在 agent 根目录范围内
      */
     public Path resolveFile(String agentId, String relativePath) {
         if (relativePath == null || relativePath.isBlank()) {
@@ -85,8 +85,7 @@ public class AgentFileService {
 
     /**
      * 保存上传文件到 workspace：sessionId 非空时落到该会话目录
-     * （fastclaw handleAgentFileUpload 的作用域语义），文件名只取
-     * 最后一段（剥离任何目录成分），同名覆盖
+     * 按会话作用域隔离文件，文件名只取最后一段（剥离任何目录成分），同名覆盖
      */
     public List<UploadedFileEntry> saveUploads(String agentId, String sessionId, List<UploadFile> files) {
         Path dir = sessionId == null || sessionId.isBlank()

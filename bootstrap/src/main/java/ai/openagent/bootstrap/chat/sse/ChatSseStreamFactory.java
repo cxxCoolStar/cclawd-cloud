@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
  * <p>
  * 创建 {@link ChatSseStream} 并完成三件接线：向 {@code ChatEventHub}
  * 注册推模式订阅、登记到共享心跳调度器、连接关闭时自动反注册。
- * 全部连接共用一个单线程调度器定时发 {@code : ping}（对齐 fastclaw
- * 的 30s keepalive，防 nginx/Cloudflare/ELB 掐断空闲连接）——心跳
+ * 全部连接共用一个单线程调度器定时发 {@code : ping}（配置为 30 秒间隔的
+ * keepalive，防止 nginx/Cloudflare/ELB 等负载均衡器因连接空闲而掐断）——心跳
  * 同时兼任死连接探测：EventSource 关闭后底层 TCP 未必立刻可感知，
  * 下一次 ping 写失败即回收，不再有连接独占线程阻塞等待的问题
  * </p>
@@ -73,8 +73,7 @@ public class ChatSseStreamFactory {
     }
 
     /**
-     * 将连接接入指定会话的事件流（在回放开始前调用，保证回放期间落库
-     * 的事件不丢——对齐 fastclaw subscribe-before-replay 语义）
+     * 将连接接入指定会话的事件流（在回放开始前调用，确保回放期间新落库的事件不会丢失）
      */
     public void connect(ChatSseStream stream, String agentId, String sessionId) {
         stream.attach(eventHub.subscribe(agentId, sessionId, stream::onEvent));

@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
  * 基于 {@link ProcessBuilder} 的 docker CLI 实现
  *
  * <p>
- * stdout/stderr 合并读取（对齐 fastclaw CombinedOutput）；超时先
- * destroy 再 destroyForcibly，避免 docker exec 僵死占用工具线程
+ * stdout/stderr 合并读取；超时先 destroy 再 destroyForcibly，
+ * 避免 docker exec 僵死占用工具线程
  * </p>
  */
 @Component

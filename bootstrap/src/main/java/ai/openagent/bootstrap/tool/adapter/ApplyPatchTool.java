@@ -16,12 +16,13 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * apply_patch 工具（对齐 fastclaw apply_patch.go：Codex DSL、
- * 两阶段执行、结果摘要 A/D/U/M 行）
+ * ApplyPatch 工具 - 用于以原子方式应用多文件补丁。
  *
  * <p>
- * 补丁内路径逐一经 {@link WorkspacePaths} 校验（Add/Update/Move/Delete
- * 全部限制在会话 workspace 内）；V2 无 identity 文件概念，相应规则不适用
+ * 支持 OpenAI Codex DSL 格式的补丁，包含 Add/Update/Move/Delete 操作。
+ * 采用两阶段执行：阶段1解析并验证所有 hunk 锚点，阶段2执行实际写入/删除。
+ * 任何 hunk 锚定失败都会导致整个操作回滚，不会修改任何文件。
+ * 所有路径均通过 {@link WorkspacePaths} 校验，限制在会话 workspace 内。
  * </p>
  */
 @Component

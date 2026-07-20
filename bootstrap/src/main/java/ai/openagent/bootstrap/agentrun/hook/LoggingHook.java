@@ -10,9 +10,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 耗时日志 hook（对齐 fastclaw LoggingHook 语义）：BEFORE_* 三点把
- * startTime 记进 HookContext.attributes，AFTER_* 三点打耗时日志；
- * POST_TURN 额外打整轮运行摘要
+ * 耗时日志 hook：在 BEFORE_* 三个挂载点将 startTime 记录到 HookContext.attributes，
+ * 在 AFTER_* 三个挂载点打印耗时日志；POST_TURN 额外打印整轮运行摘要
  *
  * <p>
  * 一个挂载点一个 bean（AgentHook 接口单点注册），Spring 收集为

@@ -23,15 +23,13 @@ import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * 技能服务（V5 方案，对照 fastclaw internal/agent/skills.go 与
- * internal/setup/handlers_skills.go）
+ * 技能服务（V5 方案）
  *
  * <p>
- * 保留的 fastclaw 行为：技能 = 目录 + SKILL.md（YAML frontmatter +
- * Markdown 正文），目录名是技能 key；全局目录与 Agent 私有目录两层扫描、
- * 同名 Agent 私有遮蔽全局；system prompt 只放 {@code <skill_catalog>}
- * 一行一技能摘要，全文经 load_skill 按需加载；列表 API 形状
- * {name, description, location, type, envSpec}。
+ * 技能模型：技能 = 目录 + SKILL.md（YAML frontmatter + Markdown 正文），
+ * 目录名是技能 key；全局目录与 Agent 私有目录两层扫描、同名 Agent 私有遮蔽全局；
+ * system prompt 只放 {@code <skill_catalog>} 一行一技能摘要，
+ * 全文经 load_skill 按需加载；列表 API 形状 {name, description, location, type, envSpec}。
  * V5 收缩：不做 gating、alwaysLoad 与远程安装；启停配置于 V7 M2 生效
  * （{@code enabled=false} 的技能从运行时视图过滤，env/apiKey 仍只存储不注入）
  * </p>
@@ -101,9 +99,8 @@ public class SkillService {
     }
 
     /**
-     * 运行时合并视图：全局 + Agent 私有（同名遮蔽），按名字排序
-     * （fastclaw LoadSkills 层序与排序语义）；enabled=false 的技能被过滤
-     * （V7 方案 3.3，per-agent 覆盖优先于全局，判定见
+     * 运行时合并视图：全局 + Agent 私有（同名遮蔽），按名字排序；
+     * enabled=false 的技能被过滤（V7 方案 3.3，per-agent 覆盖优先于全局，判定见
      * {@link ConfigService#skillEnabled}）
      */
     public List<Skill> loadAll(String agentId) {
@@ -122,8 +119,7 @@ public class SkillService {
 
     /**
      * 读取技能全文（load_skill 工具）：Agent 私有优先，{baseDir} 替换为
-     * 技能目录绝对路径（fastclaw load_skill.go 语义）；禁用技能返回空
-     * （LoadSkillTool 自然报"未找到"）
+     * 技能目录绝对路径；禁用技能返回空（LoadSkillTool 自然报"未找到"）
      */
     public Optional<String> loadSkillContent(String agentId, String name) {
         validateName(name);
@@ -142,8 +138,7 @@ public class SkillService {
     }
 
     /**
-     * system prompt 技能摘要（fastclaw BuildSkillsSummary 对齐）：
-     * 无技能时返回空串（不注入段落）
+     * 构建 system prompt 技能摘要：无技能时返回空串（不注入段落）
      */
     public String buildSkillsSummary(String agentId) {
         List<Skill> skills = loadAll(agentId);
@@ -177,8 +172,7 @@ public class SkillService {
     public record InstallResult(String name, String installedAt, List<String> files) {}
 
     /**
-     * ZIP 上传安装（fastclaw handleUploadSkill 对齐）：
-     * 单顶层目录剥离；根下必须有 SKILL.md；逐条目防 zip-slip；
+     * ZIP 上传安装：单顶层目录剥离；根下必须有 SKILL.md；逐条目防 zip-slip；
      * 同名覆盖安装；agentId 非空时安装到 Agent 私有目录
      */
     public InstallResult installZip(String agentId, String providedName, String zipFilename,
@@ -198,7 +192,7 @@ public class SkillService {
             throw new ClientException("empty zip", BaseErrorCode.PARAM_VERIFY_ERROR);
         }
 
-        // 单顶层目录剥离（fastclaw 同款）
+        // 单顶层目录剥离
         String prefix = commonTopLevelPrefix(entries.keySet());
         Map<String, byte[]> stripped = new LinkedHashMap<>();
         for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
@@ -317,8 +311,7 @@ public class SkillService {
 
     /**
      * 解析单个技能目录：frontmatter 优先，无 frontmatter 时 description
-     * 回退正文首个非 # 行（fastclaw scanSkillsDir 同款回退）；
-     * 解析失败容忍（坏 YAML 不阻断扫描）
+     * 回退正文首个非 # 行；解析失败容忍（坏 YAML 不阻断扫描）
      */
     static Optional<Skill> parse(Path skillDir) {
         Path skillFile = skillDir.resolve("SKILL.md");
@@ -350,8 +343,7 @@ public class SkillService {
     }
 
     /**
-     * env 规格：顶层 env 优先，其次 metadata.fastclaw / metadata.openclaw
-     * （fastclaw handlers_skills.go 合并规则）
+     * env 规格：顶层 env 优先，其次 metadata 下的对应字段
      */
     @SuppressWarnings("unchecked")
     private static List<EnvSpec> parseEnvSpec(Map<String, Object> yaml) {
@@ -397,7 +389,7 @@ public class SkillService {
     }
 
     /**
-     * 摘要目录行：描述首句，截断 140 字符（fastclaw firstSentence 对齐）
+     * 摘要目录行：描述首句，截断 140 字符
      */
     static String firstSentence(String description) {
         String collapsed = description.replaceAll("\\s+", " ").trim();

@@ -11,9 +11,11 @@ import lombok.RequiredArgsConstructor;
  * Kernel 领域事件 → wire 协议事件的桥接（V2 方案第 8 章）
  *
  * <p>
- * 字段名与 fastclaw 前端消费完全一致：tool_call 用 data.id/name/arguments
- * （arguments 保持 JSON 字符串），tool_result 用 data.id/name/result；
- * content_delta 瞬时广播，其余先持久化再广播（含 done——前端靠它收敛）
+ * 事件字段结构规范：
+ * - tool_call: data.id/name/arguments（arguments 保持 JSON 字符串）
+ * - tool_result: data.id/name/result（result 保持 JSON 字符串）
+ * - content_delta: 瞬时广播，无持久化
+ * - content/error/done: 先持久化再广播（前端靠 done 事件收敛状态）
  * </p>
  */
 @RequiredArgsConstructor

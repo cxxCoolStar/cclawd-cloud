@@ -79,8 +79,8 @@ public class AgentRepository {
     }
 
     /**
-     * 删除 Agent 及全部关联数据（V8 M3 级联删除；workspace 目录保留不删，
-     * 对齐 fastclaw 软语义）；configs 表键由调用方清理
+     * 删除 Agent 及全部关联数据（V8 M3 级联删除）
+     * workspace 目录保留不删，仅清理数据库记录；configs 表键由调用方清理
      */
     public void deleteCascade(String id) {
         jdbc.update("DELETE FROM session_events WHERE agent_id = ?", id);

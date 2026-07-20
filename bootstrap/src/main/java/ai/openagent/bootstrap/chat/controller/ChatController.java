@@ -30,12 +30,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
  * 提供聊天回合发起（SSE 流式）、事件订阅回放、历史消息与会话查询接口
  *
  * <p>
- * SSE 协议对齐 fastclaw：事件帧带 {@code id: <seq>} 行 + JSON 内嵌 seq；
+ * SSE 协议实现：事件帧带 {@code id: <seq>} 行 + JSON 内嵌 seq；
  * 空闲心跳 {@code : ping}；subscribe 端点支持 {@code Last-Event-ID} 头
  * （浏览器 EventSource 自动重连）与 {@code ?since=N} 参数双游标恢复。
  * 两个 SSE 端点均为推模式（事件中心回调直写 emitter）——连接不占用
  * 线程池线程，客户端断开由写失败即时回收，会话快速切换堆积的死连接
- * 不会拖垮 MVC 异步线程池（对齐 fastclaw goroutine-per-connection 语义）
+ * 不会拖垮 MVC 异步线程池（采用事件驱动的推送模式，实现类似 goroutine-per-connection 的轻量级并发语义）
  * </p>
  */
 @Slf4j
@@ -79,10 +79,9 @@ public class ChatController {
      * 恢复游标优先级：{@code Last-Event-ID} 头（浏览器重连自动携带）优先，
      * 其次 {@code ?since=N}；-1 表示回放全部持久化事件。时序：先订阅事件
      * 中心（实时事件暂存 backlog）→ 回放持久化事件 → goLive 按 seq 去重
-     * 刷出 backlog——保证回放期间落库的事件不重不漏（对齐 fastclaw
-     * subscribe-before-replay）。content_delta 在本端点丢弃：发起回合的
-     * /api/chat/stream 连接已在渲染，转发会同屏双打；中途加入者靠随后的
-     * 完整 content 事件补齐
+     * 刷出 backlog——保证回放期间落库的事件不重不漏（采用先订阅后回放策略）。
+     * content_delta 在本端点丢弃：发起回合的 /api/chat/stream 连接已在渲染，
+     * 转发会同屏双打；中途加入者靠随后的完整 content 事件补齐
      * </p>
      */
     @GetMapping(path = "/api/chat/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -42,7 +42,7 @@ public class MemoryController {
 
     /**
      * 更新 MEMORY.md / USER.md（只更新请求中出现的字段；写入前安全扫描，
-     * 命中告警不阻断——fastclaw SaveMemoryWithScan 语义）
+     * 命中告警不阻断）
      */
     @PutMapping("/api/agents/{agentId}/memory")
     public Map<String, String> putMemory(@PathVariable String agentId, @RequestBody Map<String, String> body) {

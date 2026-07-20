@@ -3,9 +3,9 @@ package ai.openagent.bootstrap.identity.controller.vo;
 import ai.openagent.bootstrap.persistence.UserRecord;
 
 /**
- * 当前用户身份视图对象（fastclaw 协议形状：{ok, user, authMethod, readOnly, deployMode}）
+ * 当前用户身份视图对象，包含用户基本信息、认证方式、会话状态和部署模式
  *
- * @param ok         恒为 true（fastclaw 协议字段；失败响应走 {"ok":false,"error":...} 形状）
+ * @param ok         恒为 true，表示请求成功；失败响应使用错误格式返回
  * @param user       用户信息
  * @param authMethod 认证方式（cookie 会话为 cookie）
  * @param readOnly   是否只读会话

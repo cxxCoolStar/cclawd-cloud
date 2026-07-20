@@ -28,7 +28,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * （过期惰性剔除）；无 cookie 时回落 {@code Authorization: Bearer <key>}
  * 按 API Key 认证（命中时身份携带 key 绑定的 agent 子集）。用户写入
  * {@link RequestContext}（请求结束清理）。未认证请求访问受保护端点返回
- * 401（fastclaw 兼容响应体，前端以 ok=false 识别）。白名单：登录/注册/
+ * 401（标准 JSON 错误响应，前端以 ok=false 识别）。白名单：登录/注册/
  * onboard/status 及非 /api 路径（静态资源、前端页面、健康探针）直接放行
  * </p>
  */

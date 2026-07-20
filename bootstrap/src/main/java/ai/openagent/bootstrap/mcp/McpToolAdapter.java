@@ -9,10 +9,10 @@ import ai.openagent.agent.tool.ToolResult;
 import java.util.Map;
 
 /**
- * MCP 工具桥接（V6 方案 4.1）：把一个 MCP server 工具适配为 AgentTool，
- * 命名 {@code mcp_<server>_<tool>}（fastclaw prefixToolName 对齐），
- * source=MCP，不经 ToolCatalog 白名单与 agent_tools 启停——
- * server 配置即启用（fastclaw 同款语义）
+ * MCP 工具桥接：把一个 MCP server 工具适配为 AgentTool，
+ * 命名格式为 {@code mcp_<server>_<tool>}，source=MCP，
+ * 不经过 ToolCatalog 白名单与 agent_tools 启停控制——
+ * server 配置存在即启用
  */
 public class McpToolAdapter implements AgentTool {
 

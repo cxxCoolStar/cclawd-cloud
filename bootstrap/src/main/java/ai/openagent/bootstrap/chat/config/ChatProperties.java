@@ -21,11 +21,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * </pre>
  * </p>
  *
- * @param heartbeatInterval SSE 空闲保活心跳间隔（对齐 fastclaw 的 30s，防止
- *                          nginx/Cloudflare/ELB 掐断空闲连接；同时兼任死连接
- *                          探测——ping 写失败即回收连接）
- * @param queueWaitTimeout  同会话排队等待超时（V8 M2：超时 run 移出队列并
- *                          标记失败，对齐 fastclaw taskqueue 的等待上限语义）
+ * @param heartbeatInterval SSE 空闲保活心跳间隔（默认 30s，防止 nginx/Cloudflare/ELB
+ *                          掐断空闲连接；同时兼任死连接探测——ping 写失败即回收连接）
+ * @param queueWaitTimeout  同会话排队等待超时（V8 M2：超时 run 移出队列并标记失败）
  * @param executor          聊天回合线程池参数
  */
 @ConfigurationProperties(prefix = "openagent.chat")

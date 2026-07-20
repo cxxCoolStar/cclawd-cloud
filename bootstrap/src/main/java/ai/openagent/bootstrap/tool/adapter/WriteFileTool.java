@@ -15,12 +15,12 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * write_file 工具（对齐 fastclaw file.go makeWriteFile）
+ * write_file 工具 - 将内容写入文件（必要时自动创建目录）
  *
  * <p>
- * 结果文本 {@code Written N bytes to <path>} 必须与 fastclaw 逐字一致——
+ * 结果文本 {@code Written N bytes to <path>} 必须与前端期望的格式一致——
  * 前端 chat-screen.tsx 依赖该格式刷新文件面板（V2 方案 20.3）。
- * 字节数按 UTF-8 编码后长度计（fastclaw len(content) 为字节长度）
+ * 字节数按 UTF-8 编码后的字节长度计算
  * </p>
  */
 @Component
@@ -77,12 +77,12 @@ public class WriteFileTool extends AbstractFileTool {
         Files.createDirectories(target.getParent());
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         Files.write(target, bytes);
-        // 逐字对齐 fastclaw：前端靠 "Written N bytes" 前缀刷新文件面板
+        // 结果格式需与前端解析逻辑匹配：前端靠 "Written N bytes" 前缀刷新文件面板
         return ToolResult.success("Written " + bytes.length + " bytes to " + path);
     }
 
     /**
-     * 写类操作的目标路径校验（fastclaw validateFileTargetPath 语义）
+     * 写类操作的目标路径校验 - 验证路径是否指向有效的文件位置
      */
     static String validateFileTargetPath(String path) {
         String trimmed = path.trim();

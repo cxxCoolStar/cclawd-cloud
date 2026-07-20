@@ -5,7 +5,7 @@ import ai.openagent.bootstrap.status.PlatformCapabilities;
 import java.util.List;
 
 /**
- * 平台状态视图对象（fastclaw 协议形状）
+ * 平台状态视图对象
  *
  * @param configured       是否已完成初始配置
  * @param registrationOpen 是否开放注册

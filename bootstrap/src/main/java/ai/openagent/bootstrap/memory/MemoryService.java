@@ -16,18 +16,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 记忆服务（V3 方案 M2，对照 fastclaw internal/agent/memory.go）
+ * 记忆服务（V3 方案 M2）
  *
  * <p>
  * 管理 agent 级 workspace 下的 MEMORY.md / USER.md / HISTORY.md：
  * <ul>
- *   <li>布局对齐 fastclaw：{workspaceRoot}/{agentId}/MEMORY.md 等，
+ *   <li>文件布局：{workspaceRoot}/{agentId}/MEMORY.md 等，
  *       是 agent 级而非 session 级文件；</li>
  *   <li>写入前经 {@link MemoryThreatScanner} 扫描：命中只 WARN 告警仍写入
- *       （fastclaw SaveMemoryWithScan 语义——避免数据丢失）；</li>
- *   <li>本地单用户模式落文件系统；fastclaw 多租户模式走 MemoryStore 的
- *       per-chatter DB 行，V3 以 userId 参数预留该边界（当前固定
- *       local-user），后续多用户版本替换为 DB 实现。</li>
+ *       （避免数据丢失）；</li>
+ *   <li>本地单用户模式落文件系统；多租户模式下 per-chatter 走 DB 行，
+ *       V3 以 userId 参数预留该边界（当前固定 local-user），后续多用户版本
+ *       替换为 DB 实现。</li>
  * </ul>
  * </p>
  */
@@ -54,7 +54,7 @@ public class MemoryService {
     }
 
     /**
-     * 读取长期记忆（文件不存在返回空串，fastclaw LoadMemory 语义）
+     * 读取长期记忆（文件不存在返回空串）
      */
     public String loadMemory(String agentId) {
         return readQuietly(agentHome(agentId).resolve(MEMORY_FILE));
@@ -69,7 +69,7 @@ public class MemoryService {
     }
 
     /**
-     * 读取用户画像（per-chatter 文件，fastclaw LoadUserFile 语义）
+     * 读取用户画像（per-chatter 文件）
      */
     public String loadUserFile(String agentId) {
         return readQuietly(agentHome(agentId).resolve(USER_FILE));
@@ -88,7 +88,7 @@ public class MemoryService {
     }
 
     /**
-     * 追加一条历史日志（fastclaw AppendHistory：- [yyyy-MM-dd HH:mm:ss] entry）
+     * 追加一条历史日志，格式：- [yyyy-MM-dd HH:mm:ss] entry
      */
     public void appendHistory(String agentId, String entry) {
         Path path = agentHome(agentId).resolve(HISTORY_FILE);
@@ -128,7 +128,7 @@ public class MemoryService {
     }
 
     /**
-     * agent 级 workspace 目录（fastclaw homePath 语义）
+     * agent 级 workspace 目录
      * <p>
      * 如果配置了 evalWorkspaceRoot（评估模式），则使用该路径以隔离测试数据，
      * 避免覆盖真实 agent 的 MEMORY.md

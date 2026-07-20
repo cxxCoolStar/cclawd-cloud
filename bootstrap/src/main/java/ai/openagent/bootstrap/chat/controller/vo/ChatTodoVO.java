@@ -3,10 +3,10 @@ package ai.openagent.bootstrap.chat.controller.vo;
 import java.util.List;
 
 /**
- * 会话待办清单视图对象（fastclaw 协议形状：{items, raw}）
+ * 会话待办清单视图对象，包含解析后的待办项列表和原始文本
  *
  * <p>
- * fastclaw 中该接口读取 agent 维护的 per-session todo.md；本项目 agent
+ * 该接口设计用于读取 agent 维护的 per-session todo.md；当前 agent
  * 工作区能力尚未落地，暂返回空清单（前端在 items 为空时隐藏面板）
  * </p>
  *
