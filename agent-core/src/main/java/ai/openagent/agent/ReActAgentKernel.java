@@ -221,8 +221,7 @@ public class ReActAgentKernel implements AgentKernel {
 
     /**
      * 一次模型调用：构建请求 → BEFORE_MODEL_CALL → stream → AFTER_MODEL_CALL。
-     * BEFORE 触发后读回 context 中可能被 hook 替换的 ModelRequest 再发起调用
-     * （修正 fastclaw 主循环未读回 hc.Messages 导致修改空转的 bug）；
+     * BEFORE 触发后读回 context 中可能被 hook 替换的 ModelRequest 再发起调用；
      * 失败时 AFTER_MODEL_CALL 携带 error 触发后按原逻辑抛出/兜底
      */
     private ModelResponse callModel(

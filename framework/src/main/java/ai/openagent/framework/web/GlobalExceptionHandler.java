@@ -32,8 +32,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * <ul>
  *   <li>{@link BaseErrorCode#RESOURCE_NOT_FOUND} → 404</li>
  *   <li>{@link BaseErrorCode#RESOURCE_CONFLICT} → 409</li>
- *   <li>{@link BaseErrorCode#SERVICE_TIMEOUT_ERROR} → 429（排队等待超时等，
- *       对齐 fastclaw 队列满的 Too Many Requests 语义）</li>
+ *   <li>{@link BaseErrorCode#SERVICE_TIMEOUT_ERROR} → 429（排队等待超时等）</li>
  *   <li>{@link BaseErrorCode#SERVICE_UNAVAILABLE_ERROR} → 503</li>
  *   <li>{@link BaseErrorCode#UNAUTHORIZED} → 401</li>
  *   <li>{@link BaseErrorCode#FORBIDDEN} → 403</li>
