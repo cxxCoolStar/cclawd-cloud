@@ -1,11 +1,11 @@
 ---
-name: fastclaw-skill-guide
-description: Create new skills for FastClaw agents. Use when the user asks to create a skill, turn a workflow into a skill, or build reusable automation. Also use when discussing skill format, structure, or best practices.
+name: skill-guide
+description: Create new skills for OpenAgent agents. Use when the user asks to create a skill, turn a workflow into a skill, or build reusable automation. Also use when discussing skill format, structure, or best practices.
 ---
 
-# FastClaw Skill Guide
+# Skill Guide
 
-Guide for creating new skills that FastClaw agents can discover and use.
+Guide for creating new skills that OpenAgent agents can discover and use.
 
 ## Skill Structure
 
@@ -27,7 +27,7 @@ name: My Skill Name
 description: One-line description of what this skill does and when to use it
 homepage: https://example.com
 metadata:
-  fastclaw:
+  openagent:
     emoji: "🔧"
     always: false
     os: ["darwin", "linux"]
@@ -50,13 +50,13 @@ Step-by-step instructions in markdown...
 | `name` | Yes | Human-readable skill name |
 | `description` | Yes | Brief description — this is the primary trigger mechanism |
 | `homepage` | No | URL for more info |
-| `metadata.fastclaw.emoji` | No | Display icon |
-| `metadata.fastclaw.always` | No | If true, full content is always in system prompt |
-| `metadata.fastclaw.os` | No | OS requirements (darwin, linux, windows) |
-| `metadata.fastclaw.requires.bins` | No | All listed binaries must exist on PATH |
-| `metadata.fastclaw.requires.anyBins` | No | At least one must exist |
-| `metadata.fastclaw.requires.env` | No | Required environment variables |
-| `metadata.fastclaw.primaryEnv` | No | Maps config apiKey to this env var |
+| `metadata.openagent.emoji` | No | Display icon |
+| `metadata.openagent.always` | No | If true, full content is always in system prompt |
+| `metadata.openagent.os` | No | OS requirements (darwin, linux, windows) |
+| `metadata.openagent.requires.bins` | No | All listed binaries must exist on PATH |
+| `metadata.openagent.requires.anyBins` | No | At least one must exist |
+| `metadata.openagent.requires.env` | No | Required environment variables |
+| `metadata.openagent.primaryEnv` | No | Maps config apiKey to this env var |
 
 Note: `metadata.openclaw` is also supported for backward compatibility with OpenClaw skills.
 
@@ -73,10 +73,10 @@ Skills are discovered from multiple directories in precedence order (higher over
 
 1. **Agent workspace** — `{agentDir}/skills/` — skills specific to this agent
 2. **Team** — `{teamDir}/skills/` — shared within a team
-3. **User installed** — `~/.fastclaw/skills/` — user-level skills
+3. **User installed** — `~/.openagent/skills/` — user-level skills
 4. **OpenClaw compatible** — `~/.openclaw/skills/` — installed via OpenClaw
 5. **System bundled** — npm global locations
-6. **Extra dirs** — configured in `fastclaw.json`
+6. **Extra dirs** — configured in `openagent.json`
 
 ## Three-Level Loading
 
@@ -101,7 +101,7 @@ Keep SKILL.md under 500 lines. If approaching the limit, move detailed content t
 1. **Capture intent** — What should this skill enable? When should it trigger?
 2. **Write SKILL.md** — Frontmatter + step-by-step instructions
 3. **Add resources** — Scripts in `scripts/`, docs in `references/`, templates in `assets/`
-4. **Save** — Write to `{agentDir}/skills/{skill-name}/SKILL.md` for agent-level, or `~/.fastclaw/skills/{skill-name}/SKILL.md` for user-level
+4. **Save** — Write to `{agentDir}/skills/{skill-name}/SKILL.md` for agent-level, or `~/.openagent/skills/{skill-name}/SKILL.md` for user-level
 5. **Verify** — Use `load_skill` tool to confirm it loads correctly
 
 ## Example

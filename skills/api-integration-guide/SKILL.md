@@ -1,9 +1,9 @@
-# FastClaw API Integration
+# API Integration Guide
 
-Use this skill when integrating an upstream application with FastClaw as an
+Use this skill when integrating an upstream application with OpenAgent as an
 agent runtime.
 
-The canonical reference is `docs/upstream-api.md` in the FastClaw repository.
+The canonical reference is `docs/upstream-api.md` in the OpenAgent repository.
 Follow that document over guesses from existing dashboard code.
 
 ## Integration Boundary
@@ -16,7 +16,7 @@ Use `/v1/*` for upstream applications:
 - `GET /v1/usage` for billing dashboards.
 - `PUT /v1/quota`, `GET /v1/quota`, `DELETE /v1/quota` for paid-plan limits.
 
-Use `/api/*` or the `fastclaw` CLI only for operator/admin workflows such as
+Use `/api/*` or the `openagent` CLI only for operator/admin workflows such as
 creating agents, configuring providers, installing skills, managing channels,
 and runtime/project administration.
 
@@ -24,7 +24,7 @@ and runtime/project administration.
 
 Before writing integration code, identify:
 
-- FastClaw base URL.
+- OpenAgent base URL.
 - API key, stored server-side only.
 - Agent ID.
 - Upstream stable user ID field.
@@ -32,7 +32,7 @@ Before writing integration code, identify:
 - Whether usage/quota billing must be wired.
 - Whether attachments/images must be supported.
 
-Do not expose FastClaw API keys to browsers or mobile clients. Route calls
+Do not expose OpenAgent API keys to browsers or mobile clients. Route calls
 through the upstream backend.
 
 ## Chat Contract
@@ -41,9 +41,9 @@ Call:
 
 ```http
 POST /v1/chat/completions
-Authorization: Bearer <FASTCLAW_API_KEY>
+Authorization: Bearer <OPENAGENT_API_KEY>
 Content-Type: application/json
-X-Fastclaw-Session-Key: <deterministic-session-key>
+X-Openagent-Session-Key: <deterministic-session-key>
 ```
 
 Body:
@@ -62,11 +62,11 @@ Body:
 
 Rules:
 
-- `agent_id` selects the FastClaw agent. Body wins over
-  `X-Fastclaw-Agent-ID`.
+- `agent_id` selects the OpenAgent agent. Body wins over
+  `X-Openagent-Agent-ID`.
 - `user` is the upstream stable user ID. Body wins over
-  `X-Fastclaw-End-User`.
-- `X-Fastclaw-Session-Key` controls conversation history. Use a deterministic
+  `X-Openagent-End-User`.
+- `X-Openagent-Session-Key` controls conversation history. Use a deterministic
   key such as `<app>:<user-id>:<conversation-id>`.
 - `params` is per-turn structured context. It is shown to the agent but not
   persisted.
@@ -80,7 +80,7 @@ Either explicitly provision:
 
 ```http
 POST /v1/users
-Authorization: Bearer <FASTCLAW_API_KEY>
+Authorization: Bearer <OPENAGENT_API_KEY>
 Content-Type: application/json
 
 {
@@ -89,7 +89,7 @@ Content-Type: application/json
 }
 ```
 
-Or skip provisioning and pass `user` on every chat call. FastClaw will lazy
+Or skip provisioning and pass `user` on every chat call. OpenAgent will lazy
 create the app-user for that API key.
 
 Store the returned `user_id` if the upstream app needs usage/quota lookups.
@@ -100,14 +100,14 @@ Query usage:
 
 ```http
 GET /v1/usage?user_id=u_...&days=30
-Authorization: Bearer <FASTCLAW_API_KEY>
+Authorization: Bearer <OPENAGENT_API_KEY>
 ```
 
 Set quota after subscription changes:
 
 ```http
 PUT /v1/quota
-Authorization: Bearer <FASTCLAW_API_KEY>
+Authorization: Bearer <OPENAGENT_API_KEY>
 Content-Type: application/json
 
 {
@@ -120,14 +120,14 @@ Content-Type: application/json
 
 ## Implementation Checklist
 
-1. Add server-side FastClaw client configuration:
+1. Add server-side OpenAgent client configuration:
    - base URL
    - API key
    - agent ID
 2. Add or reuse upstream conversation IDs.
-3. Map upstream user IDs to FastClaw `user` or `/v1/users`.
+3. Map upstream user IDs to OpenAgent `user` or `/v1/users`.
 4. Implement streaming SSE parsing for `/v1/chat/completions`.
-5. Persist or derive `X-Fastclaw-Session-Key` per conversation.
+5. Persist or derive `X-Openagent-Session-Key` per conversation.
 6. Add attachment support only if the product UI needs it.
 7. Add `/v1/usage` and `/v1/quota` only if billing/paid limits are required.
 8. Handle OpenAI-style error objects:
@@ -140,9 +140,9 @@ Content-Type: application/json
 ## Do Not
 
 - Do not call dashboard `/api/chat/stream` for upstream app chat unless you are
-  embedding FastClaw's own dashboard semantics.
-- Do not put FastClaw API keys in frontend code.
-- Do not use email/display name as the stable FastClaw `user` value.
+  embedding OpenAgent's own dashboard semantics.
+- Do not put OpenAgent API keys in frontend code.
+- Do not use email/display name as the stable OpenAgent `user` value.
 - Do not reuse one session key across unrelated conversations.
 - Do not configure agents/providers/skills through `/v1`; use dashboard,
   `/api/*`, or CLI for admin workflows.

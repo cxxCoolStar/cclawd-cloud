@@ -1,8 +1,8 @@
 ---
-name: fastclaw-skill-learner
-description: Analyze conversations to extract reusable skill patterns. Used internally by FastClaw to auto-generate skills from complex multi-step tasks.
+name: skill-learner
+description: Analyze conversations to extract reusable skill patterns. Used internally by OpenAgent to auto-generate skills from complex multi-step tasks.
 metadata:
-  fastclaw:
+  openagent:
     always: true
 ---
 
