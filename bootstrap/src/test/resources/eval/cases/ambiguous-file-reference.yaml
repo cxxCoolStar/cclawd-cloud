@@ -12,6 +12,7 @@ input: "config 目录下的应用配置文件里，服务端口是多少？"
 expected:
   tools:
     required: ["read_file"]
+    available: ["list_dir"]
   output:
     must_contain: ["8080"]
   max:

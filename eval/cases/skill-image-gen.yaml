@@ -1,17 +1,26 @@
 id: skill-image-gen
-name: Skill - 图像生成触发
+name: Skill - 图表文件生成触发
 category: skill
 priority: P1
 fixtures:
   skills:
     - name: "image-gen"
-      trigger: "Generate images, charts, plots"
-input: "请帮我画一个柱状图，展示三个产品的销量：产品A 100件，产品B 150件，产品C 80件"
+      trigger: "Generate simple charts and visual assets"
+      content: |
+        For a simple bar chart, create an SVG file directly with write_file.
+        Include a title, one labeled bar per item, and visible numeric value labels.
+        Use the filename sales-chart.svg unless the user specifies another name.
+        After writing it, report the path and summarize all plotted values.
+input: "请生成一个柱状图文件，展示产品A 100件、产品B 150件、产品C 80件"
 expected:
   tools:
-    required: ["exec"]
+    required: ["load_skill", "write_file"]
+    forbidden: ["exec"]
+  outcome:
+    file_exists: "sales-chart.svg"
+    file_content_contains: "150"
   output:
-    must_contain: ["![", "image/png", "base64"]
+    must_contain: ["sales-chart.svg", "100", "150", "80"]
   max:
     tool_calls: 3
     latency_ms: 20000
@@ -21,4 +30,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 image-gen skill 触发后生成 matplotlib 图表并输出 base64 内联图片的能力"
+notes: "改为当前工具链可验证的 SVG 图表生成，并检查实际产物而非 base64 文本"

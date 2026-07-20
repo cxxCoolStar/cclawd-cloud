@@ -5,16 +5,20 @@ priority: P1
 fixtures:
   skills:
     - name: "web-search"
-      trigger: "Search the web and fetch web pages"
+      trigger: "Search the web for current information"
+      content: |
+        Use web_search for requests about current news or recent developments.
+        Base the answer on returned results, mention OpenAI explicitly when relevant,
+        and do not invent unavailable details.
 input: "请搜索一下 OpenAI 的最新动态"
 expected:
   tools:
-    required: ["web_search"]
+    required: ["load_skill", "web_search"]
   output:
     must_contain: ["OpenAI"]
     forbidden: ["抱歉", "无法搜索"]
   max:
-    tool_calls: 3
+    tool_calls: 4
     latency_ms: 30000
 scoring:
   mode: deduction
@@ -22,4 +26,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 web-search skill 触发后使用 web_search 工具进行搜索的能力"
+notes: "验证模型先加载 web-search skill，再使用真实 web_search 获取当前信息"

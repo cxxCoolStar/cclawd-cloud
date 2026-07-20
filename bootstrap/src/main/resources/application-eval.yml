@@ -32,6 +32,7 @@ openagent:
     docker-enabled: true
 
   tools:
+    workspace-root: ${java.io.tmpdir}/openagent-eval-workspaces
     web-fetch-enabled: true
 
   memory:

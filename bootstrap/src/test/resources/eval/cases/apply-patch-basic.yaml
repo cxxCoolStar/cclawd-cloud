@@ -15,6 +15,7 @@ input: "src/calc.py 里的 add 函数有 bug，返回的是差而不是和，请
 expected:
   tools:
     required: ["read_file"]
+    available: ["edit_file", "apply_patch"]
     forbidden: ["write_file"]  # 不应整文件重写，应用 edit_file 或 apply_patch 精确修改
   outcome:
     file_exists: "src/calc.py"

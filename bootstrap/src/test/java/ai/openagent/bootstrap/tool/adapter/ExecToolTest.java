@@ -97,7 +97,8 @@ class ExecToolTest {
         ToolResult result = exec(tool, "{\"command\":\"false\"}");
         assertTrue(result.success(), "非零退出码仍作为 observation 回传模型");
         assertTrue(result.content().contains("partial output"));
-        assertTrue(result.content().endsWith("Exit code: 2"));
+        assertTrue(result.content().contains("Command failed with exit code 2"));
+        assertTrue(result.content().contains("adjust the command before retrying"));
     }
 
     @Test

@@ -14,13 +14,19 @@ fixtures:
         May,16000,9000
   skills:
     - name: "data-analysis"
-      trigger: "Analyze data, process CSV/JSON files"
-input: "请分析 data/sales.csv 文件，计算每月的利润，并找出利润最高的月份"
+      trigger: "Analyze data and calculate metrics from CSV or JSON files"
+      content: |
+        Read the requested data file before calculating.
+        For each row, compute profit as revenue minus cost.
+        If the maximum is tied, report every tied row rather than choosing one.
+        Show the calculated profit values in the answer.
+input: "请分析 data/sales.csv，计算每月利润，并列出利润最高的月份；若并列请全部列出"
 expected:
   tools:
-    required: ["read_file", "exec"]
+    required: ["load_skill", "read_file"]
+    available: ["exec"]
   output:
-    must_contain: ["May", "7000", "利润"]
+    must_contain: ["Mar", "May", "7000", "利润"]
     forbidden: ["错误", "无法读取"]
   max:
     tool_calls: 4
@@ -31,4 +37,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 data-analysis skill 触发后对 CSV 数据进行分析的能力"
+notes: "验证数据分析 skill 的加载、文件读取、利润计算和并列结果处理"

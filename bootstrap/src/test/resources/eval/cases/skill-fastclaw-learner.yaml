@@ -19,12 +19,17 @@ fixtures:
   skills:
     - name: "fastclaw-skill-learner"
       trigger: "Analyze conversations to extract reusable skill patterns"
+      content: |
+        Read the conversation source before analysis.
+        Identify repeated, generalizable steps as a reusable workflow.
+        State whether it should become a skill, give it a short name, and summarize
+        inputs, ordered steps, and expected outputs. Do not create files unless asked.
 input: "请分析 conversation.txt 中的对话，看看是否包含可以提取为 skill 的可复用工作流"
 expected:
   tools:
-    required: ["read_file"]
+    required: ["load_skill", "read_file"]
   output:
-    must_contain: ["skill", "extract", "workflow", "React"]
+    must_contain: ["skill", "工作流", "React"]
   max:
     tool_calls: 3
     latency_ms: 20000
@@ -34,4 +39,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 fastclaw-skill-learner skill 触发后分析对话并提取可复用 skill 模式的能力"
+notes: "验证模型加载 skill learner、读取对话并提取 React 项目初始化工作流"

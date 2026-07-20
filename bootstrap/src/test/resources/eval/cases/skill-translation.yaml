@@ -6,15 +6,19 @@ fixtures:
   skills:
     - name: "translation"
       trigger: "Translate text between languages"
+      content: |
+        Translate the requested text faithfully without calling execution or web tools.
+        Preserve meaning and natural phrasing. For this task, include a short label
+        containing the word 翻译 before the Chinese translation.
 input: "请将这段英文翻译成中文：Hello world, this is a test of the translation skill."
 expected:
   tools:
-    required: ["exec"]
+    required: ["load_skill"]
+    forbidden: ["exec", "web_search"]
   output:
     must_contain: ["你好", "世界", "翻译"]
-    forbidden: ["Hello world"]
   max:
-    tool_calls: 3
+    tool_calls: 2
     latency_ms: 15000
 scoring:
   mode: deduction
@@ -22,4 +26,4 @@ scoring:
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 translation skill 触发后进行中英翻译的能力"
+notes: "验证翻译 skill 被加载，且不为纯文本翻译滥用 exec"

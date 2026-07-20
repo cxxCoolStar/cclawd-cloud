@@ -6,19 +6,28 @@ fixtures:
   skills:
     - name: "skill-creator"
       trigger: "Create new skills, modify and improve existing skills"
-input: "请帮我创建一个 skill，用于生成 Git 提交信息，要求根据代码变更自动生成符合规范的 commit message"
+      content: |
+        Create a new skill in a directory named after the skill.
+        Write its entry file as <skill-name>/SKILL.md.
+        SKILL.md must contain YAML frontmatter with name and description, followed
+        by concise Markdown instructions describing inputs, workflow, and output.
+        Create only the requested entry file unless extra resources are necessary.
+input: "请创建一个名为 git-commit-message 的 skill，用于根据代码变更生成符合 Conventional Commits 的 Git 提交信息"
 expected:
   tools:
-    required: ["write_file"]
+    required: ["load_skill", "write_file"]
+  outcome:
+    file_exists: "git-commit-message/SKILL.md"
+    file_content_contains: "description:"
   output:
-    must_contain: ["skill", "SKILL.md", "commit", "git"]
+    must_contain: ["git-commit-message", "SKILL.md", "commit"]
   max:
-    tool_calls: 5
-    latency_ms: 30000
+    tool_calls: 3
+    latency_ms: 20000
 scoring:
   mode: deduction
   max_score: 100
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 skill-creator skill 触发后创建新 skill 文件的能力，应生成包含 frontmatter 的 SKILL.md"
+notes: "验证 skill-creator 被加载并实际创建带 frontmatter 的 SKILL.md"

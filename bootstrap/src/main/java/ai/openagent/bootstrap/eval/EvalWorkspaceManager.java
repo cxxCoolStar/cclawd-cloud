@@ -37,6 +37,8 @@ public class EvalWorkspaceManager {
 
     private final MemoryService memoryService;
     private final SkillService skillService;
+    private static final String EVAL_AGENT_ID = "default";
+
     private Path rootPath;
 
     @Autowired
@@ -64,15 +66,10 @@ public class EvalWorkspaceManager {
      */
     public Path createRunWorkspace(String runId) {
         String actualRunId = runId != null ? runId : UUID.randomUUID().toString();
-        Path runWorkspace = rootPath.resolve(actualRunId);
+        Path runWorkspace = getRunWorkspace(actualRunId);
 
         try {
             Files.createDirectories(runWorkspace);
-            // 创建内部目录结构
-            Files.createDirectories(runWorkspace.resolve("workspace"));
-            Files.createDirectories(runWorkspace.resolve("output"));
-            Files.createDirectories(runWorkspace.resolve("temp"));
-
             log.info("Created eval run workspace: {}", runWorkspace);
             return runWorkspace;
         } catch (IOException e) {
@@ -87,7 +84,7 @@ public class EvalWorkspaceManager {
      * @return 工作空间路径
      */
     public Path getRunWorkspace(String runId) {
-        return rootPath.resolve(runId);
+        return rootPath.resolve(EVAL_AGENT_ID).resolve("sessions").resolve(runId);
     }
 
     /**
@@ -97,7 +94,7 @@ public class EvalWorkspaceManager {
      * @return workspace 路径
      */
     public Path getWorkspaceDir(String runId) {
-        return getRunWorkspace(runId).resolve("workspace");
+        return getRunWorkspace(runId);
     }
 
     /**

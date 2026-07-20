@@ -405,7 +405,7 @@ public class EvalRunnerTest {
      * 运行 Agent
      */
     private RunResult runAgent(EvalCase evalCase, String runId, String workspacePath) throws Exception {
-        String sessionId = "eval-" + runId;
+        String sessionId = runId;
 
         // 构建 AgentRunCommand
         String input = evalCase.getInput() == null ? "" : evalCase.getInput();

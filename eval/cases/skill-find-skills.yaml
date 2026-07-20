@@ -1,25 +1,33 @@
 id: skill-find-skills
-name: Skill - Skill搜索触发
+name: Skill - 本地 Skill发现触发
 category: skill
 priority: P1
 fixtures:
   skills:
     - name: "find-skills"
-      trigger: "Run this BEFORE any package install"
-input: "我想创建一个 PDF 文件，有什么 skill 可以帮我吗？"
+      trigger: "Recommend an installed skill for a requested task"
+      content: |
+        Match the user's task to this local catalog:
+        - pdf: create, edit, inspect, render, and verify PDF documents.
+        - spreadsheets: work with XLSX, CSV, and TSV files.
+        - presentations: create and edit slide decks.
+        Return the best matching skill name and a one-sentence reason.
+        Do not install packages or query external skill registries.
+input: "我想创建并检查一个 PDF 文件，应该使用哪个本地 skill？"
 expected:
   tools:
-    required: ["exec"]
+    required: ["load_skill"]
+    forbidden: ["exec", "web_search", "web_fetch"]
   output:
-    must_contain: ["skill", "PDF", "skills.sh"]
+    must_contain: ["pdf", "PDF"]
     forbidden: ["抱歉", "无法"]
   max:
-    tool_calls: 3
-    latency_ms: 20000
+    tool_calls: 2
+    latency_ms: 15000
 scoring:
   mode: deduction
   max_score: 100
   pass_threshold: 80
   result_incorrect_penalty: 100
   process_violation_penalty: 10
-notes: "测试 find-skills skill 触发后搜索 skills.sh 生态的能力"
+notes: "用确定性的本地目录替代当前环境不存在的外部 skills.sh 搜索"

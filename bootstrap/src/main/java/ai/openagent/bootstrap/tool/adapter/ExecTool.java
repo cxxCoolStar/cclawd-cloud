@@ -71,6 +71,11 @@ public class ExecTool extends AbstractFileTool {
         if (command == null) {
             return missingArgument("command");
         }
+        if (isDestructiveCommand(command)) {
+            return ToolResult.failure(
+                    ToolErrorCode.TOOL_ARGUMENT_INVALID,
+                    "destructive command blocked; use a scoped file operation after explicit user confirmation");
+        }
         String workdir = args.path("workdir").asText("");
         String normalizedWorkdir = normalizeWorkdir(workdir);
         if (normalizedWorkdir == null) {
@@ -97,7 +102,8 @@ public class ExecTool extends AbstractFileTool {
             }
             String output = outcome.output();
             if (outcome.exitCode() != 0) {
-                output = output + "\nExit code: " + outcome.exitCode();
+                output = output + "\nCommand failed with exit code " + outcome.exitCode()
+                        + ". Inspect the output and adjust the command before retrying.";
             }
             return ToolResult.success(output.isBlank() ? "(no output)" : output);
         } catch (DockerSandboxService.SandboxException error) {
@@ -109,6 +115,13 @@ public class ExecTool extends AbstractFileTool {
      * workdir 归一化：仅允许会话 workspace 内的相对路径；
      * 拒绝绝对路径与 .. 逃逸，合法时返回容器内相对子路径（"" 表示会话根）
      */
+    static boolean isDestructiveCommand(String command) {
+        return RECURSIVE_RM.matcher(command).find()
+                || FIND_DELETE.matcher(command).find()
+                || FILESYSTEM_DESTRUCTION.matcher(command).find()
+                || BLOCK_DEVICE_WRITE.matcher(command).find();
+    }
+
     static String normalizeWorkdir(String workdir) {
         if (workdir == null || workdir.isBlank() || ".".equals(workdir)) {
             return "";

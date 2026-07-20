@@ -125,6 +125,20 @@ class FileToolsTest {
     }
 
     @Test
+    void writeFileRejectsOverwriteAndPreservesExistingContent() throws IOException {
+        Path existing = workspace.resolve("existing.txt");
+        Files.writeString(existing, "original");
+
+        ToolResult result = invoke(new WriteFileTool(MAPPER),
+                "{\"path\":\"existing.txt\",\"content\":\"replacement\"}");
+
+        assertFalse(result.success());
+        assertEquals(ToolErrorCode.TOOL_ARGUMENT_INVALID, result.errorCode());
+        assertTrue(result.errorMessage().contains("confirmation required before overwrite"));
+        assertEquals("original", Files.readString(existing));
+    }
+
+    @Test
     void editFileReplacesUniqueSubstring() throws IOException {
         Files.writeString(workspace.resolve("cfg.txt"), "port=8080\nhost=localhost\n");
         ToolResult result = invoke(new EditFileTool(MAPPER),
