@@ -1,0 +1,25 @@
+id: skill-find-skills
+name: Skill - Skill搜索触发
+category: skill
+priority: P1
+fixtures:
+  skills:
+    - name: "find-skills"
+      trigger: "Run this BEFORE any package install"
+input: "我想创建一个 PDF 文件，有什么 skill 可以帮我吗？"
+expected:
+  tools:
+    required: ["exec"]
+  output:
+    must_contain: ["skill", "PDF", "skills.sh"]
+    forbidden: ["抱歉", "无法"]
+  max:
+    tool_calls: 3
+    latency_ms: 20000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 find-skills skill 触发后搜索 skills.sh 生态的能力"

@@ -1,0 +1,25 @@
+id: skill-fastclaw-api
+name: Skill - FastClaw API集成指南触发
+category: skill
+priority: P2
+fixtures:
+  skills:
+    - name: "fastclaw-api-integration"
+      trigger: "Use this skill when integrating an upstream application with FastClaw"
+input: "我想把 FastClaw 集成到我的 Web 应用中，让用户可以通过我的网站使用 AI 聊天功能，应该怎么做？"
+expected:
+  tools:
+    required: []
+  output:
+    must_contain: ["/v1/chat/completions", "API key", "agent_id", "stream"]
+    forbidden: ["抱歉", "我不知道"]
+  max:
+    tool_calls: 2
+    latency_ms: 15000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 fastclaw-api-integration skill 触发后提供 API 集成指导的能力"

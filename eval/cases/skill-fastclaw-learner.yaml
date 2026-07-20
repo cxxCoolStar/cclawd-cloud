@@ -1,0 +1,37 @@
+id: skill-fastclaw-learner
+name: Skill - FastClaw Skill学习器触发
+category: skill
+priority: P2
+fixtures:
+  files:
+    - path: "conversation.txt"
+      content: |
+        User: 帮我设置一个新的 React 项目
+        Agent: 好的，我来帮你创建 React 项目结构
+        Agent: [创建 package.json]
+        Agent: [安装依赖]
+        Agent: [创建 src/App.jsx]
+        Agent: [配置 Vite]
+        User: 太好了，再帮我添加 ESLint 和 Prettier
+        Agent: [配置 ESLint]
+        Agent: [配置 Prettier]
+        Agent: [创建配置文件]
+  skills:
+    - name: "fastclaw-skill-learner"
+      trigger: "Analyze conversations to extract reusable skill patterns"
+input: "请分析 conversation.txt 中的对话，看看是否包含可以提取为 skill 的可复用工作流"
+expected:
+  tools:
+    required: ["read_file"]
+  output:
+    must_contain: ["skill", "extract", "workflow", "React"]
+  max:
+    tool_calls: 3
+    latency_ms: 20000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 fastclaw-skill-learner skill 触发后分析对话并提取可复用 skill 模式的能力"

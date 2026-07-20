@@ -1,0 +1,25 @@
+id: skill-fastclaw-guide
+name: Skill - FastClaw Skill开发指南触发
+category: skill
+priority: P2
+fixtures:
+  skills:
+    - name: "fastclaw-skill-guide"
+      trigger: "Create new skills for FastClaw agents"
+input: "我想学习如何为 FastClaw 创建一个 skill，请告诉我 skill 的目录结构和 SKILL.md 的格式要求"
+expected:
+  tools:
+    required: []
+  output:
+    must_contain: ["SKILL.md", "frontmatter", "scripts", "references", "description"]
+    forbidden: ["抱歉", "我不知道"]
+  max:
+    tool_calls: 2
+    latency_ms: 15000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 fastclaw-skill-guide skill 触发后提供 skill 开发指导的能力"

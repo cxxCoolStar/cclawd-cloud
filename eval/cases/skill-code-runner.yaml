@@ -1,0 +1,27 @@
+id: skill-code-runner
+name: Skill - 代码执行器触发
+ category: skill
+category: skill
+priority: P1
+fixtures:
+  skills:
+    - name: "code-runner"
+      trigger: "Execute code in multiple programming languages"
+input: "帮我写一个 Python 程序计算 1 到 100 的和，并执行它"
+expected:
+  tools:
+    required: ["exec"]
+    forbidden: ["write_file", "edit_file"]
+  output:
+    must_contain: ["5050"]
+    forbidden: ["错误", "失败", "exception"]
+  max:
+    tool_calls: 3
+    latency_ms: 15000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 code-runner skill 触发后执行 Python 代码的能力，应直接使用 exec 执行而非写入文件"

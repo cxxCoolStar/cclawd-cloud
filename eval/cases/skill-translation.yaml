@@ -1,0 +1,25 @@
+id: skill-translation
+name: Skill - 翻译触发
+category: skill
+priority: P1
+fixtures:
+  skills:
+    - name: "translation"
+      trigger: "Translate text between languages"
+input: "请将这段英文翻译成中文：Hello world, this is a test of the translation skill."
+expected:
+  tools:
+    required: ["exec"]
+  output:
+    must_contain: ["你好", "世界", "翻译"]
+    forbidden: ["Hello world"]
+  max:
+    tool_calls: 3
+    latency_ms: 15000
+scoring:
+  mode: deduction
+  max_score: 100
+  pass_threshold: 80
+  result_incorrect_penalty: 100
+  process_violation_penalty: 10
+notes: "测试 translation skill 触发后进行中英翻译的能力"
