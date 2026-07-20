@@ -3,9 +3,11 @@ package ai.openagent.bootstrap.eval;
 import ai.openagent.agent.eval.EvalFixture;
 import ai.openagent.agent.eval.EvalFixture.FileFixture;
 import ai.openagent.bootstrap.memory.MemoryService;
+import ai.openagent.bootstrap.skill.SkillService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,11 +36,13 @@ public class EvalWorkspaceManager {
     private boolean cleanupOnFinish;
 
     private final MemoryService memoryService;
+    private final SkillService skillService;
     private Path rootPath;
 
     @Autowired
-    public EvalWorkspaceManager(MemoryService memoryService) {
+    public EvalWorkspaceManager(MemoryService memoryService, SkillService skillService) {
         this.memoryService = memoryService;
+        this.skillService = skillService;
     }
 
     @PostConstruct
@@ -139,6 +143,15 @@ public class EvalWorkspaceManager {
      * @param runId   运行 ID
      * @param fixture 夹具定义
      */
+    /** Removes agent-private skills shared by eval cases. */
+    public void resetAgentSkills(String agentId) {
+        try {
+            deleteDirectory(skillService.agentDir(agentId));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to reset eval skills for agent: " + agentId, e);
+        }
+    }
+
     public void createFixtures(String runId, EvalFixture fixture) {
         createFixtures(runId, null, fixture);
     }
@@ -171,12 +184,33 @@ public class EvalWorkspaceManager {
             createMemoryFixture(agentId, memory);
         }
 
-        // 注：skills 夹具预留
+        if (agentId != null && fixture.getSkills() != null) {
+            for (EvalFixture.SkillFixture skill : fixture.getSkills()) {
+                createSkillFixture(agentId, skill);
+            }
+        }
     }
 
     /**
      * 创建 memory 夹具
      */
+    private void createSkillFixture(String agentId, EvalFixture.SkillFixture fixture) {
+        String name = fixture.getName();
+        if (name == null || !name.matches("[a-zA-Z0-9._-]+") || name.contains("..")) {
+            throw new IllegalArgumentException("Invalid eval skill name: " + name);
+        }
+        String trigger = fixture.getTrigger() == null ? "" : fixture.getTrigger();
+        String body = fixture.getContent() == null ? "" : fixture.getContent();
+        String markdown = "---" + System.lineSeparator() + "description: \"" + trigger.replace("\"", "\\\"") + "\"" + System.lineSeparator() + "---" + System.lineSeparator() + System.lineSeparator() + body + System.lineSeparator();
+        Path skillFile = skillService.agentDir(agentId).resolve(name).resolve("SKILL.md");
+        try {
+            Files.createDirectories(skillFile.getParent());
+            Files.writeString(skillFile, markdown, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create skill fixture: " + name, e);
+        }
+    }
+
     private void createMemoryFixture(String agentId, List<String> memory) {
         if (!memoryService.enabled()) {
             log.warn("Memory service is disabled, skipping memory fixtures");
@@ -206,10 +240,6 @@ public class EvalWorkspaceManager {
         }
 
         String relativePath = fileFixture.getPath();
-        // 处理可能以 workspace/ 开头的路径
-        if (relativePath.startsWith("workspace/")) {
-            relativePath = relativePath.substring("workspace/".length());
-        }
 
         Path filePath = workspaceDir.resolve(relativePath).normalize();
 
@@ -239,11 +269,7 @@ public class EvalWorkspaceManager {
      */
     public boolean fileExists(String runId, String relativePath) {
         Path workspaceDir = getWorkspaceDir(runId);
-        String cleanPath = relativePath;
-        if (relativePath.startsWith("workspace/")) {
-            cleanPath = relativePath.substring("workspace/".length());
-        }
-        Path filePath = workspaceDir.resolve(cleanPath).normalize();
+        Path filePath = workspaceDir.resolve(relativePath).normalize();
         return Files.exists(filePath) && Files.isRegularFile(filePath);
     }
 
@@ -252,11 +278,7 @@ public class EvalWorkspaceManager {
      */
     public String readFile(String runId, String relativePath) {
         Path workspaceDir = getWorkspaceDir(runId);
-        String cleanPath = relativePath;
-        if (relativePath.startsWith("workspace/")) {
-            cleanPath = relativePath.substring("workspace/".length());
-        }
-        Path filePath = workspaceDir.resolve(cleanPath).normalize();
+        Path filePath = workspaceDir.resolve(relativePath).normalize();
 
         try {
             if (Files.exists(filePath) && Files.isRegularFile(filePath)) {

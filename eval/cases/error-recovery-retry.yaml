@@ -4,9 +4,9 @@ category: exception_input
 priority: P0
 fixtures:
   files:
-    - path: "workspace/retry-test.txt"
+    - path: "retry-test.txt"
       content: "secret content"
-input: "读取 workspace/retry-test.txt"
+input: "读取 retry-test.txt"
 expected:
   tools:
     required: ["read_file"]

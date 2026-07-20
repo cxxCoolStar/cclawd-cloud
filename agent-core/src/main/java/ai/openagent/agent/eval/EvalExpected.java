@@ -41,6 +41,9 @@ public class EvalExpected {
      */
     @Data
     public static class ToolExpected {
+        /** Tools exposed to the model without requiring a call. */
+        private List<String> available = Collections.emptyList();
+
         /**
          * 必须调用的工具列表
          */
@@ -123,6 +126,9 @@ public class EvalExpected {
          * 最大迭代次数
          */
         private Integer maxIterations;
+
+        /** Whether this case must observe the repeated-call protection path. */
+        private boolean loopProtectionRequired = false;
     }
 
     /**

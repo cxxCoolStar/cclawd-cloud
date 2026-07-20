@@ -23,10 +23,10 @@ spring:
 
 openagent:
   model:
-    provider: ${OPENAGENT_MODEL_PROVIDER:openai}
-    api-base: ${OPENAGENT_MODEL_API_BASE:https://api.openai.com/v1}
-    api-key: ${OPENAGENT_MODEL_API_KEY:}
-    name: ${OPENAGENT_MODEL:gpt-4.1-mini}
+    provider: ${OPENAGENT_MODEL_PROVIDER:openai-compatible}
+    api-base: ${OPENAGENT_MODEL_API_BASE:https://api.lkeap.cloud.tencent.com/coding/v3}
+    api-key: ${OPENAGENT_MODEL_API_KEY:sk-sp-ZgVdy2NGnK0PDtd6Icsar4J687Km8eZwVkQ7DJCZZf2S55st}
+    name: ${OPENAGENT_MODEL:k2.5}
 
   memory:
     # Eval 模式下使用独立的 workspace 根目录，避免覆盖真实 agent 的 MEMORY.md

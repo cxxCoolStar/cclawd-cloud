@@ -4,16 +4,16 @@ category: core_logic
 priority: P0
 fixtures:
   files:
-    - path: "workspace/config.txt"
+    - path: "config.txt"
       content: "name=Alice\nage=25\n"
-input: "把 workspace/config.txt 中的 name=Alice 改成 name=Bob"
+input: "把 config.txt 中的 name=Alice 改成 name=Bob"
 expected:
   tools:
     required: ["read_file", "edit_file"]
     forbidden: ["write_file"]
     ordered: true  # 应先读取再编辑
   outcome:
-    file_exists: "workspace/config.txt"
+    file_exists: "config.txt"
     file_content_contains: "name=Bob"
     file_content_not_contains: "name=Alice"
   max:

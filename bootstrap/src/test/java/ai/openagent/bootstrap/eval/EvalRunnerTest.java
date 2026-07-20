@@ -235,6 +235,7 @@ public class EvalRunnerTest {
 
         // Agent memory is shared outside the per-run workspace, so clear it before fixtures.
         workspaceManager.resetAgentMemory(DEFAULT_AGENT_ID);
+        workspaceManager.resetAgentSkills(DEFAULT_AGENT_ID);
 
         // 2. 创建夹具（传入 agentId 以支持 memory fixtures）
         if (evalCase.getFixtures() != null) {
@@ -369,12 +370,20 @@ public class EvalRunnerTest {
         }
         
         List<String> requiredTools = evalCase.getExpected().getTools().getRequired();
-        if (requiredTools == null || requiredTools.isEmpty()) {
+        List<String> availableTools = evalCase.getExpected().getTools().getAvailable();
+        Set<String> enabledTools = new java.util.LinkedHashSet<>();
+        if (requiredTools != null) {
+            enabledTools.addAll(requiredTools);
+        }
+        if (availableTools != null) {
+            enabledTools.addAll(availableTools);
+        }
+        if (enabledTools.isEmpty()) {
             assertVisibleTools(Set.of(), evalCase);
             return;
         }
-        
-        for (String toolName : requiredTools) {
+
+        for (String toolName : enabledTools) {
             try {
                 // Upsert 工具配置（启用状态）
                 agentToolRepository.upsert(DEFAULT_AGENT_ID, toolName, true, "{}");
@@ -383,7 +392,7 @@ public class EvalRunnerTest {
                 log.warn("Failed to enable tool {} for eval case {}: {}", toolName, evalCase.getId(), e.getMessage());
             }
         }
-        Set<String> expected = requiredTools == null ? Set.of() : Set.copyOf(requiredTools);
+        Set<String> expected = Set.copyOf(enabledTools);
         Set<String> actual = Set.copyOf(agentToolRepository.listEnabledToolNames(DEFAULT_AGENT_ID));
         if (!actual.equals(expected)) {
             throw new IllegalStateException("Eval tool setup mismatch for " + evalCase.getId()
@@ -440,7 +449,7 @@ public class EvalRunnerTest {
         StringBuilder reasoningBuilder = new StringBuilder();
         List<EvalContext.ToolCall> toolCalls = new ArrayList<>();
         CountDownLatch doneLatch = new CountDownLatch(1);
-        Map<String, PendingToolCall> pendingToolCalls = new ConcurrentHashMap<>();
+        Map<String, EvalContext.ToolCall> pendingToolCalls = new ConcurrentHashMap<>();
 
         AgentEventSink eventSink = event -> {
             if (event instanceof AgentEvent.ContentDelta) {
@@ -454,19 +463,18 @@ public class EvalRunnerTest {
                 }
             } else if (event instanceof AgentEvent.ToolCallRequested) {
                 AgentEvent.ToolCallRequested req = (AgentEvent.ToolCallRequested) event;
-                PendingToolCall pending = new PendingToolCall(req.name(), req.arguments(), toolCalls.size() + 1);
+                EvalContext.ToolCall pending = EvalContext.ToolCall.builder()
+                        .toolName(req.name())
+                        .arguments(req.arguments())
+                        .sequence(toolCalls.size() + 1)
+                        .build();
+                toolCalls.add(pending);
                 pendingToolCalls.put(req.id(), pending);
             } else if (event instanceof AgentEvent.ToolResultProduced) {
                 AgentEvent.ToolResultProduced result = (AgentEvent.ToolResultProduced) event;
-                PendingToolCall pending = pendingToolCalls.remove(result.id());
+                EvalContext.ToolCall pending = pendingToolCalls.remove(result.id());
                 if (pending != null) {
-                    EvalContext.ToolCall toolCall = EvalContext.ToolCall.builder()
-                            .toolName(pending.toolName)
-                            .arguments(pending.arguments)
-                            .result(result.result())
-                            .sequence(pending.sequence)
-                            .build();
-                    toolCalls.add(toolCall);
+                    pending.setResult(result.result());
                 }
             } else if (event instanceof AgentEvent.Done) {
                 doneLatch.countDown();
@@ -567,9 +575,4 @@ public class EvalRunnerTest {
     /**
      * 等待中的工具调用
      */
-    private record PendingToolCall(
-            String toolName,
-            String arguments,
-            Integer sequence) {
-    }
 }

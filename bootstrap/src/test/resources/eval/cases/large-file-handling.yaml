@@ -4,7 +4,7 @@ category: boundary
 priority: P1
 fixtures:
   files:
-    - path: "workspace/large.log"
+    - path: "large.log"
       content: |
         [2024-01-01 00:00:00] INFO: Application started
         [2024-01-01 00:00:01] INFO: Loading configuration
@@ -52,7 +52,7 @@ fixtures:
         [2024-01-01 00:00:43] INFO: DNS resolution cached
         [2024-01-01 00:00:44] INFO: Load balancer health check passed
         [2024-01-01 00:00:45] INFO: Application startup completed successfully
-input: "查看 workspace/large.log 的最后几行"
+input: "查看 large.log 的最后几行"
 expected:
   tools:
     required: ["read_file"]

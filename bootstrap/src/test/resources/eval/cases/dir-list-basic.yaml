@@ -10,7 +10,7 @@ fixtures:
       content: "# Utility functions\ndef helper():\n    pass\n"
     - path: "project/README.md"
       content: "# Project README\nThis is a sample project.\n"
-input: "workspace/project/ 目录下有哪些文件？"
+input: "project/ 目录下有哪些文件？"
 expected:
   tools:
     required: ["list_dir"]

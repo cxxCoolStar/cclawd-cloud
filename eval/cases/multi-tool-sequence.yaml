@@ -4,15 +4,15 @@ category: core_logic
 priority: P0
 fixtures:
   files:
-    - path: "workspace/data/users.csv"
+    - path: "data/users.csv"
       content: "name,age\nAlice,25\nBob,30\n"
-input: "读取 workspace/data/users.csv，计算平均年龄，把结果写入 workspace/output/avg.txt"
+input: "读取 data/users.csv，计算平均年龄，把结果写入 output/avg.txt"
 expected:
   tools:
     required: ["read_file", "write_file"]
     ordered: true
   outcome:
-    file_exists: "workspace/output/avg.txt"
+    file_exists: "output/avg.txt"
     file_content_contains: "27.5"  # (25+30)/2
   max:
     tool_calls: 3

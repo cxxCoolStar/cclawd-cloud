@@ -56,5 +56,7 @@ public class EvalFixture {
          * 技能触发词
          */
         private String trigger;
+        /** SKILL.md body for an eval-only skill fixture. */
+        private String content;
     }
 }

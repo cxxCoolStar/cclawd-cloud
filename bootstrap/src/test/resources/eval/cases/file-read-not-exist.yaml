@@ -2,7 +2,7 @@ id: file-read-not-exist
 name: 读取不存在的文件
 category: exception_input
 priority: P0
-input: "读取 workspace/not-exist-file.txt"
+input: "读取 not-exist-file.txt"
 expected:
   tools:
     required: ["read_file"]  # 应该尝试读取

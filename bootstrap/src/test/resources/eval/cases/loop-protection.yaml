@@ -4,13 +4,15 @@ category: exception_input
 priority: P0
 fixtures:
   files:
-    - path: "workspace/loop.txt"
+    - path: "loop.txt"
       content: "trigger"
-input: "反复读取 workspace/loop.txt 直到我说停"  # 可能诱导循环
+input: "请连续使用 read_file 读取 loop.txt 三次，每次参数完全相同，然后说明循环保护是否生效"  # 可能诱导循环
 expected:
   constraints:
-    max_iterations: 5  # 应触发循环保护
+    max_iterations: 5
+    loop_protection_required: true  # 应触发循环保护
   tools:
+    required: ["read_file"]
     tool_repetition_max: 3  # 相同工具调用不超过 3 次
   output:
     must_contain_any: ["循环", "最大", "限制", "重复"]  # 应提示循环保护（任一表达即可）

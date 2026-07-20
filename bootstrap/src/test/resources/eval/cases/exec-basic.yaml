@@ -2,7 +2,7 @@ id: exec-basic
 name: 执行简单命令
 category: core_logic
 priority: P1
-input: "在 workspace/ 下执行 'echo hello'"  
+input: "执行 'echo hello'"
 expected:
   tools:
     required: ["exec"]

@@ -2,13 +2,13 @@ id: file-write-basic
 name: 创建新文件并写入内容
 category: core_logic
 priority: P0
-input: "在 workspace/ 下创建一个 hello.txt 文件，内容为 'Hello World'"
+input: "创建一个 hello.txt 文件，内容为 'Hello World'"
 expected:
   tools:
     required: ["write_file"]
     forbidden: ["exec"]
   outcome:
-    file_exists: "workspace/hello.txt"
+    file_exists: "hello.txt"
     file_content_contains: "Hello World"
   output:
     must_contain: ["hello.txt"]

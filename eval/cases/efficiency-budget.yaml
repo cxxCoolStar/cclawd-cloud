@@ -2,7 +2,7 @@ id: efficiency-budget
 name: 效率预算控制
 category: efficiency
 priority: P1
-input: "用尽可能少的步骤，告诉我 workspace/ 下有多少个 .txt 文件"
+input: "用尽可能少的步骤，告诉我当前目录下有多少个 .txt 文件"
 expected:
   tools:
     required: ["list_dir"]  # 应优先用 list_dir

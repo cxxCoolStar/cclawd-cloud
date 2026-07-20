@@ -2,10 +2,10 @@ id: file-read-basic
 name: 读取文件并总结内容
 category: core_logic
 priority: P0
-input: "请读取 workspace/project/README.md 文件，并总结它的主要内容"
+input: "请读取 project/README.md 文件，并总结它的主要内容"
 fixtures:
   files:
-    - path: "workspace/project/README.md"
+    - path: "project/README.md"
       content: |
         # 示例项目
 
@@ -26,7 +26,7 @@ expected:
     required: ["read_file"]
     forbidden: ["write_file", "edit_file", "exec"]
   output:
-    must_contain: ["README", "项目", "介绍"]  # 允许语义相近的表达
+    must_contain: ["README", "项目", "总结"]  # 允许语义相近的表达
     forbidden: ["错误", "无法读取", "找不到"]
   max:
     tool_calls: 2

@@ -98,12 +98,12 @@ public class EvalCaseLoader {
     private static final Set<String> KNOWN_EXPECTED_KEYS = Set.of(
             "tools", "output", "outcome", "constraints", "max");
     private static final Set<String> KNOWN_TOOLS_KEYS = Set.of(
-            "required", "forbidden", "ordered", "tool_repetition_max");
+            "available", "required", "forbidden", "ordered", "tool_repetition_max");
     private static final Set<String> KNOWN_OUTPUT_KEYS = Set.of(
             "must_contain", "must_contain_any", "forbidden", "semantic_match");
     private static final Set<String> KNOWN_OUTCOME_KEYS = Set.of(
             "file_exists", "file_content_contains", "file_content_not_contains", "dir_exists");
-    private static final Set<String> KNOWN_CONSTRAINTS_KEYS = Set.of("max_iterations");
+    private static final Set<String> KNOWN_CONSTRAINTS_KEYS = Set.of("max_iterations", "loop_protection_required");
     private static final Set<String> KNOWN_MAX_KEYS = Set.of(
             "tool_calls", "latency_ms", "total_tokens");
     private static final Set<String> KNOWN_SCORING_KEYS = Set.of(
@@ -157,6 +157,7 @@ public class EvalCaseLoader {
         if (toolsMap != null) {
             rejectUnknownKeys(toolsMap, KNOWN_TOOLS_KEYS, "expected.tools");
             ToolExpected tools = new ToolExpected();
+            tools.setAvailable(getStringList(toolsMap, "available"));
             tools.setRequired(getStringList(toolsMap, "required"));
             tools.setForbidden(getStringList(toolsMap, "forbidden"));
             tools.setOrdered(getBoolean(toolsMap, "ordered", false));
@@ -194,6 +195,7 @@ public class EvalCaseLoader {
             rejectUnknownKeys(constraintsMap, KNOWN_CONSTRAINTS_KEYS, "expected.constraints");
             ConstraintExpected constraints = new ConstraintExpected();
             constraints.setMaxIterations(getInteger(constraintsMap, "max_iterations"));
+            constraints.setLoopProtectionRequired(getBoolean(constraintsMap, "loop_protection_required", false));
             expected.setConstraints(constraints);
         }
 
@@ -257,6 +259,7 @@ public class EvalCaseLoader {
                 EvalFixture.SkillFixture skill = new EvalFixture.SkillFixture();
                 skill.setName(getString(skillMap, "name"));
                 skill.setTrigger(getString(skillMap, "trigger"));
+                skill.setContent(getString(skillMap, "content"));
                 skills.add(skill);
             }
             fixtures.setSkills(skills);

@@ -118,11 +118,6 @@ public class OutcomeStateGrader implements Grader {
      * 解析路径（支持相对路径）
      */
     private Path resolvePath(String workspacePath, String relativePath) {
-        // 处理可能以 workspace/ 开头的路径
-        String cleanPath = relativePath;
-        if (relativePath.startsWith("workspace/")) {
-            cleanPath = relativePath.substring("workspace/".length());
-        }
-        return Paths.get(workspacePath, cleanPath).toAbsolutePath().normalize();
+        return Paths.get(workspacePath, relativePath).toAbsolutePath().normalize();
     }
 }
