@@ -28,6 +28,12 @@ openagent:
     api-key: ${OPENAGENT_MODEL_API_KEY:sk-sp-ZgVdy2NGnK0PDtd6Icsar4J687Km8eZwVkQ7DJCZZf2S55st}
     name: ${OPENAGENT_MODEL:k2.5}
 
+  sandbox:
+    docker-enabled: true
+
+  tools:
+    web-fetch-enabled: true
+
   memory:
     # Eval 模式下使用独立的 workspace 根目录，避免覆盖真实 agent 的 MEMORY.md
     eval-workspace-root: ${java.io.tmpdir}/openagent-eval-workspaces/memory
