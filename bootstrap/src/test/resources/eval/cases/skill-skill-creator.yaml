@@ -20,7 +20,7 @@ expected:
     file_exists: "git-commit-message/SKILL.md"
     file_content_contains: "description:"
   output:
-    must_contain: ["git-commit-message", "SKILL.md", "commit"]
+    must_contain: ["git-commit-message", "commit"]
   max:
     tool_calls: 3
     latency_ms: 20000

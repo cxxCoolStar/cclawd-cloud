@@ -15,7 +15,7 @@ expected:
     required: ["read_file"]
     tool_repetition_max: 3  # 相同工具调用不超过 3 次
   output:
-    must_contain_any: ["循环", "最大", "限制", "重复"]  # 应提示循环保护（任一表达即可）
+    must_contain_any: ["循环", "最大", "限制", "重复", "loop", "maximum", "limit", "repeated"]  # 应提示循环保护（任一表达即可）
   max:
     tool_calls: 5
 scoring:
