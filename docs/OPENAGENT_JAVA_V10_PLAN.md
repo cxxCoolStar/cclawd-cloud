@@ -3,7 +3,7 @@
 - 版本：V10（方案稿，编制于 2026-07-18）
 - 前置版本：V9（多用户体系）
 - 关联文档：OPENAGENT_JAVA_REFACTORING_PLAN.md、V1–V9 计划
-- 变更说明：应用户要求，首个 IM 渠道由 Telegram 改为**微信**（参照 fastclaw `internal/channels/wechat.go` 的 iLink 长轮询实现）
+- 变更说明：应用户要求，首个 IM 渠道由 Telegram 改为**微信**（参照 fastclaw `internal/channels/wechat.go` 的 iLink 长轮询实现，实现的过程中不要再注释中写参考 fastclaw.... 只需要在注释中说明该模块，方法的功能描述）
 
 ## 1. 目标与背景
 
