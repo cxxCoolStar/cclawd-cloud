@@ -19,6 +19,14 @@ spring:
     hikari:
       maximum-pool-size: ${OPENAGENT_DATABASE_POOL_SIZE:1}
       connection-timeout: 10000
+  data:
+    redis:
+      host: ${OPENAGENT_REDIS_HOST:127.0.0.1}
+      port: ${OPENAGENT_REDIS_PORT:6379}
+      username: ${OPENAGENT_REDIS_USERNAME:}
+      password: ${OPENAGENT_REDIS_PASSWORD:}
+      database: ${OPENAGENT_REDIS_DATABASE:0}
+      timeout: ${OPENAGENT_REDIS_TIMEOUT:3s}
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -28,6 +36,17 @@ spring:
 openagent:
   version: ${OPENAGENT_VERSION:0.1.0-SNAPSHOT}
   registration-open: ${OPENAGENT_REGISTRATION_OPEN:false}
+  channel:
+    bus: ${OPENAGENT_CHANNEL_BUS:local}
+    roles: ${OPENAGENT_CHANNEL_ROLES:api,channel-ingress,agent-worker,channel-egress}
+    redis:
+      key-prefix: ${OPENAGENT_CHANNEL_REDIS_PREFIX:openagent:channel}
+      block-timeout: ${OPENAGENT_CHANNEL_REDIS_BLOCK_TIMEOUT:2s}
+      pending-idle: ${OPENAGENT_CHANNEL_REDIS_PENDING_IDLE:30s}
+      reclaim-batch-size: ${OPENAGENT_CHANNEL_REDIS_RECLAIM_BATCH_SIZE:20}
+    lease:
+      ttl: ${OPENAGENT_CHANNEL_LEASE_TTL:30s}
+      renew-interval: ${OPENAGENT_CHANNEL_LEASE_RENEW_INTERVAL:10s}
   llm:
     fallback:
       base-url: ${OPENAGENT_LLM_FALLBACK_BASE_URL:}
