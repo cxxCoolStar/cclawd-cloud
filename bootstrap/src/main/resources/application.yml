@@ -74,10 +74,10 @@ openagent:
     max-result-chars: ${OPENAGENT_TOOL_MAX_RESULT_CHARS:65536}
     workspace-root: ${OPENAGENT_WORKSPACE_ROOT:./workspace}
     read-file-max-bytes: ${OPENAGENT_READ_FILE_MAX_BYTES:1048576}
-    web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:false}
+    web-fetch-enabled: ${OPENAGENT_WEB_FETCH_ENABLED:true}
     web-fetch-max-bytes: ${OPENAGENT_WEB_FETCH_MAX_BYTES:1048576}
     web-search:
-      order: ${OPENAGENT_WEB_SEARCH_ORDER:searxng,tavily}
+      order: ${OPENAGENT_WEB_SEARCH_ORDER:tavily,searxng}
       searxng-endpoint: ${OPENAGENT_WEB_SEARCH_SEARXNG_ENDPOINT:}
       tavily-api-key: ${OPENAGENT_WEB_SEARCH_TAVILY_API_KEY:}
       tavily-enabled: ${OPENAGENT_WEB_SEARCH_TAVILY_ENABLED:true}

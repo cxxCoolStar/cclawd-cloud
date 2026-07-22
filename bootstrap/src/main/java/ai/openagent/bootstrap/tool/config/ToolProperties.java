@@ -16,7 +16,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     max-result-chars: 65536
  *     workspace-root: ./workspace
  *     read-file-max-bytes: 1048576
- *     web-fetch-enabled: false
+ *     web-fetch-enabled: true
  *     web-fetch-max-bytes: 1048576
  * </pre>
  * </p>
@@ -26,7 +26,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param workspaceRoot    Agent workspace 根目录（会话目录布局
  *                         {workspaceRoot}/{agentId}/sessions/{sessionId}）
  * @param readFileMaxBytes read_file 单文件读取上限
- * @param webFetchEnabled  web_fetch 是否启用（默认关闭，启用后仍有 SSRF 校验）
+ * @param webFetchEnabled  web_fetch 是否启用（默认开启，启用后仍有 SSRF 校验）
  * @param webFetchMaxBytes web_fetch 响应大小上限
  */
 @ConfigurationProperties(prefix = "openagent.tools")
@@ -35,5 +35,5 @@ public record ToolProperties(
         @DefaultValue("65536") int maxResultChars,
         @DefaultValue("./workspace") String workspaceRoot,
         @DefaultValue("1048576") long readFileMaxBytes,
-        @DefaultValue("false") boolean webFetchEnabled,
+        @DefaultValue("true") boolean webFetchEnabled,
         @DefaultValue("1048576") long webFetchMaxBytes) {}
