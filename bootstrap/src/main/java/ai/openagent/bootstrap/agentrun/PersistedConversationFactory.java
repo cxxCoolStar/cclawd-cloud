@@ -82,7 +82,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
                     "OPENAGENT_MODEL_API_KEY is not configured", BaseErrorCode.SERVICE_UNAVAILABLE_ERROR);
         }
         List<ModelMessage> messages = new ArrayList<>();
-        messages.add(ModelMessage.system(buildSystemPrompt(agent)));
+        messages.add(ModelMessage.system(buildSystemPrompt(agent, command.conversationScope())));
         for (ChatMessageRecord record :
                 sessionRepository.listMessages(command.userId(), command.agentId(), command.sessionId())) {
             toModelMessage(record).ifPresent(messages::add);
@@ -101,15 +101,15 @@ public class PersistedConversationFactory implements AgentConversationFactory {
      *
      * <p>MEMORY.md 和 USER.md 随每轮请求注入；记忆功能关闭或文件为空时不拼接</p>
      */
-    private String buildSystemPrompt(AgentRecord agent) {
+    private String buildSystemPrompt(AgentRecord agent, ai.openagent.agent.AgentConversationScope scope) {
         String base = agent.systemPrompt();
         StringBuilder prompt = new StringBuilder(base);
         if (memoryService.enabled()) {
-            String memory = memoryService.loadMemory(agent.id()).trim();
+            String memory = memoryService.loadMemory(agent.id(), scope).trim();
             if (!memory.isEmpty()) {
                 prompt.append("\n\n# Long-term Memory\n").append(memory);
             }
-            String userProfile = memoryService.loadUserFile(agent.id()).trim();
+            String userProfile = memoryService.loadUserFile(agent.id(), scope).trim();
             if (!userProfile.isEmpty()) {
                 prompt.append("\n\n# User Profile\n").append(userProfile);
             }
@@ -253,7 +253,8 @@ public class PersistedConversationFactory implements AgentConversationFactory {
          */
         private void writeHistoryLogQuietly() {
             try {
-                Path logDir = agentHome.resolve("memory").resolve("logs");
+                Path logDir = memoryService.historyLogHome(
+                        command.agentId(), command.conversationScope());
                 Files.createDirectories(logDir);
                 Path logFile = logDir.resolve("history_"
                         + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))

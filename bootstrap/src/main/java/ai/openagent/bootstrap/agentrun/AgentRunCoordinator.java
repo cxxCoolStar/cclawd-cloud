@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.agentrun;
 
+import ai.openagent.agent.AgentConversationScope;
 import ai.openagent.agent.AgentKernel;
 import ai.openagent.agent.AgentRunCommand;
 import ai.openagent.agent.AgentRunResult;
@@ -117,6 +118,17 @@ public class AgentRunCoordinator {
      *         排队超时或执行异常逃逸时以异常完成
      */
     public CompletableFuture<Void> start(String agentId, String sessionId, String message) {
+        return startWithResult(RequestContext.requireUserId(), agentId, sessionId, message, null)
+                .completion()
+                .thenApply(ignored -> null);
+    }
+
+    public AgentRunHandle startWithResult(
+            String ownerUserId,
+            String agentId,
+            String sessionId,
+            String message,
+            AgentConversationScope conversationScope) {
         if (sessionId == null || sessionId.isBlank() || sessionId.length() > 128) {
             throw new ClientException("valid sessionId required");
         }
@@ -127,11 +139,13 @@ public class AgentRunCoordinator {
 
         // 提交时在请求线程快照当前用户：ThreadLocal 不跨线程边界，
         // 排队/执行线程只读 command 里携带的 userId
-        String userId = RequestContext.requireUserId();
+        String userId = ownerUserId;
         String runId = UUID.randomUUID().toString();
         // 先落库用户消息与 run 记录（CREATED = 排队中），模型调用前的失败
         // 直接以 HTTP 错误返回；提交即落库保证同会话顺序与可见性
-        sessionRepository.ensureSession(userId, agentId, sessionId, message);
+        sessionRepository.ensureSession(
+                userId, agentId, sessionId, message,
+                conversationScope == null ? "web" : conversationScope.channel());
         sessionRepository.appendMessage(userId, agentId, sessionId, "user", message, "", "");
         long now = System.currentTimeMillis();
         runRepository.insert(new AgentRunRecord(
@@ -147,7 +161,9 @@ public class AgentRunCoordinator {
                 new AgentRuntimeConfig(
                         agentProperties.maxToolIterations(),
                         agentProperties.runTimeout(),
-                        toolProperties.executionTimeout()));
+                        toolProperties.executionTimeout()),
+                conversationScope,
+                null);
         WireAgentEventSink sink = new WireAgentEventSink(eventPublisher, userId, agentId, sessionId);
         QueuedRun queued = new QueuedRun(command, sink);
         SessionQueue queue = sessionQueues.computeIfAbsent(key, ignored -> new SessionQueue());
@@ -166,7 +182,7 @@ public class AgentRunCoordinator {
         if (dispatch) {
             dispatchNext(key, queue);
         }
-        return queued.completion;
+        return new AgentRunHandle(runId, queued.completion);
     }
 
     /**
@@ -187,8 +203,8 @@ public class AgentRunCoordinator {
         activeRuns.add(key);
         runRepository.updateProgress(next.command.runId(), AgentRunStatus.RUNNING, 0);
         try {
-            CompletableFuture.runAsync(() -> execute(next.command, next.sink), executor)
-                    .whenComplete((ignored, error) -> {
+            CompletableFuture.supplyAsync(() -> execute(next.command, next.sink), executor)
+                    .whenComplete((result, error) -> {
                         activeRuns.remove(key);
                         if (error != null) {
                             // Kernel 已保证 error/done 必达；此处兜底事件持久化
@@ -208,7 +224,8 @@ public class AgentRunCoordinator {
                                 executor.execute(() -> autoPersistMemoryService.maybePersist(
                                         next.command.userId(),
                                         next.command.agentId(),
-                                        next.command.sessionId()));
+                                        next.command.sessionId(),
+                                        next.command.conversationScope()));
                                 // workspace 版本历史：turn 边界快照（覆盖文件工具
                                 // + exec + 上传的全部写入）
                                 executor.execute(() -> workspaceHistoryService.commitAfterRun(
@@ -216,7 +233,7 @@ public class AgentRunCoordinator {
                             } catch (RuntimeException fireError) {
                                 log.warn("[agentrun] 自动记忆提取任务入队失败", fireError);
                             }
-                            next.completion.complete(null);
+                            next.completion.complete(result);
                         }
                         dispatchNext(key, queue);
                     });
@@ -253,7 +270,7 @@ public class AgentRunCoordinator {
                 new ServiceException("chat queue wait timeout", BaseErrorCode.SERVICE_TIMEOUT_ERROR));
     }
 
-    private void execute(AgentRunCommand command, WireAgentEventSink sink) {
+    private AgentRunResult execute(AgentRunCommand command, WireAgentEventSink sink) {
         long startedAt = System.currentTimeMillis();
         log.info("[agentrun] 运行开始，runId={}, agentId={}, sessionId={}",
                 command.runId(), command.agentId(), command.sessionId());
@@ -267,6 +284,7 @@ public class AgentRunCoordinator {
         log.info("[agentrun] 运行结束，runId={}, status={}, iterations={}, 耗时 {}ms",
                 command.runId(), result.status(), result.toolIterations(),
                 System.currentTimeMillis() - startedAt);
+        return result;
     }
 
     private void markFailedQuietly(String runId, String errorCode, String errorMessage) {
@@ -293,7 +311,7 @@ public class AgentRunCoordinator {
 
         private final AgentRunCommand command;
         private final WireAgentEventSink sink;
-        private final CompletableFuture<Void> completion = new CompletableFuture<>();
+        private final CompletableFuture<AgentRunResult> completion = new CompletableFuture<>();
         private volatile ScheduledFuture<?> timeoutTask;
 
         private QueuedRun(AgentRunCommand command, WireAgentEventSink sink) {

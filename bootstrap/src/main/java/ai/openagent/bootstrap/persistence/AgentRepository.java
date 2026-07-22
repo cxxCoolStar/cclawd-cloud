@@ -83,6 +83,9 @@ public class AgentRepository {
      * workspace 目录保留不删，仅清理数据库记录；configs 表键由调用方清理
      */
     public void deleteCascade(String id) {
+        jdbc.update("DELETE FROM channel_inbound_messages WHERE binding_id IN (SELECT id FROM channel_bindings WHERE agent_id = ?)", id);
+        jdbc.update("DELETE FROM channel_conversations WHERE binding_id IN (SELECT id FROM channel_bindings WHERE agent_id = ?)", id);
+        jdbc.update("DELETE FROM channel_bindings WHERE agent_id = ?", id);
         jdbc.update("DELETE FROM session_events WHERE agent_id = ?", id);
         jdbc.update("DELETE FROM session_messages WHERE agent_id = ?", id);
         jdbc.update("DELETE FROM sessions WHERE agent_id = ?", id);

@@ -1,5 +1,7 @@
 package ai.openagent.bootstrap.memory;
 
+import ai.openagent.agent.AgentConversationScope;
+
 import ai.openagent.bootstrap.memory.config.MemoryProperties;
 import ai.openagent.bootstrap.tool.config.ToolProperties;
 import ai.openagent.framework.errorcode.BaseErrorCode;
@@ -57,41 +59,67 @@ public class MemoryService {
      * 读取长期记忆（文件不存在返回空串）
      */
     public String loadMemory(String agentId) {
-        return readQuietly(agentHome(agentId).resolve(MEMORY_FILE));
+        return loadMemory(agentId, null);
+    }
+
+    public String loadMemory(String agentId, AgentConversationScope scope) {
+        return readQuietly(memoryHome(agentId, scope).resolve(MEMORY_FILE));
     }
 
     /**
      * 覆写长期记忆（写入前扫描，命中告警不阻断）
      */
     public void saveMemory(String userId, String agentId, String content) {
+        saveMemory(userId, agentId, null, content);
+    }
+
+    public void saveMemory(
+            String userId, String agentId, AgentConversationScope scope, String content) {
         scanBeforeWrite(agentId, MEMORY_FILE, content);
-        write(agentHome(agentId).resolve(MEMORY_FILE), content);
+        write(memoryHome(agentId, scope).resolve(MEMORY_FILE), content);
     }
 
     /**
      * 读取用户画像（per-chatter 文件）
      */
     public String loadUserFile(String agentId) {
-        return readQuietly(agentHome(agentId).resolve(USER_FILE));
+        return loadUserFile(agentId, null);
+    }
+
+    public String loadUserFile(String agentId, AgentConversationScope scope) {
+        return readQuietly(memoryHome(agentId, scope).resolve(USER_FILE));
     }
 
     /**
      * 覆写用户画像（写入前扫描）
      */
     public void saveUserFile(String userId, String agentId, String content) {
+        saveUserFile(userId, agentId, null, content);
+    }
+
+    public void saveUserFile(
+            String userId, String agentId, AgentConversationScope scope, String content) {
         scanBeforeWrite(agentId, USER_FILE, content);
-        write(agentHome(agentId).resolve(USER_FILE), content);
+        write(memoryHome(agentId, scope).resolve(USER_FILE), content);
     }
 
     public String loadHistory(String agentId) {
-        return readQuietly(agentHome(agentId).resolve(HISTORY_FILE));
+        return loadHistory(agentId, null);
+    }
+
+    public String loadHistory(String agentId, AgentConversationScope scope) {
+        return readQuietly(memoryHome(agentId, scope).resolve(HISTORY_FILE));
     }
 
     /**
      * 追加一条历史日志，格式：- [yyyy-MM-dd HH:mm:ss] entry
      */
     public void appendHistory(String agentId, String entry) {
-        Path path = agentHome(agentId).resolve(HISTORY_FILE);
+        appendHistory(agentId, null, entry);
+    }
+
+    public void appendHistory(String agentId, AgentConversationScope scope, String entry) {
+        Path path = memoryHome(agentId, scope).resolve(HISTORY_FILE);
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path,
@@ -110,10 +138,15 @@ public class MemoryService {
      * 匹配行，返回 "文件名: 行内容" 列表（memory_search 工具的实现内核）
      */
     public List<String> search(String agentId, String query, int maxHits) {
+        return search(agentId, null, query, maxHits);
+    }
+
+    public List<String> search(
+            String agentId, AgentConversationScope scope, String query, int maxHits) {
         String needle = query.toLowerCase(java.util.Locale.ROOT);
         List<String> hits = new java.util.ArrayList<>();
         for (String file : List.of(MEMORY_FILE, USER_FILE, HISTORY_FILE)) {
-            String content = readQuietly(agentHome(agentId).resolve(file));
+            String content = readQuietly(memoryHome(agentId, scope).resolve(file));
             for (String line : content.split("\n")) {
                 String trimmed = line.trim();
                 if (!trimmed.isEmpty() && trimmed.toLowerCase(java.util.Locale.ROOT).contains(needle)) {
@@ -137,6 +170,21 @@ public class MemoryService {
         String root = memoryProperties.getEvalWorkspaceRoot()
                 .orElse(toolProperties.workspaceRoot());
         return Path.of(root).resolve(agentId);
+    }
+
+    public Path memoryHome(String agentId, AgentConversationScope scope) {
+        Path agentHome = agentHome(agentId);
+        if (scope == null || scope.sharedIdentity()) {
+            return agentHome;
+        }
+        return agentHome.resolve("chats").resolve(scope.channel()).resolve(scope.memoryScopeId());
+    }
+
+    public Path historyLogHome(String agentId, AgentConversationScope scope) {
+        if (scope == null || scope.sharedIdentity()) {
+            return agentHome(agentId).resolve("memory").resolve("logs");
+        }
+        return memoryHome(agentId, scope).resolve("logs");
     }
 
     private void scanBeforeWrite(String agentId, String file, String content) {

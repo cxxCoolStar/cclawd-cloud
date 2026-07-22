@@ -1,5 +1,7 @@
 package ai.openagent.agent.tool;
 
+import ai.openagent.agent.AgentConversationScope;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
@@ -21,6 +23,7 @@ public record ToolExecutionContext(
         String agentId,
         String sessionId,
         Path workspace,
+        AgentConversationScope conversationScope,
         Instant deadline) {
 
     public ToolExecutionContext {
@@ -30,5 +33,15 @@ public record ToolExecutionContext(
         sessionId = Objects.requireNonNull(sessionId, "sessionId");
         workspace = Objects.requireNonNull(workspace, "workspace");
         deadline = Objects.requireNonNull(deadline, "deadline");
+    }
+
+    public ToolExecutionContext(
+            String runId,
+            String userId,
+            String agentId,
+            String sessionId,
+            Path workspace,
+            Instant deadline) {
+        this(runId, userId, agentId, sessionId, workspace, null, deadline);
     }
 }

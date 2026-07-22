@@ -60,7 +60,7 @@ class PlatformEndpointsTest {
                 .andExpect(jsonPath("$.uptime", matchesPattern("[0-9]+s")))
                 .andExpect(jsonPath("$.agents[0].id").value("default"))
                 .andExpect(jsonPath("$.channels", empty()))
-                .andExpect(jsonPath("$.capabilities.channels").value(false))
+                .andExpect(jsonPath("$.capabilities.channels").value(true))
                 .andExpect(jsonPath("$.capabilities.dockerSandbox").value(true))
                 .andExpect(jsonPath("$.capabilities.mcp").value(true))
                 .andExpect(jsonPath("$.modelReady").value(false));

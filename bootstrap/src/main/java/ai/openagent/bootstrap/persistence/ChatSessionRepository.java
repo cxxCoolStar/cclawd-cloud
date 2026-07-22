@@ -29,6 +29,12 @@ public class ChatSessionRepository {
      */
     @Transactional
     public void ensureSession(String userId, String agentId, String sessionId, String firstMessage) {
+        ensureSession(userId, agentId, sessionId, firstMessage, "web");
+    }
+
+    @Transactional
+    public void ensureSession(
+            String userId, String agentId, String sessionId, String firstMessage, String channel) {
         long now = System.currentTimeMillis();
         String preview = preview(firstMessage, 240);
         int updated = jdbc.update(
@@ -46,7 +52,7 @@ public class ChatSessionRepository {
                     agentId,
                     preview(firstMessage, 60),
                     preview,
-                    "web",
+                    channel,
                     now,
                     now);
         }
@@ -227,6 +233,16 @@ public class ChatSessionRepository {
                 Long.class,
                 userId,
                 agentId);
+        return value == null ? 0 : value;
+    }
+
+    public long countUserMessages(String userId, String agentId, String sessionId) {
+        Long value = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM session_messages WHERE user_id = ? AND agent_id = ? AND session_id = ? AND role = 'user'",
+                Long.class,
+                userId,
+                agentId,
+                sessionId);
         return value == null ? 0 : value;
     }
 

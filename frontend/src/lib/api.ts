@@ -1956,7 +1956,11 @@ export async function updateAgentChannel(
 ): Promise<{ ok: boolean; error?: string }> {
   const res = await apiFetch(
     `/api/agents/${agentId}/channels/${encodeURIComponent(type)}/${encodeURIComponent(accountId)}`,
-    { method: "PATCH", body: JSON.stringify(patch) },
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
   );
   return res.json();
 }

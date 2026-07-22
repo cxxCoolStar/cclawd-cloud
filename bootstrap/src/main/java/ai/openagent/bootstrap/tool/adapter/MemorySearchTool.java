@@ -70,7 +70,7 @@ public class MemorySearchTool extends AbstractFileTool {
         }
         maxHits = Math.min(maxHits, MAX_HITS_CAP);
 
-        List<String> hits = memoryService.search(context.agentId(), query, maxHits);
+        List<String> hits = memoryService.search(context.agentId(), context.conversationScope(), query, maxHits);
         if (hits.isEmpty()) {
             return ToolResult.success("No memory entries matching \"" + query + "\".");
         }

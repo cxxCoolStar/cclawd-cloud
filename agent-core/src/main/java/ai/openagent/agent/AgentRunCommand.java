@@ -19,6 +19,7 @@ public record AgentRunCommand(
         String sessionId,
         String userMessage,
         AgentRuntimeConfig config,
+        AgentConversationScope conversationScope,
         Path workspacePathOverride) {
 
     public AgentRunCommand {
@@ -40,7 +41,18 @@ public record AgentRunCommand(
             String sessionId,
             String userMessage,
             AgentRuntimeConfig config) {
-        this(runId, userId, agentId, sessionId, userMessage, config, null);
+        this(runId, userId, agentId, sessionId, userMessage, config, null, null);
+    }
+
+    public AgentRunCommand(
+            String runId,
+            String userId,
+            String agentId,
+            String sessionId,
+            String userMessage,
+            AgentRuntimeConfig config,
+            Path workspacePathOverride) {
+        this(runId, userId, agentId, sessionId, userMessage, config, null, workspacePathOverride);
     }
 
     /**
@@ -48,5 +60,9 @@ public record AgentRunCommand(
      */
     public Optional<Path> getWorkspacePathOverride() {
         return Optional.ofNullable(workspacePathOverride);
+    }
+
+    public Optional<AgentConversationScope> getConversationScope() {
+        return Optional.ofNullable(conversationScope);
     }
 }

@@ -1,5 +1,7 @@
 package ai.openagent.bootstrap.memory;
 
+import ai.openagent.agent.AgentConversationScope;
+
 import ai.openagent.bootstrap.memory.config.MemoryProperties;
 import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.persistence.AgentRepository;
@@ -75,6 +77,11 @@ public class AutoPersistMemoryService {
      * 完成一次运行后调用；内部判定是否触发 LLM 提取
      */
     public void maybePersist(String userId, String agentId, String sessionId) {
+        maybePersist(userId, agentId, sessionId, null);
+    }
+
+    public void maybePersist(
+            String userId, String agentId, String sessionId, AgentConversationScope scope) {
         if (!memoryProperties.enabled() || !memoryProperties.autoPersistEnabled()) {
             return;
         }
@@ -82,7 +89,9 @@ public class AutoPersistMemoryService {
         if (interval <= 0) {
             return;
         }
-        long count = chatSessionRepository.countUserMessages(userId, agentId);
+        long count = scope == null
+                ? chatSessionRepository.countUserMessages(userId, agentId)
+                : chatSessionRepository.countUserMessages(userId, agentId, sessionId);
         boolean willFire = count > 0 && count % interval == 0;
         log.info("[memory] auto-persist gate, agentId={}, userId={}, count={}, interval={}, willFire={}",
                 agentId, userId, count, interval, willFire);
@@ -106,17 +115,17 @@ public class AutoPersistMemoryService {
             List<String> facts = new ArrayList<>();
             List<String> notes = new ArrayList<>();
             if (!recent.isEmpty()) {
-                Map<String, List<String>> extracted = extractFacts(provider, agentId, agent.model(), recent);
+                Map<String, List<String>> extracted = extractFacts(provider, agentId, agent.model(), recent, scope);
                 facts.addAll(extracted.getOrDefault("memory_facts", List.of()));
                 notes.addAll(extracted.getOrDefault("user_notes", List.of()));
             }
             appendFacts(agentId, MemoryService.MEMORY_FILE, facts,
-                    () -> memoryService.loadMemory(agentId),
-                    (u, c) -> memoryService.saveMemory(u, agentId, c),
+                    () -> memoryService.loadMemory(agentId, scope),
+                    (u, c) -> memoryService.saveMemory(u, agentId, scope, c),
                     userId);
             appendFacts(agentId, MemoryService.USER_FILE, notes,
-                    () -> memoryService.loadUserFile(agentId),
-                    (u, c) -> memoryService.saveUserFile(u, agentId, c),
+                    () -> memoryService.loadUserFile(agentId, scope),
+                    (u, c) -> memoryService.saveUserFile(u, agentId, scope, c),
                     userId);
             log.info("[memory] auto-persist 完成，agentId={}, facts={}, notes={}", agentId, facts.size(), notes.size());
         } catch (RuntimeException error) {
@@ -125,7 +134,11 @@ public class AutoPersistMemoryService {
     }
 
     private Map<String, List<String>> extractFacts(
-            ProviderRecord provider, String agentId, String model, List<ChatMessageRecord> recent) {
+            ProviderRecord provider,
+            String agentId,
+            String model,
+            List<ChatMessageRecord> recent,
+            AgentConversationScope scope) {
         StringBuilder conversation = new StringBuilder();
         for (ChatMessageRecord record : recent) {
             if ("system".equals(record.role())) {
@@ -137,8 +150,8 @@ public class AutoPersistMemoryService {
             }
             conversation.append("[").append(record.role()).append("]: ").append(content).append("\n");
         }
-        String currentMemory = truncate(memoryService.loadMemory(agentId), MEMORY_CONTEXT_CHARS);
-        String currentUser = truncate(memoryService.loadUserFile(agentId), MEMORY_CONTEXT_CHARS);
+        String currentMemory = truncate(memoryService.loadMemory(agentId, scope), MEMORY_CONTEXT_CHARS);
+        String currentUser = truncate(memoryService.loadUserFile(agentId, scope), MEMORY_CONTEXT_CHARS);
         String prompt = """
                 Analyze this conversation and extract:
                 1. Key facts, decisions, or learnings worth remembering (for MEMORY.md)

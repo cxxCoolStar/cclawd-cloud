@@ -291,6 +291,7 @@ public class ReActAgentKernel implements AgentKernel {
                     command.agentId(),
                     command.sessionId(),
                     conversation.workspace(),
+                    command.conversationScope(),
                     earlier(runDeadline, Instant.now().plus(command.config().toolTimeout())));
             ToolResult result = toolInvoker.invoke(call, context);
             if (result == null) {
