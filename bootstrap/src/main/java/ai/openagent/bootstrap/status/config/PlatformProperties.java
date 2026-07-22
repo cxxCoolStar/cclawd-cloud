@@ -25,7 +25,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties(prefix = "openagent")
 public record PlatformProperties(
         @DefaultValue("0.1.0-SNAPSHOT") String version,
-        @DefaultValue("false") boolean registrationOpen,
+        @DefaultValue("true") boolean registrationOpen,
         @DefaultValue Sandbox sandbox) {
 
     /**
