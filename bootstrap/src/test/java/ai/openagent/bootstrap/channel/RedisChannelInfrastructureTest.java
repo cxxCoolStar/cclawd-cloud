@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ai.openagent.bootstrap.channel.config.ChannelProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
@@ -61,8 +62,10 @@ class RedisChannelInfrastructureTest {
     @Test
     void leaseRenewAndReleaseRequireTheOwnerToken() {
         ChannelProperties properties = properties("lease-" + System.nanoTime());
-        RedisChannelLeaseService first = new RedisChannelLeaseService(redis, properties);
-        RedisChannelLeaseService second = new RedisChannelLeaseService(redis, properties);
+        SimpleMeterRegistry firstMeters = new SimpleMeterRegistry();
+        SimpleMeterRegistry secondMeters = new SimpleMeterRegistry();
+        RedisChannelLeaseService first = new RedisChannelLeaseService(redis, properties, firstMeters);
+        RedisChannelLeaseService second = new RedisChannelLeaseService(redis, properties, secondMeters);
 
         assertTrue(first.acquire("binding-1"));
         assertFalse(second.acquire("binding-1"));
@@ -71,6 +74,8 @@ class RedisChannelInfrastructureTest {
         assertFalse(second.acquire("binding-1"));
         first.release("binding-1");
         assertTrue(second.acquire("binding-1"));
+        assertEquals(1D, secondMeters.get("openagent.channel.leases.held").gauges().stream()
+                .mapToDouble(gauge -> gauge.value()).sum());
     }
 
     private static ChannelProperties properties(String prefix) {

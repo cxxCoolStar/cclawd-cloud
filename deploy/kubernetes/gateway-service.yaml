@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: openagent-channel-gateway
+spec:
+  selector:
+    app.kubernetes.io/name: openagent
+    app.kubernetes.io/component: channel-gateway
+  ports:
+    - name: http
+      port: 18953
+      targetPort: http

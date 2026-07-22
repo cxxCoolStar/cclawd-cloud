@@ -2,7 +2,6 @@ package ai.openagent.bootstrap.channel.wechat;
 
 import ai.openagent.bootstrap.channel.ChannelInboundMessage;
 import ai.openagent.bootstrap.channel.ImChannelAdapter;
-import jakarta.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -56,13 +55,20 @@ public class WechatChannelAdapter implements ImChannelAdapter {
         this.inboundHandler = Objects.requireNonNull(inboundHandler, "inboundHandler");
         if (running.compareAndSet(false, true)) {
             status = "connecting";
+            log.info(
+                    "[channel-trace] WeChat polling started, accountId={}, cursorPresent={}",
+                    credentials.accountId(), !cursor.isBlank());
             poller.execute(this::pollLoop);
         }
     }
 
     @Override
     public void send(String chatId, String text, String contextToken) {
+        log.info(
+                "[channel-trace] WeChat send started, accountId={}, textLength={}",
+                credentials.accountId(), length(text));
         client.sendText(chatId, text, contextToken);
+        log.info("[channel-trace] WeChat send completed, accountId={}", credentials.accountId());
     }
 
     @Override
@@ -75,6 +81,7 @@ public class WechatChannelAdapter implements ImChannelAdapter {
         running.set(false);
         status = "stopped";
         poller.shutdownNow();
+        log.info("[channel-trace] WeChat polling stopped, accountId={}", credentials.accountId());
     }
 
     private void pollLoop() {
@@ -105,13 +112,22 @@ public class WechatChannelAdapter implements ImChannelAdapter {
                 if (response.ret() != 0 && response.errorCode() != 0) {
                     failures++;
                     status = "degraded";
-                    log.warn("[channel] WeChat poll rejected, accountId={}, ret={}, errCode={}, message={}",
+                    log.warn(
+                            "[channel] WeChat poll rejected, accountId={}, ret={}, errCode={}, message={}",
                             credentials.accountId(), response.ret(), response.errorCode(), response.errorMessage());
                     sleep(backoff(failures));
                     continue;
                 }
                 status = "connected";
+                if (!response.messages().isEmpty()) {
+                    log.info(
+                            "[channel-trace] WeChat poll received messages, accountId={}, count={}",
+                            credentials.accountId(), response.messages().size());
+                }
                 for (ChannelInboundMessage message : response.messages()) {
+                    log.info(
+                            "[channel-trace] WeChat inbound received, accountId={}, externalMessageId={}, textLength={}",
+                            credentials.accountId(), message.messageId(), length(message.text()));
                     inboundHandler.accept(message);
                 }
                 if (!response.cursor().isBlank() && !response.cursor().equals(cursor)) {
@@ -124,7 +140,8 @@ public class WechatChannelAdapter implements ImChannelAdapter {
                 failures++;
                 status = "degraded";
                 Duration delay = backoff(failures);
-                log.warn("[channel] WeChat poll failed, accountId={}, retryIn={}",
+                log.warn(
+                        "[channel] WeChat poll failed, accountId={}, retryIn={}",
                         credentials.accountId(), delay, error);
                 sleep(delay);
             }
@@ -143,6 +160,10 @@ public class WechatChannelAdapter implements ImChannelAdapter {
             Thread.currentThread().interrupt();
             running.set(false);
         }
+    }
+
+    private static int length(String value) {
+        return value == null ? 0 : value.length();
     }
 
     static Duration backoff(int failures) {

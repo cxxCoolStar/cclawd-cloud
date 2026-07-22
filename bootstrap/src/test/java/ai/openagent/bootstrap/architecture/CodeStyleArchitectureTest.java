@@ -3,6 +3,7 @@ package ai.openagent.bootstrap.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -88,4 +89,42 @@ class CodeStyleArchitectureTest {
             .areTopLevelClasses()
             .should()
             .haveSimpleNameEndingWith("ServiceImpl");
+    /**
+     * dao.entity 包下的数据库实体沿用 ragent 的 DO 命名风格。
+     */
+    @ArchTest
+    static final ArchRule dao_entities_are_named_do = classes()
+            .that()
+            .resideInAPackage("..dao.entity..")
+            .and()
+            .areTopLevelClasses()
+            .should()
+            .haveSimpleNameEndingWith("DO")
+            .allowEmptyShould(true);
+
+    /**
+     * dao.mapper 包下的持久层接口沿用 ragent 的 Mapper 命名风格。
+     */
+    @ArchTest
+    static final ArchRule dao_mappers_are_named_mapper = classes()
+            .that()
+            .resideInAPackage("..dao.mapper..")
+            .and()
+            .areTopLevelClasses()
+            .should()
+            .haveSimpleNameEndingWith("Mapper")
+            .allowEmptyShould(true);
+
+    /**
+     * 新业务 Mapper 统一基于 MyBatis-Plus BaseMapper，避免继续新增手写 JDBC Repository 风格。
+     */
+    @ArchTest
+    static final ArchRule dao_mappers_extend_base_mapper = classes()
+            .that()
+            .resideInAPackage("..dao.mapper..")
+            .and()
+            .areTopLevelClasses()
+            .should()
+            .beAssignableTo(BaseMapper.class)
+            .allowEmptyShould(true);
 }

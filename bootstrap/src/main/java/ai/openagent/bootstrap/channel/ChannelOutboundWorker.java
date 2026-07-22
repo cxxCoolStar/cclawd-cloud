@@ -45,6 +45,7 @@ public class ChannelOutboundWorker {
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
         if (running.compareAndSet(false, true)) {
+            log.info("[channel-trace] Outbound worker started, consumerId={}", consumerId);
             consumer.execute(this::consume);
         }
     }
@@ -53,6 +54,7 @@ public class ChannelOutboundWorker {
     public void close() {
         running.set(false);
         consumer.shutdownNow();
+        log.info("[channel-trace] Outbound worker stopped, consumerId={}", consumerId);
     }
 
     private void consume() {
@@ -70,32 +72,52 @@ public class ChannelOutboundWorker {
 
     private void deliver(ChannelDelivery<ChannelOutboundTask> delivery) {
         ChannelOutboundTask task = delivery.task();
+        log.info(
+                "[channel-trace] Outbound notification received, outboxId={}, consumerId={}",
+                task.outboxId(), consumerId);
         long now = System.currentTimeMillis();
         Optional<ChannelOutboxRecord> claimed = messageRepository.claimOutbound(
                 task.outboxId(), consumerId, now + CLAIM_TTL.toMillis(), now);
         if (claimed.isEmpty()) {
             dispatchRepository.deferOutbound(task.outboxId());
             delivery.acknowledge();
+            log.info(
+                    "[channel-trace] Outbound claim deferred, outboxId={}, consumerId={}",
+                    task.outboxId(), consumerId);
             return;
         }
 
         ChannelOutboxRecord outbox = claimed.get();
         delivery.acknowledge();
+        log.info(
+                "[channel-trace] Outbound claimed, outboxId={}, inboxId={}, runId={}, attempt={}, consumerId={}",
+                outbox.id(), outbox.inboxId(), outbox.runId(), outbox.attempts(), consumerId);
         try {
             ChannelBindingRecord binding = bindingRepository.findById(outbox.bindingId())
                     .orElseThrow(() -> new IllegalStateException("Channel binding not found"));
             ChannelSender sender = senderRegistry.findSender(binding.channelType(), binding.accountId())
                     .orElseThrow(() -> new IllegalStateException(
                             "No channel sender registered for " + binding.channelType() + ":" + binding.accountId()));
+            log.info(
+                    "[channel-trace] Reply delivery started, outboxId={}, runId={}, channel={}, accountId={}, textLength={}",
+                    outbox.id(), outbox.runId(), binding.channelType(), binding.accountId(), length(outbox.text()));
             sender.send(outbox.chatId(), outbox.text(), outbox.contextToken());
             messageRepository.markOutboundSent(outbox.id(), "");
+            log.info(
+                    "[channel-trace] Reply delivery completed, outboxId={}, runId={}, channel={}, accountId={}",
+                    outbox.id(), outbox.runId(), binding.channelType(), binding.accountId());
         } catch (RuntimeException error) {
             boolean dead = outbox.attempts() >= MAX_ATTEMPTS;
             long availableAt = System.currentTimeMillis() + 1000L * outbox.attempts();
             messageRepository.retryOutbound(outbox.id(), rootMessage(error), availableAt, dead);
-            log.warn("[channel] Reply send failed, runId={}, attempt={}, dead={}",
-                    outbox.runId(), outbox.attempts(), dead, error);
+            log.warn(
+                    "[channel] Reply send failed, outboxId={}, runId={}, attempt={}, dead={}",
+                    outbox.id(), outbox.runId(), outbox.attempts(), dead, error);
         }
+    }
+
+    private static int length(String value) {
+        return value == null ? 0 : value.length();
     }
 
     private static String rootMessage(Throwable error) {
