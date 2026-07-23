@@ -2,8 +2,10 @@ package ai.openagent.bootstrap.workspace.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.workspace.WorkspaceHistoryService;
-import java.util.List;
-import java.util.Map;
+import ai.openagent.bootstrap.workspace.controller.request.WorkspaceHistoryRestoreRequest;
+import ai.openagent.bootstrap.workspace.controller.vo.WorkspaceHistoryVO;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,22 +32,22 @@ public class WorkspaceHistoryController {
      * 列出会话历史提交（新到旧）
      */
     @GetMapping("/api/agents/{agentId}/sessions/{sessionId}/history")
-    public Map<String, List<WorkspaceHistoryService.HistoryEntry>> listHistory(
+    public Result<WorkspaceHistoryVO> listHistory(
             @PathVariable String agentId, @PathVariable String sessionId) {
         agentService.requireAccess(agentId);
-        return Map.of("history", historyService.listHistory(agentId, sessionId));
+        return Results.success(new WorkspaceHistoryVO(historyService.listHistory(agentId, sessionId)));
     }
 
     /**
      * 回滚会话 workspace 到指定提交
      */
     @PostMapping("/api/agents/{agentId}/sessions/{sessionId}/history/restore")
-    public Map<String, Boolean> restore(
+    public Result<Void> restore(
             @PathVariable String agentId,
             @PathVariable String sessionId,
-            @RequestBody Map<String, String> body) {
+            @RequestBody WorkspaceHistoryRestoreRequest request) {
         agentService.requireAccess(agentId);
-        historyService.restore(agentId, sessionId, body.get("commit"));
-        return Map.of("ok", true);
+        historyService.restore(agentId, sessionId, request.commit());
+        return Results.success();
     }
 }

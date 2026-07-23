@@ -1,0 +1,95 @@
+name: openagent-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openagent
+      POSTGRES_USER: openagent
+      POSTGRES_PASSWORD: ${OPENAGENT_LOCAL_DATABASE_PASSWORD:-openagent-local}
+    ports:
+      - "127.0.0.1:${OPENAGENT_LOCAL_POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${OPENAGENT_LOCAL_REDIS_PORT:-16379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    image: openagent:v11-local
+    build:
+      context: ../..
+      dockerfile: deploy/local/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ../../.env
+        required: true
+    environment:
+      OPENAGENT_BIND: 0.0.0.0
+      OPENAGENT_PORT: 18956
+      OPENAGENT_DATABASE_URL: jdbc:postgresql://postgres:5432/openagent
+      OPENAGENT_DATABASE_USERNAME: openagent
+      OPENAGENT_DATABASE_PASSWORD: ${OPENAGENT_LOCAL_DATABASE_PASSWORD:-openagent-local}
+      OPENAGENT_DATABASE_POOL_SIZE: 10
+      OPENAGENT_REDIS_HOST: redis
+      OPENAGENT_REDIS_PORT: 6379
+      OPENAGENT_CHANNEL_BUS: redis
+      OPENAGENT_CHANNEL_ROLES: api,channel-ingress,agent-worker,channel-egress
+      OPENAGENT_CHANNEL_REDIS_PREFIX: openagent:channel
+      OPENAGENT_WORKSPACE_ROOT: /data/workspace
+      OPENAGENT_EVAL_WORKSPACE_ROOT: /tmp/openagent-eval-workspaces
+      MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
+      MANAGEMENT_ENDPOINT_HEALTH_VALIDATE_GROUP_MEMBERSHIP: "false"
+      MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db,channelRedis
+      SPRING_DATA_REDIS_REPOSITORIES_ENABLED: "false"
+    dns:
+      - ${OPENAGENT_LOCAL_DNS:-114.114.114.114}
+    ports:
+      - "127.0.0.1:${OPENAGENT_LOCAL_APP_PORT:-18956}:18956"
+    volumes:
+      - ../..:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18956/actuator/health/readiness >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  postgres-data:
+  redis-data:
+

@@ -57,7 +57,7 @@ class OnboardAccountTest {
                                  "agentName": "first-bot"}
                                 """.formatted(username, username)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         // 新建账号可登录，且为 super_admin
         MvcResult login = mockMvc.perform(post("/api/login")
@@ -82,7 +82,7 @@ class OnboardAccountTest {
                                 {"username": "second-%s", "email": "second-%s@test.invalid", "password": "password123"}
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
         mockMvc.perform(post("/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

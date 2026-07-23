@@ -8,4 +8,7 @@ public interface ChannelLeaseService {
     boolean renew(String bindingId);
 
     void release(String bindingId);
+
+    /** Returns whether any process currently owns the binding lease. */
+    boolean isActive(String bindingId);
 }

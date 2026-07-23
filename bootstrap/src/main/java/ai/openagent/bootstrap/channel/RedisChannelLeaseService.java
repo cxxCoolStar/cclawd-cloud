@@ -80,6 +80,11 @@ public class RedisChannelLeaseService implements ChannelLeaseService {
         heldBindings.remove(bindingId);
     }
 
+    @Override
+    public boolean isActive(String bindingId) {
+        return Boolean.TRUE.equals(redis.hasKey(key(bindingId)));
+    }
+
     private String key(String bindingId) {
         return properties.redis().keyPrefix() + ":lease:" + bindingId;
     }

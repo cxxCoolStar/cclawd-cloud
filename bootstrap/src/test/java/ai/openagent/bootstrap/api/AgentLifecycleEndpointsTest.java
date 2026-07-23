@@ -163,7 +163,7 @@ class AgentLifecycleEndpointsTest {
                                 }
                                 """.formatted(agentName)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         // 默认供应商连接配置已写入；默认 agent 模型同步
         var provider = providerRepository.findById(DataSeeder.DEFAULT_PROVIDER_ID).orElseThrow();
@@ -186,7 +186,7 @@ class AgentLifecycleEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\": \"bob\", \"provider\": \"\", \"apiKey\": \"\", \"agentName\": \"default\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
         // provider/apiKey 为空 → 供应商配置不动；agentName=default 跳过创建
         assertEquals(before,
                 providerRepository.findById(DataSeeder.DEFAULT_PROVIDER_ID).orElseThrow().apiKey());

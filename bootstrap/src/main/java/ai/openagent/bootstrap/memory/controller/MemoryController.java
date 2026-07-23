@@ -2,7 +2,11 @@ package ai.openagent.bootstrap.memory.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.memory.MemoryService;
+import ai.openagent.bootstrap.memory.controller.request.MemoryUpdateRequest;
+import ai.openagent.bootstrap.memory.controller.vo.MemoryVO;
+import ai.openagent.framework.convention.Result;
 import ai.openagent.framework.identity.RequestContext;
+import ai.openagent.framework.web.Results;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>
  * 前端现有代码暂无记忆消费路径（2026-07-17 核查 frontend/src/lib/api.ts），
- * 本接口为后端能力接口；字段形状：{"memory": "...", "user": "..."}
+ * 本接口为后端能力接口；业务数据字段形状：{"memory": "...", "user": "..."}
  * 对应 MEMORY.md 与 USER.md
  * </p>
  */
@@ -32,12 +36,9 @@ public class MemoryController {
      * 读取 Agent 的 MEMORY.md 与 USER.md 内容
      */
     @GetMapping("/api/agents/{agentId}/memory")
-    public Map<String, String> getMemory(@PathVariable String agentId) {
+    public Result<MemoryVO> getMemory(@PathVariable String agentId) {
         agentService.getAgent(agentId);
-        Map<String, String> result = new LinkedHashMap<>();
-        result.put("memory", memoryService.loadMemory(agentId));
-        result.put("user", memoryService.loadUserFile(agentId));
-        return result;
+        return Results.success(loadMemory(agentId));
     }
 
     /**
@@ -45,14 +46,18 @@ public class MemoryController {
      * 命中告警不阻断）
      */
     @PutMapping("/api/agents/{agentId}/memory")
-    public Map<String, String> putMemory(@PathVariable String agentId, @RequestBody Map<String, String> body) {
+    public Result<MemoryVO> putMemory(@PathVariable String agentId, @RequestBody MemoryUpdateRequest request) {
         agentService.getAgent(agentId);
-        if (body.containsKey("memory")) {
-            memoryService.saveMemory(RequestContext.requireUserId(), agentId, body.get("memory"));
+        if (request.memory() != null) {
+            memoryService.saveMemory(RequestContext.requireUserId(), agentId, request.memory());
         }
-        if (body.containsKey("user")) {
-            memoryService.saveUserFile(RequestContext.requireUserId(), agentId, body.get("user"));
+        if (request.user() != null) {
+            memoryService.saveUserFile(RequestContext.requireUserId(), agentId, request.user());
         }
-        return getMemory(agentId);
+        return Results.success(loadMemory(agentId));
+    }
+
+    private MemoryVO loadMemory(String agentId) {
+        return new MemoryVO(memoryService.loadMemory(agentId), memoryService.loadUserFile(agentId));
     }
 }

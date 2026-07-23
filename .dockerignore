@@ -13,3 +13,5 @@ workspace
 *.log
 .env
 cookies.txt
+!bootstrap/target/
+!bootstrap/target/bootstrap-0.1.0-SNAPSHOT-exec.jar

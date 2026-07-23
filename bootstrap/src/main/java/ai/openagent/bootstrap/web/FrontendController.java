@@ -29,4 +29,9 @@ public class FrontendController {
     public String chatSession() {
         return "forward:/agents/default/chat/_/index.html";
     }
+    /** Top-level Channel operations console. */
+    @GetMapping({"/channels", "/channels/"})
+    public String channels() {
+        return "forward:/channels/index.html";
+    }
 }

@@ -2,13 +2,21 @@ package ai.openagent.bootstrap.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaModifier;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
-
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import org.junit.jupiter.api.Test;
 /**
  * 代码风格守护规则（参考 ragent 风格约定）
  *
@@ -127,4 +135,69 @@ class CodeStyleArchitectureTest {
             .should()
             .beAssignableTo(BaseMapper.class)
             .allowEmptyShould(true);
+    /**
+     * 既有 Controller 的原始 Map 响应白名单。迁移接口时只允许从这里删除，
+     * 新增 public Map 返回方法会被 controllers_do_not_add_new_map_returning_methods 拦住。
+     */
+    private static final Set<String> LEGACY_MAP_RETURNING_CONTROLLER_METHODS = Set.of(
+            // Agent
+            "ai.openagent.bootstrap.agent.controller.AgentController#deleteAgent",
+            "ai.openagent.bootstrap.agent.controller.AgentController#getAgent",
+            "ai.openagent.bootstrap.agent.controller.AgentController#listAgents",
+            "ai.openagent.bootstrap.agent.controller.AgentFileController#listFiles",
+            "ai.openagent.bootstrap.agent.controller.AgentFileController#uploadFiles",
+
+            // Channel
+            "ai.openagent.bootstrap.channel.ChannelController#disconnect",
+            "ai.openagent.bootstrap.channel.ChannelController#list",
+            "ai.openagent.bootstrap.channel.ChannelController#update",
+
+            // Config
+            "ai.openagent.bootstrap.config.controller.ConfigController#updateConfig",
+
+            // Identity
+            "ai.openagent.bootstrap.identity.controller.ApiKeyController#createApikey",
+            "ai.openagent.bootstrap.identity.controller.ApiKeyController#deleteApikey",
+            "ai.openagent.bootstrap.identity.controller.ApiKeyController#listApikeys",
+            "ai.openagent.bootstrap.identity.controller.AuthController#logout",
+            "ai.openagent.bootstrap.identity.controller.IdentityController#changePassword",
+            "ai.openagent.bootstrap.identity.controller.RegistrationAdminController#getRegistration",
+            "ai.openagent.bootstrap.identity.controller.RegistrationAdminController#setRegistration",
+            "ai.openagent.bootstrap.identity.controller.UserAdminController#createUser",
+            "ai.openagent.bootstrap.identity.controller.UserAdminController#deleteUser",
+            "ai.openagent.bootstrap.identity.controller.UserAdminController#listUsers",
+            "ai.openagent.bootstrap.identity.controller.UserAdminController#resetPassword",
+            "ai.openagent.bootstrap.identity.controller.UserAdminController#updateUser",            // Skill
+            "ai.openagent.bootstrap.skill.controller.SkillController#deleteAgentSkill",
+            "ai.openagent.bootstrap.skill.controller.SkillController#deleteGlobalSkill",
+            "ai.openagent.bootstrap.skill.controller.SkillController#uploadSkill",
+
+            // Tool
+            "ai.openagent.bootstrap.tool.controller.ToolController#listRegisteredTools",
+            "ai.openagent.bootstrap.tool.controller.ToolController#listTools",
+            "ai.openagent.bootstrap.tool.controller.ToolController#putTools",
+            "ai.openagent.bootstrap.tool.controller.ToolController#setToolEnabled");
+    @Test
+    void controllers_do_not_add_new_map_returning_methods() {
+        JavaClasses classes = new ClassFileImporter()
+                .withImportOption(new ImportOption.DoNotIncludeTests())
+                .importPackages("ai.openagent");
+        Set<String> newMapReturningMethods = new TreeSet<>();
+        for (JavaMethod method : classes.stream()
+                .filter(javaClass -> javaClass.getSimpleName().endsWith("Controller"))
+                .flatMap(javaClass -> javaClass.getMethods().stream())
+                .toList()) {
+            if (!method.getModifiers().contains(JavaModifier.PUBLIC)
+                    || !method.getRawReturnType().isEquivalentTo(Map.class)) {
+                continue;
+            }
+            String signature = method.getOwner().getName() + "#" + method.getName();
+            if (!LEGACY_MAP_RETURNING_CONTROLLER_METHODS.contains(signature)) {
+                newMapReturningMethods.add(signature);
+            }
+        }
+        assertThat(newMapReturningMethods)
+                .as("New controller methods should return Result<T>/VO instead of raw Map; migrate deliberately and update the legacy whitelist downward.")
+                .isEmpty();
+    }
 }

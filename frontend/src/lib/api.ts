@@ -420,7 +420,14 @@ export async function onboard(req: OnboardRequest): Promise<{ ok: boolean; error
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, error: body.message || body.error || `onboard failed: ${res.status}` };
+  }
+  if (body.code !== undefined) {
+    return { ok: body.code === "0", error: body.message || body.error };
+  }
+  return body;
 }
 
 // User management — admin-only at the top level (CRUD), admin-or-self
@@ -2050,7 +2057,7 @@ export async function getSessionHistory(
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.history || []) as WorkspaceHistoryEntry[];
+  return (data.data?.history || data.history || []) as WorkspaceHistoryEntry[];
 }
 
 export async function restoreSessionHistory(
@@ -2066,5 +2073,8 @@ export async function restoreSessionHistory(
       body: JSON.stringify({ commit }),
     },
   );
-  if (!res.ok) throw new Error(`restore failed: ${res.status}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || (data.code && data.code !== "0")) {
+    throw new Error(data.message || data.error || `restore failed: ${res.status}`);
+  }
 }

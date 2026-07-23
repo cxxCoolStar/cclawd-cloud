@@ -9,6 +9,9 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
     <artifactId>bootstrap</artifactId>
+    <properties>
+        <openagent.boot.classifier></openagent.boot.classifier>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>ai.openagent</groupId>
@@ -104,6 +107,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>ai.openagent.bootstrap.OpenAgentApplication</mainClass>
+                    <classifier>${openagent.boot.classifier}</classifier>
                 </configuration>
                 <executions>
                     <execution>
