@@ -3,10 +3,9 @@ package ai.openagent.bootstrap.identity.controller;
 import ai.openagent.bootstrap.identity.controller.request.AdminCreateUserRequest;
 import ai.openagent.bootstrap.identity.controller.request.AdminResetPasswordRequest;
 import ai.openagent.bootstrap.identity.controller.request.AdminUpdateUserRequest;
-import ai.openagent.bootstrap.identity.controller.vo.CurrentUserVO;
 import ai.openagent.bootstrap.identity.controller.vo.UserListVO;
 import ai.openagent.bootstrap.identity.controller.vo.UserMutationVO;
-import ai.openagent.bootstrap.identity.service.UserAdminService;
+import ai.openagent.bootstrap.identity.service.UserManagementService;
 import ai.openagent.framework.convention.Result;
 import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserAdminController {
 
-    private final UserAdminService userAdminService;
+    private final UserManagementService userManagementService;
 
     /**
      * 用户列表
      */
     @GetMapping("/api/users")
     public Result<UserListVO> listUsers() {
-        return Results.success(new UserListVO(userAdminService.listUsers()));
+        return Results.success(userManagementService.list());
     }
 
     /**
@@ -45,14 +44,7 @@ public class UserAdminController {
      */
     @PostMapping("/api/users")
     public Result<UserMutationVO> createUser(@RequestBody AdminCreateUserRequest request) {
-        CurrentUserVO.UserVO user = userAdminService.createUser(
-                request.username(),
-                request.email(),
-                request.password(),
-                request.displayName(),
-                request.role(),
-                request.agentQuota());
-        return Results.success(new UserMutationVO(user));
+        return Results.success(userManagementService.create(request));
     }
 
     /**
@@ -60,9 +52,7 @@ public class UserAdminController {
      */
     @PutMapping("/api/users/{id}")
     public Result<UserMutationVO> updateUser(@PathVariable String id, @RequestBody AdminUpdateUserRequest request) {
-        CurrentUserVO.UserVO user = userAdminService.updateUser(
-                id, request.displayName(), request.role(), request.status(), request.agentQuota());
-        return Results.success(new UserMutationVO(user));
+        return Results.success(userManagementService.update(id, request));
     }
 
     /**
@@ -70,7 +60,7 @@ public class UserAdminController {
      */
     @DeleteMapping("/api/users/{id}")
     public Result<Void> deleteUser(@PathVariable String id) {
-        userAdminService.deleteUser(id);
+        userManagementService.delete(id);
         return Results.success();
     }
 
@@ -79,7 +69,7 @@ public class UserAdminController {
      */
     @PostMapping("/api/users/{id}/password")
     public Result<Void> resetPassword(@PathVariable String id, @RequestBody AdminResetPasswordRequest request) {
-        userAdminService.resetPassword(id, request.password());
+        userManagementService.resetPassword(id, request);
         return Results.success();
     }
 }

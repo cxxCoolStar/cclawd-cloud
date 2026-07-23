@@ -7,7 +7,9 @@ import ai.openagent.bootstrap.persistence.AgentToolRepository;
 import ai.openagent.bootstrap.tool.CatalogToolRegistry;
 import ai.openagent.bootstrap.tool.ToolCatalog;
 import ai.openagent.bootstrap.tool.controller.vo.AgentToolVO;
+import ai.openagent.bootstrap.tool.controller.vo.AgentToolsVO;
 import ai.openagent.bootstrap.tool.controller.vo.RegisteredToolVO;
+import ai.openagent.bootstrap.tool.controller.vo.RegisteredToolsVO;
 import ai.openagent.bootstrap.tool.controller.vo.ToolsConfigVO;
 import ai.openagent.bootstrap.tool.service.ToolService;
 import ai.openagent.framework.errorcode.BaseErrorCode;
@@ -38,7 +40,7 @@ public class ToolServiceImpl implements ToolService {
     private final CatalogToolRegistry toolRegistry;
 
     @Override
-    public List<AgentToolVO> listTools(String agentId) {
+    public AgentToolsVO listTools(String agentId) {
         agentService.requireAccess(agentId);
         Map<String, AgentToolRecord> configByName = agentToolRepository.listByAgent(agentId).stream()
                 .collect(Collectors.toMap(AgentToolRecord::toolName, Function.identity()));
@@ -60,7 +62,7 @@ public class ToolServiceImpl implements ToolService {
                 tools.add(new AgentToolVO(descriptor.name(), descriptor.description(), null, true, "mcp"));
             }
         }
-        return List.copyOf(tools);
+        return new AgentToolsVO(List.copyOf(tools));
     }
 
     @Override
@@ -78,14 +80,13 @@ public class ToolServiceImpl implements ToolService {
     }
 
     @Override
-    public List<RegisteredToolVO> listRegisteredTools(String agentId) {
+    public RegisteredToolsVO listRegisteredTools(String agentId) {
         agentService.requireAccess(agentId);
-        return toolRegistry.availableTools(agentId).stream()
+        return new RegisteredToolsVO(toolRegistry.availableTools(agentId).stream()
                 .map(descriptor -> new RegisteredToolVO(
                         descriptor.name(), descriptor.description(), sourceName(descriptor.source())))
-                .toList();
+                .toList());
     }
-
 
     @Override
     public ToolsConfigVO getTools() {
@@ -97,7 +98,9 @@ public class ToolServiceImpl implements ToolService {
         throw new ClientException(
                 "feature not available: tool provider configuration is planned for V8",
                 BaseErrorCode.CLIENT_ERROR);
-    }    private static String sourceName(ToolDescriptor.Source source) {
+    }
+
+    private static String sourceName(ToolDescriptor.Source source) {
         return switch (source) {
             case BUILTIN -> "builtin";
             case MCP -> "mcp";

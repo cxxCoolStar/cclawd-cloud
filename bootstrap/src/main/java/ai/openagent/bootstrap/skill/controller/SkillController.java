@@ -1,6 +1,6 @@
 package ai.openagent.bootstrap.skill.controller;
 
-import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.skill.service.SkillManagementService;
 import ai.openagent.bootstrap.skill.SkillService;
 import ai.openagent.bootstrap.skill.controller.vo.SkillUploadVO;
 import ai.openagent.framework.convention.Result;
@@ -28,15 +28,14 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SkillController {
 
-    private final SkillService skillService;
-    private final AgentService agentService;
+    private final SkillManagementService skillManagementService;
 
     /**
      * 全局技能列表
      */
     @GetMapping("/api/skills")
     public List<SkillService.SkillInfo> listGlobalSkills() {
-        return skillService.listGlobal();
+        return skillManagementService.listGlobal();
     }
 
     /**
@@ -44,8 +43,7 @@ public class SkillController {
      */
     @GetMapping("/api/agents/{agentId}/skills")
     public List<SkillService.SkillInfo> listAgentSkills(@PathVariable String agentId) {
-        agentService.getAgent(agentId);
-        return skillService.listAgentSkills(agentId);
+        return skillManagementService.listAgent(agentId);
     }
 
     /**
@@ -53,7 +51,7 @@ public class SkillController {
      */
     @DeleteMapping("/api/skills/{name}")
     public Result<Void> deleteGlobalSkill(@PathVariable String name) {
-        skillService.deleteSkill(null, name);
+        skillManagementService.deleteGlobal(name);
         return Results.success();
     }
 
@@ -62,8 +60,7 @@ public class SkillController {
      */
     @DeleteMapping("/api/agents/{agentId}/skills/{name}")
     public Result<Void> deleteAgentSkill(@PathVariable String agentId, @PathVariable String name) {
-        agentService.getAgent(agentId);
-        skillService.deleteSkill(agentId, name);
+        skillManagementService.deleteAgent(agentId, name);
         return Results.success();
     }
 
@@ -75,12 +72,6 @@ public class SkillController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String agent) throws IOException {
-        if (agent != null && !agent.isBlank()) {
-            agentService.getAgent(agent);
-        }
-        String filename = file.getOriginalFilename() == null ? "skill.zip" : file.getOriginalFilename();
-        SkillService.InstallResult result = skillService.installZip(
-                agent == null || agent.isBlank() ? null : agent, name, filename, file.getInputStream());
-        return Results.success(new SkillUploadVO("upload", result.name(), result.installedAt(), result.files()));
+        return Results.success(skillManagementService.upload(file, name, agent));
     }
 }

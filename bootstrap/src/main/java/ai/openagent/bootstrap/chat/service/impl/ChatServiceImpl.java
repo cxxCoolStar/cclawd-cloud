@@ -5,6 +5,7 @@ import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatMessageVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionVO;
+import ai.openagent.bootstrap.chat.controller.vo.ChatTodoVO;
 import ai.openagent.bootstrap.chat.service.ChatService;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.SessionEventRecord;
@@ -54,6 +55,11 @@ public class ChatServiceImpl implements ChatService {
                         .map(ChatSessionVO::from)
                         .toList();
         return new ChatSessionListVO(sessions);
+    }
+
+    @Override
+    public ChatTodoVO todo() {
+        return ChatTodoVO.empty();
     }
 
     @Override

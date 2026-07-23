@@ -1,19 +1,14 @@
 package ai.openagent.bootstrap.chat.controller;
 
-import ai.openagent.bootstrap.agentrun.AgentRunCoordinator;
-import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.chat.controller.request.ChatStreamRequest;
 import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatTodoVO;
 import ai.openagent.bootstrap.chat.service.ChatService;
+import ai.openagent.bootstrap.chat.service.ChatStreamService;
 import ai.openagent.bootstrap.chat.sse.ChatSseStream;
-import ai.openagent.bootstrap.chat.sse.ChatSseStreamFactory;
 import jakarta.validation.Valid;
-import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,15 +33,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
  * 不会拖垮 MVC 异步线程池（采用事件驱动的推送模式，实现类似 goroutine-per-connection 的轻量级并发语义）
  * </p>
  */
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class ChatController {
 
     private final ChatService chatService;
-    private final AgentRunCoordinator runCoordinator;
-    private final ChatSseStreamFactory sseStreamFactory;
-    private final AgentService agentService;
+    private final ChatStreamService chatStreamService;
 
     /**
      * 查询会话历史消息与事件 resume 游标
@@ -69,7 +61,7 @@ public class ChatController {
      */
     @GetMapping("/api/chat/todo")
     public ChatTodoVO todo() {
-        return ChatTodoVO.empty();
+        return chatService.todo();
     }
 
     /**
@@ -91,19 +83,7 @@ public class ChatController {
             @RequestParam(defaultValue = "-1") long since,
             @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId) {
         long cursor = resolveCursor(lastEventId, since);
-        ChatSseStream stream = sseStreamFactory.openSubscribeStream(cursor);
-        try {
-            sseStreamFactory.connect(stream, agentId, sessionId);
-            // 立即发一帧注释，让客户端 EventSource 尽快触发 open
-            stream.comment("ok");
-            List<Map<String, Object>> replayed = chatService.replayEventsSince(agentId, sessionId, cursor);
-            stream.replay(replayed);
-            stream.goLive();
-        } catch (RuntimeException error) {
-            stream.close();
-            throw error;
-        }
-        return sse(stream);
+        return sse(chatStreamService.subscribe(agentId, sessionId, cursor));
     }
 
     /**
@@ -119,19 +99,7 @@ public class ChatController {
      */
     @PostMapping(path = "/api/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<ResponseBodyEmitter> stream(@RequestBody @Valid ChatStreamRequest requestParam) {
-        // 归属/scope 校验在开启流之前完成：越权走全局异常处理器返回 JSON 404/403
-        agentService.requireAccess(requestParam.agentId());
-        ChatSseStream stream = sseStreamFactory.openTurnStream();
-        try {
-            sseStreamFactory.connect(stream, requestParam.agentId(), requestParam.sessionId());
-            runCoordinator.start(requestParam.agentId(), requestParam.sessionId(), requestParam.message());
-        } catch (RuntimeException error) {
-            // 回合未能入队（参数校验失败等）——释放连接，交给全局异常处理器
-            // 输出 JSON 错误响应（同会话并发自 V8 起排队，不再 409）
-            stream.close();
-            throw error;
-        }
-        return sse(stream);
+        return sse(chatStreamService.stream(requestParam));
     }
 
     private static ResponseEntity<ResponseBodyEmitter> sse(ChatSseStream stream) {

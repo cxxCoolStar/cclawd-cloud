@@ -35,7 +35,7 @@ public class ToolController {
      */
     @GetMapping("/api/agents/{id}/tools")
     public Result<AgentToolsVO> listTools(@PathVariable String id) {
-        return Results.success(new AgentToolsVO(toolService.listTools(id)));
+        return Results.success(toolService.listTools(id));
     }
 
     /**
@@ -55,7 +55,7 @@ public class ToolController {
      */
     @GetMapping("/api/agents/{id}/tools/registered")
     public Result<RegisteredToolsVO> listRegisteredTools(@PathVariable String id) {
-        return Results.success(new RegisteredToolsVO(toolService.listRegisteredTools(id)));
+        return Results.success(toolService.listRegisteredTools(id));
     }
 
     /**

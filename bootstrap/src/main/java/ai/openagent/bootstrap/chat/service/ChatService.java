@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.chat.service;
 
 import ai.openagent.bootstrap.chat.controller.vo.ChatHistoryVO;
 import ai.openagent.bootstrap.chat.controller.vo.ChatSessionListVO;
+import ai.openagent.bootstrap.chat.controller.vo.ChatTodoVO;
 import java.util.List;
 import java.util.Map;
 
@@ -31,5 +32,7 @@ public interface ChatService {
      * 回放指定序号之后的持久化事件（断线重连），已解码为可下发的事件结构
      * （{seq, type, data}，解码失败的事件降级为 error 事件）
      */
+    ChatTodoVO todo();
+
     List<Map<String, Object>> replayEventsSince(String agentId, String sessionId, long since);
 }

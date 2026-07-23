@@ -1,9 +1,8 @@
 package ai.openagent.bootstrap.agent.controller;
 
-import ai.openagent.bootstrap.agent.service.AgentFileService;
-import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.agent.controller.vo.UploadedFilesVO;
 import ai.openagent.bootstrap.agent.controller.vo.WorkspaceFilesVO;
+import ai.openagent.bootstrap.agent.service.AgentWorkspaceService;
 import ai.openagent.framework.convention.Result;
 import ai.openagent.framework.web.Results;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,8 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class AgentFileController {
 
-    private final AgentFileService agentFileService;
-    private final AgentService agentService;
+    private final AgentWorkspaceService agentWorkspaceService;
 
     /**
      * 列出 workspace 文件（sessionId 作用域过滤）
@@ -47,8 +45,7 @@ public class AgentFileController {
     @GetMapping("/api/agents/{agentId}/files")
     public Result<WorkspaceFilesVO> listFiles(
             @PathVariable String agentId, @RequestParam(required = false) String sessionId) {
-        agentService.requireAccess(agentId);
-        return Results.success(new WorkspaceFilesVO(agentFileService.listFiles(agentId, sessionId)));
+        return Results.success(agentWorkspaceService.list(agentId, sessionId));
     }
 
     /**
@@ -62,16 +59,7 @@ public class AgentFileController {
             @PathVariable String agentId,
             @RequestParam(required = false) String sessionId,
             @RequestParam("file") List<MultipartFile> files) throws IOException {
-        agentService.requireAccess(agentId);
-        List<AgentFileService.UploadFile> uploads = new java.util.ArrayList<>();
-        for (MultipartFile file : files) {
-            String filename = file.getOriginalFilename();
-            if (filename == null || filename.isBlank()) {
-                continue;
-            }
-            uploads.add(new AgentFileService.UploadFile(filename, file.getBytes()));
-        }
-        return Results.success(new UploadedFilesVO(agentFileService.saveUploads(agentId, sessionId, uploads)));
+        return Results.success(agentWorkspaceService.upload(agentId, sessionId, files));
     }
 
     /**
@@ -83,7 +71,6 @@ public class AgentFileController {
             @RequestParam(required = false) String download,
             HttpServletRequest request,
             HttpServletResponse response) throws IOException {
-        agentService.requireAccess(agentId);
         String uri = request.getRequestURI();
         String prefix = "/api/agents/" + agentId + "/files/";
         String encoded = uri.substring(uri.indexOf(prefix) + prefix.length());
@@ -94,7 +81,7 @@ public class AgentFileController {
             }
             relative.append(URLDecoder.decode(segment, StandardCharsets.UTF_8));
         }
-        Path file = agentFileService.resolveFile(agentId, relative.toString());
+        Path file = agentWorkspaceService.resolve(agentId, relative.toString());
 
         String extension = extensionOf(file);
         response.setContentType(contentTypeOf(file.getFileName().toString(), extension));
