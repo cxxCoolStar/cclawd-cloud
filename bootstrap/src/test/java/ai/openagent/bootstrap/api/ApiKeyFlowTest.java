@@ -89,7 +89,7 @@ class ApiKeyFlowTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("agent").path("id").asText();
+                .path("data").path("agent").path("id").asText();
     }
 
     @Test
@@ -102,21 +102,21 @@ class ApiKeyFlowTest {
                                 {"name": "scoped", "type": "agent", "agentIds": ["%s"]}
                                 """.formatted(agent2)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.apikey.type").value("agent"))
-                .andExpect(jsonPath("$.apikey.agents[0]").value(agent2))
-                .andExpect(jsonPath("$.apikey.key", containsString("****")))
+                .andExpect(jsonPath("$.data.apikey.type").value("agent"))
+                .andExpect(jsonPath("$.data.apikey.agents[0]").value(agent2))
+                .andExpect(jsonPath("$.data.apikey.key", containsString("****")))
                 .andReturn();
         JsonNode body = objectMapper.readTree(created.getResponse().getContentAsString());
-        String keyId = body.path("apikey").path("id").asText();
-        String token = body.path("token").asText();
+        String keyId = body.path("data").path("apikey").path("id").asText();
+        String token = body.path("data").path("token").asText();
         org.junit.jupiter.api.Assertions.assertTrue(token.startsWith("oag_"), "明文 key 应带 oag_ 前缀");
 
         // 列表：打码、不回显明文（按 id 过滤，与测试方法执行顺序无关）
         mockMvc.perform(get("/api/apikeys").cookie(userCookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.apikeys[?(@.id=='" + keyId + "')].key",
+                .andExpect(jsonPath("$.data.apikeys[?(@.id=='" + keyId + "')].key",
                         org.hamcrest.Matchers.hasItem(containsString("****"))))
-                .andExpect(jsonPath("$.apikeys[?(@.id=='" + keyId + "')].key",
+                .andExpect(jsonPath("$.data.apikeys[?(@.id=='" + keyId + "')].key",
                         org.hamcrest.Matchers.hasItem(not(containsString(token.substring(4))))));
 
         // scope 内：chat/agent 端点 200
@@ -145,13 +145,13 @@ class ApiKeyFlowTest {
         // 列表按 scope 过滤
         mockMvc.perform(get("/api/agents").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agents.length()").value(1))
-                .andExpect(jsonPath("$.agents[0].id").value(agent2));
+                .andExpect(jsonPath("$.data.agents.length()").value(1))
+                .andExpect(jsonPath("$.data.agents[0].id").value(agent2));
 
         // 使用后 lastUsedAt 已刷新
         mockMvc.perform(get("/api/apikeys").cookie(userCookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.apikeys[?(@.id=='" + keyId + "')].lastUsedAt",
+                .andExpect(jsonPath("$.data.apikeys[?(@.id=='" + keyId + "')].lastUsedAt",
                         org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.notNullValue())));
 
         // 跨用户删除：404（不暴露存在性）
@@ -174,10 +174,10 @@ class ApiKeyFlowTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"full\", \"type\": \"user\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.apikey.type").value("user"))
+                .andExpect(jsonPath("$.data.apikey.type").value("user"))
                 .andReturn();
         String token = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("token").asText();
+                .path("data").path("token").asText();
 
         mockMvc.perform(get("/api/chat/history")
                         .param("agentId", agent1).param("sessionId", "s1")

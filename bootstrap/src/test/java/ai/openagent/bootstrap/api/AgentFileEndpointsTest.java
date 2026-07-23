@@ -58,19 +58,19 @@ class AgentFileEndpointsTest {
     void listsSessionScopedFilesWithFrontendShape() throws Exception {
         mockMvc.perform(get("/api/agents/default/files").param("sessionId", "s1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.files.length()").value(3))
-                .andExpect(jsonPath("$.files[0].path").value("sessions/s1/fib.py"))
-                .andExpect(jsonPath("$.files[0].size").isNumber())
-                .andExpect(jsonPath("$.files[0].modTime").isNumber())
-                .andExpect(jsonPath("$.files[1].path").value("sessions/s1/page.html"))
-                .andExpect(jsonPath("$.files[2].path").value("sessions/s1/sub/notes.md"));
+                .andExpect(jsonPath("$.data.files.length()").value(3))
+                .andExpect(jsonPath("$.data.files[0].path").value("sessions/s1/fib.py"))
+                .andExpect(jsonPath("$.data.files[0].size").isNumber())
+                .andExpect(jsonPath("$.data.files[0].modTime").isNumber())
+                .andExpect(jsonPath("$.data.files[1].path").value("sessions/s1/page.html"))
+                .andExpect(jsonPath("$.data.files[2].path").value("sessions/s1/sub/notes.md"));
     }
 
     @Test
     void emptySessionReturnsEmptyList() throws Exception {
         mockMvc.perform(get("/api/agents/default/files").param("sessionId", "no-such"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.files.length()").value(0));
+                .andExpect(jsonPath("$.data.files.length()").value(0));
     }
 
     @Test
@@ -120,14 +120,14 @@ class AgentFileEndpointsTest {
                         .file(second)
                         .param("sessionId", "upload-multi"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.files.length()").value(2))
-                .andExpect(jsonPath("$.files[0].path").value("sessions/upload-multi/hello.txt"))
-                .andExpect(jsonPath("$.files[0].size").isNumber())
-                .andExpect(jsonPath("$.files[1].path").value("sessions/upload-multi/data.csv"));
+                .andExpect(jsonPath("$.data.files.length()").value(2))
+                .andExpect(jsonPath("$.data.files[0].path").value("sessions/upload-multi/hello.txt"))
+                .andExpect(jsonPath("$.data.files[0].size").isNumber())
+                .andExpect(jsonPath("$.data.files[1].path").value("sessions/upload-multi/data.csv"));
         // 上传后可列出、可读
         mockMvc.perform(get("/api/agents/default/files").param("sessionId", "upload-multi"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.files.length()").value(2));
+                .andExpect(jsonPath("$.data.files.length()").value(2));
         mockMvc.perform(get("/api/agents/default/files/sessions/upload-multi/hello.txt"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("你好")));
@@ -141,6 +141,6 @@ class AgentFileEndpointsTest {
                         .file(evil)
                         .param("sessionId", "upload-s"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.files[0].path").value("sessions/upload-s/evil.txt"));
+                .andExpect(jsonPath("$.data.files[0].path").value("sessions/upload-s/evil.txt"));
     }
 }

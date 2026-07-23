@@ -2,9 +2,11 @@ package ai.openagent.bootstrap.skill.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.skill.SkillService;
+import ai.openagent.bootstrap.skill.controller.vo.SkillUploadVO;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,26 +52,26 @@ public class SkillController {
      * 删除全局技能
      */
     @DeleteMapping("/api/skills/{name}")
-    public Map<String, Boolean> deleteGlobalSkill(@PathVariable String name) {
+    public Result<Void> deleteGlobalSkill(@PathVariable String name) {
         skillService.deleteSkill(null, name);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     /**
      * 删除 Agent 私有技能
      */
     @DeleteMapping("/api/agents/{agentId}/skills/{name}")
-    public Map<String, Boolean> deleteAgentSkill(@PathVariable String agentId, @PathVariable String name) {
+    public Result<Void> deleteAgentSkill(@PathVariable String agentId, @PathVariable String name) {
         agentService.getAgent(agentId);
         skillService.deleteSkill(agentId, name);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     /**
      * ZIP 上传安装（?agent=<id> 时安装到 Agent 私有目录）
      */
     @PostMapping("/api/skills/upload")
-    public Map<String, Object> uploadSkill(
+    public Result<SkillUploadVO> uploadSkill(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String agent) throws IOException {
@@ -79,11 +81,6 @@ public class SkillController {
         String filename = file.getOriginalFilename() == null ? "skill.zip" : file.getOriginalFilename();
         SkillService.InstallResult result = skillService.installZip(
                 agent == null || agent.isBlank() ? null : agent, name, filename, file.getInputStream());
-        return Map.of(
-                "ok", true,
-                "source", "upload",
-                "name", result.name(),
-                "installedAt", result.installedAt(),
-                "files", result.files());
+        return Results.success(new SkillUploadVO("upload", result.name(), result.installedAt(), result.files()));
     }
 }

@@ -81,9 +81,9 @@ class SkillEndpointsTest {
                 "file", "pack.zip", "application/zip", zipBytes());
         mockMvc.perform(multipart("/api/skills/upload").file(zip))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true))
-                .andExpect(jsonPath("$.name").value("pack"))
-                .andExpect(jsonPath("$.source").value("upload"));
+                .andExpect(jsonPath("$.code").value("0"))
+                .andExpect(jsonPath("$.data.name").value("pack"))
+                .andExpect(jsonPath("$.data.source").value("upload"));
         mockMvc.perform(get("/api/skills"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.name == 'pack')]").exists());

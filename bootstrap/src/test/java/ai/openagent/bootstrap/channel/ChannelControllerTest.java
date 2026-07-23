@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.channel.controller.vo.AgentChannelVO;
 import ai.openagent.bootstrap.channel.wechat.WechatLoginService;
 import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.persistence.ChannelBindingRecord;
@@ -16,7 +17,6 @@ import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,10 +43,11 @@ class ChannelControllerTest {
         when(channelRepository.listBindings("owner-1", "agent-1")).thenReturn(List.of(binding));
         when(runtimeManager.status("wechat", "account-1")).thenReturn("connected");
 
-        Map<String, List<ChannelController.ChannelVO>> response = controller.list("agent-1");
+        var response = controller.list("agent-1");
 
-        assertEquals(1, response.get("channels").size());
-        ChannelController.ChannelVO channel = response.get("channels").get(0);
+        assertEquals("0", response.getCode());
+        assertEquals(1, response.getData().channels().size());
+        AgentChannelVO channel = response.getData().channels().get(0);
         assertEquals("********", channel.botToken());
         assertEquals("connected", channel.status());
     }
@@ -64,11 +65,11 @@ class ChannelControllerTest {
         when(channelRepository.deleteBinding(
                 "owner-1", "agent-1", "wechat", "account-1")).thenReturn(true);
 
-        assertEquals(Map.of("ok", true), controller.update(
+        assertEquals("0", controller.update(
                 "agent-1", "wechat", "account-1",
-                objectMapper.createObjectNode().put("sharedIdentity", true)));
-        assertEquals(Map.of("ok", true), controller.disconnect(
-                "agent-1", "wechat", "account-1"));
+                objectMapper.createObjectNode().put("sharedIdentity", true)).getCode());
+        assertEquals("0", controller.disconnect(
+                "agent-1", "wechat", "account-1").getCode());
 
         verify(runtimeManager).start(binding);
         verify(runtimeManager).stop("wechat", "account-1");

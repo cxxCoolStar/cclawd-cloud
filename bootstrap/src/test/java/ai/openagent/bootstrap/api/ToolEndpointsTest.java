@@ -51,13 +51,13 @@ class ToolEndpointsTest {
     void listToolsReturnsCatalogWithSeedDefaults() throws Exception {
         mockMvc.perform(get("/api/agents/default/tools"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools", hasSize(10)))
-                .andExpect(jsonPath("$.tools[*].source", everyItem(org.hamcrest.Matchers.is("builtin"))))
-                .andExpect(jsonPath("$.tools[?(@.name == 'list_dir')].enabled", hasItem(true)))
-                .andExpect(jsonPath("$.tools[?(@.name == 'list_dir')].riskLevel", hasItem("MEDIUM")))
-                .andExpect(jsonPath("$.tools[?(@.name == 'write_file')].enabled", hasItem(false)))
-                .andExpect(jsonPath("$.tools[?(@.name == 'write_file')].riskLevel", hasItem("HIGH")))
-                .andExpect(jsonPath("$.tools[?(@.name == 'exec')].enabled", hasItem(false)));
+                .andExpect(jsonPath("$.data.tools", hasSize(10)))
+                .andExpect(jsonPath("$.data.tools[*].source", everyItem(org.hamcrest.Matchers.is("builtin"))))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'list_dir')].enabled", hasItem(true)))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'list_dir')].riskLevel", hasItem("MEDIUM")))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'write_file')].enabled", hasItem(true)))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'write_file')].riskLevel", hasItem("HIGH")))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'exec')].enabled", hasItem(true)));
     }
 
     @Test
@@ -67,16 +67,16 @@ class ToolEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"enabled\": true}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         mockMvc.perform(get("/api/agents/default/tools"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools[?(@.name == 'write_file')].enabled", hasItem(true)));
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'write_file')].enabled", hasItem(true)));
 
         // live registry 同步可见
         mockMvc.perform(get("/api/agents/default/tools/registered"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools[*].name", hasItem("write_file")));
+                .andExpect(jsonPath("$.data.tools[*].name", hasItem("write_file")));
 
         // 再禁用
         mockMvc.perform(put("/api/agents/default/tools/write_file")
@@ -85,7 +85,7 @@ class ToolEndpointsTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/agents/default/tools/registered"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools[*].name", not(hasItem("write_file"))));
+                .andExpect(jsonPath("$.data.tools[*].name", not(hasItem("write_file"))));
     }
 
     @Test
@@ -93,11 +93,11 @@ class ToolEndpointsTest {
     void registeredToolsExposeFrontendContractShape() throws Exception {
         mockMvc.perform(get("/api/agents/default/tools/registered"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools[*].name", hasItem("read_file")))
-                .andExpect(jsonPath("$.tools[?(@.name == 'read_file')].source", hasItem("builtin")))
-                .andExpect(jsonPath("$.tools[?(@.name == 'read_file')].description", hasItem(org.hamcrest.Matchers.isA(String.class))))
-                // 默认禁用的工具不出现在 live registry
-                .andExpect(jsonPath("$.tools[*].name", not(hasItem("exec"))));
+                .andExpect(jsonPath("$.data.tools[*].name", hasItem("read_file")))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'read_file')].source", hasItem("builtin")))
+                .andExpect(jsonPath("$.data.tools[?(@.name == 'read_file')].description", hasItem(org.hamcrest.Matchers.isA(String.class))))
+                // 上一步禁用的工具不出现在 live registry
+                .andExpect(jsonPath("$.data.tools[*].name", not(hasItem("write_file"))));
     }
 
     @Test

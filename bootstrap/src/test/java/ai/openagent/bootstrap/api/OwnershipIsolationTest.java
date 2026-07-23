@@ -75,7 +75,7 @@ class OwnershipIsolationTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         agentId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("agent").path("id").asText();
+                .path("data").path("agent").path("id").asText();
     }
 
     private Cookie register(String username) throws Exception {
@@ -93,7 +93,7 @@ class OwnershipIsolationTest {
     void ownerCanAccessOwnAgent() throws Exception {
         mockMvc.perform(get("/api/agents/" + agentId).cookie(userACookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agent.id").value(agentId));
+                .andExpect(jsonPath("$.data.agent.id").value(agentId));
         mockMvc.perform(get("/api/chat/sessions").param("agentId", agentId).cookie(userACookie))
                 .andExpect(status().isOk());
     }
@@ -183,7 +183,7 @@ class OwnershipIsolationTest {
         // （super_admin）会话——可访问用户 A 的 agent
         mockMvc.perform(get("/api/agents/" + agentId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agent.id").value(agentId));
+                .andExpect(jsonPath("$.data.agent.id").value(agentId));
         mockMvc.perform(get("/api/chat/sessions").param("agentId", agentId)).andExpect(status().isOk());
         mockMvc.perform(get("/api/agents/" + agentId + "/memory")).andExpect(status().isOk());
         mockMvc.perform(get("/api/agents/" + agentId + "/tools")).andExpect(status().isOk());

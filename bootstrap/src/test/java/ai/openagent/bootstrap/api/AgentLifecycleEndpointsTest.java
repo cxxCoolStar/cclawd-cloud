@@ -88,10 +88,10 @@ class AgentLifecycleEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"researcher\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.agent.name").value("researcher"))
-                .andExpect(jsonPath("$.agent.model").value("test-model"))
+                .andExpect(jsonPath("$.data.agent.name").value("researcher"))
+                .andExpect(jsonPath("$.data.agent.model").value("test-model"))
                 .andReturn();
-        JsonNode agent = objectMapper.readTree(result.getResponse().getContentAsString()).path("agent");
+        JsonNode agent = objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("agent");
         String id = agent.path("id").asText();
         assertTrue(id.startsWith("agt_"), "id 应为 agt_ 前缀随机 hex");
         assertTrue(agentRepository.findById(id).isPresent());
@@ -114,7 +114,7 @@ class AgentLifecycleEndpointsTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         String id = objectMapper.readTree(result.getResponse().getContentAsString())
-                .path("agent").path("id").asText();
+                .path("data").path("agent").path("id").asText();
         String sessionId = "doomed-" + UUID.randomUUID();
         sessionRepository.ensureSession(IdentityConstant.LOCAL_USER_ID, id, sessionId, "hi");
         sessionRepository.appendMessage(IdentityConstant.LOCAL_USER_ID, id, sessionId, "user", "hi", "", "");
@@ -131,7 +131,7 @@ class AgentLifecycleEndpointsTest {
 
         mockMvc.perform(delete("/api/agents/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         // 级联清理：agents / sessions / messages / events / runs / tools / configs 键
         assertTrue(agentRepository.findById(id).isEmpty());

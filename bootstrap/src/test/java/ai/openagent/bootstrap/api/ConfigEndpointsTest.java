@@ -97,7 +97,7 @@ class ConfigEndpointsTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         mockMvc.perform(get("/api/config"))
                 .andExpect(status().isOk())

@@ -7,10 +7,11 @@ import ai.openagent.bootstrap.identity.controller.request.RegisterRequest;
 import ai.openagent.bootstrap.identity.controller.vo.CurrentUserVO;
 import ai.openagent.bootstrap.identity.service.AuthService;
 import ai.openagent.bootstrap.identity.service.IssuedSession;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -56,12 +57,12 @@ public class AuthController {
      * 登出：删会话行 + 清 cookie（幂等）
      */
     @PostMapping("/api/logout")
-    public Map<String, Object> logout(HttpServletRequest request, HttpServletResponse response) {
+    public Result<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         String token = AuthCookies.readSessionCookie(request);
         if (token != null) {
             authService.logout(token);
         }
         AuthCookies.writeSessionCookie(response, "", 0);
-        return Map.of("ok", true);
+        return Results.success();
     }
 }

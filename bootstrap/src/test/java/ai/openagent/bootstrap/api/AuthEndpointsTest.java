@@ -149,7 +149,7 @@ class AuthEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"oldPassword\": \"password123\", \"newPassword\": \"newpassword9\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
         mockMvc.perform(post("/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -176,7 +176,7 @@ class AuthEndpointsTest {
 
         mockMvc.perform(post("/api/logout").cookie(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.code").value("0"));
 
         // 登出后原 cookie 已失效（请求显式携带 cookie，不会被测试注入覆盖）
         mockMvc.perform(get("/api/me").cookie(session))

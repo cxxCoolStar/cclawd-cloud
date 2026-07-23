@@ -44,7 +44,8 @@ export async function register(req: RegisterRequest): Promise<MeResponse> {
 
 export async function getRegistration(): Promise<{ open: boolean }> {
   const res = await apiFetch("/api/admin/registration");
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export async function setRegistration(open: boolean): Promise<{ open: boolean }> {
@@ -53,7 +54,8 @@ export async function setRegistration(open: boolean): Promise<{ open: boolean }>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ open }),
   });
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export interface AgentInfo {
@@ -386,7 +388,8 @@ export async function changeMyPassword(req: { oldPassword: string; newPassword: 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 // Onboard
@@ -437,7 +440,8 @@ export async function onboard(req: OnboardRequest): Promise<{ ok: boolean; error
 
 export async function adminListUsers() {
   const res = await apiFetch("/api/users");
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export async function adminListAgents() {
@@ -458,7 +462,8 @@ export async function adminCreateUser(req: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export async function adminUpdateUser(
@@ -470,12 +475,14 @@ export async function adminUpdateUser(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export async function adminDeleteUser(id: string) {
   const res = await apiFetch(`/api/users/${id}`, { method: "DELETE" });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 export async function adminResetPassword(id: string, password: string) {
@@ -484,14 +491,16 @@ export async function adminResetPassword(id: string, password: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password }),
   });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 // Apikeys (per-user)
 
 export async function listApikeys() {
   const res = await apiFetch("/api/apikeys");
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export type ApikeyType = "admin" | "user" | "agent";
@@ -502,12 +511,14 @@ export async function createApikey(req: { name: string; type: ApikeyType; agentI
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return res.json();
+  const body = await res.json();
+  return body.data || body;
 }
 
 export async function deleteApikey(id: string) {
   const res = await apiFetch(`/api/apikeys/${id}`, { method: "DELETE" });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 export async function rotateApikey(id: string) {
@@ -751,7 +762,7 @@ export async function listAgentFiles(
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.files || []) as WorkspaceFile[];
+  return (data.data?.files || data.files || []) as WorkspaceFile[];
 }
 
 // getScopePreview returns the live dev-server preview for the current chat
@@ -1279,7 +1290,7 @@ export async function uploadAgentFiles(
   });
   if (!res.ok) throw new Error(`upload failed: ${res.status}`);
   const data = await res.json();
-  return (data.files || []) as UploadedFile[];
+  return (data.data?.files || data.files || []) as UploadedFile[];
 }
 
 // Agents
@@ -1293,6 +1304,7 @@ export async function getAgents(): Promise<AgentDetail[]> {
   const data = await res.json();
   // Backend returns { agents: [...] }. Tolerate raw array too in case an
   // older handler is still around.
+  if (Array.isArray(data?.data?.agents)) return data.data.agents as AgentDetail[];
   if (Array.isArray(data?.agents)) return data.agents as AgentDetail[];
   return Array.isArray(data) ? (data as AgentDetail[]) : [];
 }
@@ -1305,7 +1317,7 @@ export async function getAgent(id: string): Promise<AgentDetail | null> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`);
   if (!res.ok) return null;
   const data = await res.json();
-  return (data?.agent as AgentDetail) || null;
+  return (data?.data?.agent as AgentDetail) || (data?.agent as AgentDetail) || null;
 }
 
 // getAgentStatus surfaces the raw HTTP status alongside the agent so
@@ -1318,7 +1330,7 @@ export async function getAgentStatus(
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`);
   if (!res.ok) return { status: res.status, agent: null };
   const data = await res.json();
-  return { status: res.status, agent: (data?.agent as AgentDetail) || null };
+  return { status: res.status, agent: (data?.data?.agent as AgentDetail) || (data?.agent as AgentDetail) || null };
 }
 
 // AgentRegisteredTool is what /api/agents/{id}/tools/registered returns
@@ -1344,7 +1356,7 @@ export async function listAgentRegisteredTools(
   );
   if (!res.ok) return null;
   const data = await res.json();
-  return (data?.tools as AgentRegisteredTool[]) || [];
+  return ((data?.data?.tools || data?.tools) as AgentRegisteredTool[]) || [];
 }
 
 export async function createAgent(agent: Partial<AgentDetail>) {
@@ -1353,7 +1365,8 @@ export async function createAgent(agent: Partial<AgentDetail>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(agent),
   });
-  return res.json();
+  const body = await res.json();
+  return body.code !== undefined ? { ...(body.data || {}), ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 export interface AgentSkillsConfig {
@@ -1476,8 +1489,8 @@ export async function deleteAgent(id: string) {
     method: "DELETE",
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.ok === false) {
-    throw new Error(body?.error || `Delete failed (${res.status})`);
+  if (!res.ok || body?.ok === false || (body?.code && body.code !== "0")) {
+    throw new Error(body?.message || body?.error || `Delete failed (${res.status})`);
   }
   return body;
 }
@@ -1492,7 +1505,8 @@ export async function deleteSkill(name: string) {
   const res = await apiFetch(`/api/skills/${name}`, {
     method: "DELETE",
   });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 // Per-agent skills: list what's installed in an agent's own home/skills dir.
@@ -1507,7 +1521,8 @@ export async function deleteAgentSkill(agentId: string, name: string) {
     `/api/agents/${encodeURIComponent(agentId)}/skills/${encodeURIComponent(name)}`,
     { method: "DELETE" },
   );
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 // Search results use skills.sh's shape; clawhub has a different shape but the
@@ -1573,7 +1588,11 @@ export async function uploadSkill(
     method: "POST",
     body: fd,
   });
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  if (body.code !== undefined) {
+    return { ok: body.code === "0", ...(body.data || {}), error: body.message || body.error };
+  }
+  return body;
 }
 
 // --- Tools (provider-backed capabilities: web_search, image_gen, tts, ...) ---
@@ -1720,7 +1739,6 @@ export async function createAPIKey(id: string, name: string): Promise<{ apikey: 
   if (!data.apikey || !data.key) throw new Error("malformed response from server");
   return data;
 }
-
 export async function deleteAPIKey(id: string): Promise<void> {
   const res = await apiFetch(`/v1/admin/apikeys/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await readError(res, "delete API key failed"));
@@ -1827,7 +1845,7 @@ export async function listAgentChannels(agentId: string): Promise<AgentChannel[]
   const res = await apiFetch(`/api/agents/${agentId}/channels`);
   if (!res.ok) return [];
   const data = await res.json();
-  return data.channels || [];
+  return data.data?.channels || data.channels || [];
 }
 
 export async function connectAgentTelegram(
@@ -1952,7 +1970,8 @@ export async function disconnectAgentChannel(
     `/api/agents/${agentId}/channels/${encodeURIComponent(type)}/${encodeURIComponent(accountId)}`,
     { method: "DELETE" },
   );
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 export async function updateAgentChannel(
@@ -1969,7 +1988,8 @@ export async function updateAgentChannel(
       body: JSON.stringify(patch),
     },
   );
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  return body.code !== undefined ? { ok: body.code === "0", error: body.message || body.error } : body;
 }
 
 // ---------- Admin: token usage ----------

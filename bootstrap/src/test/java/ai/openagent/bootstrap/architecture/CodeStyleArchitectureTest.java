@@ -139,44 +139,8 @@ class CodeStyleArchitectureTest {
      * 既有 Controller 的原始 Map 响应白名单。迁移接口时只允许从这里删除，
      * 新增 public Map 返回方法会被 controllers_do_not_add_new_map_returning_methods 拦住。
      */
-    private static final Set<String> LEGACY_MAP_RETURNING_CONTROLLER_METHODS = Set.of(
-            // Agent
-            "ai.openagent.bootstrap.agent.controller.AgentController#deleteAgent",
-            "ai.openagent.bootstrap.agent.controller.AgentController#getAgent",
-            "ai.openagent.bootstrap.agent.controller.AgentController#listAgents",
-            "ai.openagent.bootstrap.agent.controller.AgentFileController#listFiles",
-            "ai.openagent.bootstrap.agent.controller.AgentFileController#uploadFiles",
+    private static final Set<String> LEGACY_MAP_RETURNING_CONTROLLER_METHODS = Set.of();
 
-            // Channel
-            "ai.openagent.bootstrap.channel.ChannelController#disconnect",
-            "ai.openagent.bootstrap.channel.ChannelController#list",
-            "ai.openagent.bootstrap.channel.ChannelController#update",
-
-            // Config
-            "ai.openagent.bootstrap.config.controller.ConfigController#updateConfig",
-
-            // Identity
-            "ai.openagent.bootstrap.identity.controller.ApiKeyController#createApikey",
-            "ai.openagent.bootstrap.identity.controller.ApiKeyController#deleteApikey",
-            "ai.openagent.bootstrap.identity.controller.ApiKeyController#listApikeys",
-            "ai.openagent.bootstrap.identity.controller.AuthController#logout",
-            "ai.openagent.bootstrap.identity.controller.IdentityController#changePassword",
-            "ai.openagent.bootstrap.identity.controller.RegistrationAdminController#getRegistration",
-            "ai.openagent.bootstrap.identity.controller.RegistrationAdminController#setRegistration",
-            "ai.openagent.bootstrap.identity.controller.UserAdminController#createUser",
-            "ai.openagent.bootstrap.identity.controller.UserAdminController#deleteUser",
-            "ai.openagent.bootstrap.identity.controller.UserAdminController#listUsers",
-            "ai.openagent.bootstrap.identity.controller.UserAdminController#resetPassword",
-            "ai.openagent.bootstrap.identity.controller.UserAdminController#updateUser",            // Skill
-            "ai.openagent.bootstrap.skill.controller.SkillController#deleteAgentSkill",
-            "ai.openagent.bootstrap.skill.controller.SkillController#deleteGlobalSkill",
-            "ai.openagent.bootstrap.skill.controller.SkillController#uploadSkill",
-
-            // Tool
-            "ai.openagent.bootstrap.tool.controller.ToolController#listRegisteredTools",
-            "ai.openagent.bootstrap.tool.controller.ToolController#listTools",
-            "ai.openagent.bootstrap.tool.controller.ToolController#putTools",
-            "ai.openagent.bootstrap.tool.controller.ToolController#setToolEnabled");
     @Test
     void controllers_do_not_add_new_map_returning_methods() {
         JavaClasses classes = new ClassFileImporter()

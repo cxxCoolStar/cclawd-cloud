@@ -1,16 +1,17 @@
 package ai.openagent.bootstrap.channel;
 
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.channel.controller.vo.AgentChannelVO;
+import ai.openagent.bootstrap.channel.controller.vo.ChannelListVO;
 import ai.openagent.bootstrap.channel.wechat.WechatLoginService;
 import ai.openagent.bootstrap.persistence.AgentRecord;
-import ai.openagent.bootstrap.persistence.ChannelBindingRecord;
 import ai.openagent.bootstrap.persistence.ChannelRepository;
 import ai.openagent.framework.errorcode.BaseErrorCode;
+import ai.openagent.framework.convention.Result;
 import ai.openagent.framework.exception.ClientException;
+import ai.openagent.framework.web.Results;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,13 +35,13 @@ public class ChannelController {
     private final WechatLoginService wechatLoginService;
 
     @GetMapping
-    public Map<String, List<ChannelVO>> list(@PathVariable String agentId) {
+    public Result<ChannelListVO> list(@PathVariable String agentId) {
         AgentRecord agent = agentService.requireAccess(agentId);
-        List<ChannelVO> channels = channelRepository.listBindings(agent.userId(), agentId).stream()
-                .map(binding -> ChannelVO.from(binding, runtimeManager.status(
+        List<AgentChannelVO> channels = channelRepository.listBindings(agent.userId(), agentId).stream()
+                .map(binding -> AgentChannelVO.from(binding, runtimeManager.status(
                         binding.channelType(), binding.accountId())))
                 .toList();
-        return Map.of("channels", channels);
+        return Results.success(new ChannelListVO(channels));
     }
 
     @PostMapping("/wechat/login")
@@ -57,7 +58,7 @@ public class ChannelController {
     }
 
     @DeleteMapping("/{type}/{accountId}")
-    public Map<String, Boolean> disconnect(
+    public Result<Void> disconnect(
             @PathVariable String agentId,
             @PathVariable String type,
             @PathVariable String accountId) {
@@ -67,11 +68,11 @@ public class ChannelController {
             throw new ClientException("channel not found", BaseErrorCode.RESOURCE_NOT_FOUND);
         }
         runtimeManager.stop(type, accountId);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     @PatchMapping("/{type}/{accountId}")
-    public Map<String, Boolean> update(
+    public Result<Void> update(
             @PathVariable String agentId,
             @PathVariable String type,
             @PathVariable String accountId,
@@ -87,24 +88,7 @@ public class ChannelController {
         }
         channelRepository.findOwnedBinding(agent.userId(), agentId, type, accountId)
                 .ifPresent(runtimeManager::start);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
-    public record ChannelVO(
-            String type,
-            String accountId,
-            String botUsername,
-            String botToken,
-            boolean enabled,
-            boolean sharedIdentity,
-            String status,
-            String updatedAt) {
-
-        static ChannelVO from(ChannelBindingRecord binding, String status) {
-            return new ChannelVO(
-                    binding.channelType(), binding.accountId(), binding.displayName(), "********",
-                    binding.enabled(), binding.sharedIdentity(), status,
-                    Instant.ofEpochMilli(binding.updatedAt()).toString());
-        }
-    }
 }

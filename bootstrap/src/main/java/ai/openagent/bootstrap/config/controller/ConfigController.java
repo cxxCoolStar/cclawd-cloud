@@ -5,6 +5,8 @@ import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.config.controller.vo.ConfigResponseVO;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.ZoneId;
 import java.util.Map;
@@ -64,7 +66,7 @@ public class ConfigController {
      * PATCH 全局配置：仅处理出现的子树，未出现的保持不动
      */
     @PostMapping("/api/config")
-    public Map<String, Boolean> updateConfig(@RequestBody JsonNode body) {
+    public Result<Void> updateConfig(@RequestBody JsonNode body) {
         JsonNode agents = body.get("agents");
         if (agents != null && agents.get("defaults") != null) {
             configService.patchAgentDefaults(agents.get("defaults"));
@@ -90,7 +92,7 @@ public class ConfigController {
         if (sandbox != null && sandbox.get("enabled") != null && sandbox.get("enabled").isBoolean()) {
             configService.patchSandbox(sandbox.get("enabled").asBoolean());
         }
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     private Map<String, Map<String, ConfigService.SkillEntry>> maskedAgentEntries() {

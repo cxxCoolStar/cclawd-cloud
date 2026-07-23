@@ -1,9 +1,11 @@
 package ai.openagent.bootstrap.identity.controller;
 
 import ai.openagent.bootstrap.identity.controller.request.RegistrationOpenRequest;
+import ai.openagent.bootstrap.identity.controller.vo.RegistrationStatusVO;
 import ai.openagent.bootstrap.identity.service.RegistrationSettingsService;
 import ai.openagent.bootstrap.identity.service.impl.UserAdminServiceImpl;
-import java.util.Map;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,18 +30,18 @@ public class RegistrationAdminController {
      * 查询注册开关
      */
     @GetMapping("/api/admin/registration")
-    public Map<String, Boolean> getRegistration() {
+    public Result<RegistrationStatusVO> getRegistration() {
         UserAdminServiceImpl.requireSuperAdmin();
-        return Map.of("open", registrationSettingsService.isOpen());
+        return Results.success(new RegistrationStatusVO(registrationSettingsService.isOpen()));
     }
 
     /**
      * 设置注册开关（立即生效并持久化）
      */
     @PutMapping("/api/admin/registration")
-    public Map<String, Boolean> setRegistration(@RequestBody RegistrationOpenRequest request) {
+    public Result<RegistrationStatusVO> setRegistration(@RequestBody RegistrationOpenRequest request) {
         UserAdminServiceImpl.requireSuperAdmin();
         registrationSettingsService.setOpen(Boolean.TRUE.equals(request.open()));
-        return Map.of("open", registrationSettingsService.isOpen());
+        return Results.success(new RegistrationStatusVO(registrationSettingsService.isOpen()));
     }
 }

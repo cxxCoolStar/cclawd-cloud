@@ -4,8 +4,9 @@ import ai.openagent.bootstrap.identity.controller.request.ChangePasswordRequest;
 import ai.openagent.bootstrap.identity.controller.request.UpdateMeRequest;
 import ai.openagent.bootstrap.identity.controller.vo.CurrentUserVO;
 import ai.openagent.bootstrap.identity.service.IdentityService;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,8 +44,8 @@ public class IdentityController {
      * 修改当前用户密码（校验旧密码）
      */
     @PostMapping("/api/me/password")
-    public Map<String, Object> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+    public Result<Void> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
         identityService.changePassword(request.oldPassword(), request.newPassword());
-        return Map.of("ok", true);
+        return Results.success();
     }
 }

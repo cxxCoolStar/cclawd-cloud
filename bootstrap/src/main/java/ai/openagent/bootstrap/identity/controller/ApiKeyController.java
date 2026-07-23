@@ -1,10 +1,11 @@
 package ai.openagent.bootstrap.identity.controller;
 
 import ai.openagent.bootstrap.identity.controller.request.CreateApiKeyRequest;
-import ai.openagent.bootstrap.identity.controller.vo.ApiKeyVO;
+import ai.openagent.bootstrap.identity.controller.vo.ApiKeyListVO;
+import ai.openagent.bootstrap.identity.controller.vo.CreatedApiKeyVO;
 import ai.openagent.bootstrap.identity.service.ApiKeyService;
-import java.util.List;
-import java.util.Map;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,25 +33,25 @@ public class ApiKeyController {
      * 当前用户的 Key 列表
      */
     @GetMapping("/api/apikeys")
-    public Map<String, List<ApiKeyVO>> listApikeys() {
-        return Map.of("apikeys", apiKeyService.list());
+    public Result<ApiKeyListVO> listApikeys() {
+        return Results.success(new ApiKeyListVO(apiKeyService.list()));
     }
 
     /**
      * 创建 Key：{apikey, token}，token 为仅此一次返回的明文
      */
     @PostMapping("/api/apikeys")
-    public Map<String, Object> createApikey(@RequestBody CreateApiKeyRequest request) {
+    public Result<CreatedApiKeyVO> createApikey(@RequestBody CreateApiKeyRequest request) {
         ApiKeyService.CreatedApiKey created = apiKeyService.create(request.name(), request.agentIds());
-        return Map.of("apikey", created.apikey(), "token", created.token());
+        return Results.success(new CreatedApiKeyVO(created.apikey(), created.token()));
     }
 
     /**
      * 删除 Key
      */
     @DeleteMapping("/api/apikeys/{id}")
-    public Map<String, Object> deleteApikey(@PathVariable String id) {
+    public Result<Void> deleteApikey(@PathVariable String id) {
         apiKeyService.delete(id);
-        return Map.of("ok", true);
+        return Results.success();
     }
 }

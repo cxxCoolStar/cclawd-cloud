@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * @param name           工具名（模型可见的调用名）
  * @param description    一句话说明
  * @param riskLevel      风险级别
- * @param enabledDefault 是否默认启用（写入/网络类工具默认禁用，需显式开启）
+ * @param enabledDefault 是否为新 Agent 默认启用
  */
 public record ToolCatalog(String name, String description, RiskLevel riskLevel, boolean enabledDefault) {
 

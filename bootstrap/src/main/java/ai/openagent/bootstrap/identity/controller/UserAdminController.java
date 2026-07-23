@@ -4,9 +4,11 @@ import ai.openagent.bootstrap.identity.controller.request.AdminCreateUserRequest
 import ai.openagent.bootstrap.identity.controller.request.AdminResetPasswordRequest;
 import ai.openagent.bootstrap.identity.controller.request.AdminUpdateUserRequest;
 import ai.openagent.bootstrap.identity.controller.vo.CurrentUserVO;
+import ai.openagent.bootstrap.identity.controller.vo.UserListVO;
+import ai.openagent.bootstrap.identity.controller.vo.UserMutationVO;
 import ai.openagent.bootstrap.identity.service.UserAdminService;
-import java.util.List;
-import java.util.Map;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,15 +36,15 @@ public class UserAdminController {
      * 用户列表
      */
     @GetMapping("/api/users")
-    public Map<String, List<CurrentUserVO.UserVO>> listUsers() {
-        return Map.of("users", userAdminService.listUsers());
+    public Result<UserListVO> listUsers() {
+        return Results.success(new UserListVO(userAdminService.listUsers()));
     }
 
     /**
      * 创建用户
      */
     @PostMapping("/api/users")
-    public Map<String, Object> createUser(@RequestBody AdminCreateUserRequest request) {
+    public Result<UserMutationVO> createUser(@RequestBody AdminCreateUserRequest request) {
         CurrentUserVO.UserVO user = userAdminService.createUser(
                 request.username(),
                 request.email(),
@@ -50,34 +52,34 @@ public class UserAdminController {
                 request.displayName(),
                 request.role(),
                 request.agentQuota());
-        return Map.of("ok", true, "user", user);
+        return Results.success(new UserMutationVO(user));
     }
 
     /**
      * 更新用户（显示名/角色/状态/配额，null 字段不动）
      */
     @PutMapping("/api/users/{id}")
-    public Map<String, Object> updateUser(@PathVariable String id, @RequestBody AdminUpdateUserRequest request) {
+    public Result<UserMutationVO> updateUser(@PathVariable String id, @RequestBody AdminUpdateUserRequest request) {
         CurrentUserVO.UserVO user = userAdminService.updateUser(
                 id, request.displayName(), request.role(), request.status(), request.agentQuota());
-        return Map.of("ok", true, "user", user);
+        return Results.success(new UserMutationVO(user));
     }
 
     /**
      * 删除用户
      */
     @DeleteMapping("/api/users/{id}")
-    public Map<String, Object> deleteUser(@PathVariable String id) {
+    public Result<Void> deleteUser(@PathVariable String id) {
         userAdminService.deleteUser(id);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     /**
      * 重置用户密码（重置后该用户全部会话失效）
      */
     @PostMapping("/api/users/{id}/password")
-    public Map<String, Object> resetPassword(@PathVariable String id, @RequestBody AdminResetPasswordRequest request) {
+    public Result<Void> resetPassword(@PathVariable String id, @RequestBody AdminResetPasswordRequest request) {
         userAdminService.resetPassword(id, request.password());
-        return Map.of("ok", true);
+        return Results.success();
     }
 }

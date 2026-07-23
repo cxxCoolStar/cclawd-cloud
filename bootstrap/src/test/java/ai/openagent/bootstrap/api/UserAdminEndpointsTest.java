@@ -63,16 +63,16 @@ class UserAdminEndpointsTest {
                                 {"username": "%s", "email": "%s@test.invalid", "password": "password123"}
                                 """.formatted(username, username)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.username").value(username))
-                .andExpect(jsonPath("$.user.role").value("user"))
+                .andExpect(jsonPath("$.data.user.username").value(username))
+                .andExpect(jsonPath("$.data.user.role").value("user"))
                 .andReturn();
         String userId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("user").path("id").asText();
+                .path("data").path("user").path("id").asText();
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.users[*].username", hasItem("local")))
-                .andExpect(jsonPath("$.users[*].username", hasItem(username)));
+                .andExpect(jsonPath("$.data.users[*].username", hasItem("local")))
+                .andExpect(jsonPath("$.data.users[*].username", hasItem(username)));
 
         // 用户名/邮箱重复 → 409
         mockMvc.perform(post("/api/users")
@@ -90,7 +90,7 @@ class UserAdminEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\": \"super_admin\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.role").value("super_admin"));
+                .andExpect(jsonPath("$.data.user.role").value("super_admin"));
         mockMvc.perform(put("/api/users/" + userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\": \"root\"}"))
@@ -109,7 +109,7 @@ class UserAdminEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": \"disabled\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.status").value("disabled"));
+                .andExpect(jsonPath("$.data.user.status").value("disabled"));
         mockMvc.perform(get("/api/me").cookie(session)).andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +137,7 @@ class UserAdminEndpointsTest {
                 .andExpect(status().isOk())
                 .andReturn();
         String userId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("user").path("id").asText();
+                .path("data").path("user").path("id").asText();
         Cookie session = login(username, "password123");
 
         mockMvc.perform(get("/api/users").cookie(session)).andExpect(status().isForbidden());
@@ -187,7 +187,7 @@ class UserAdminEndpointsTest {
         // 默认关闭（未配置 openagent.registration-open）
         mockMvc.perform(get("/api/admin/registration"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.open").value(false));
+                .andExpect(jsonPath("$.data.open").value(false));
 
         // 关闭状态下注册 403（库内已有密码用户，不再是引导态）
         mockMvc.perform(post("/api/register")
@@ -202,7 +202,7 @@ class UserAdminEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"open\": true}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.open").value(true));
+                .andExpect(jsonPath("$.data.open").value(true));
         mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -215,7 +215,7 @@ class UserAdminEndpointsTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"open\": false}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.open").value(false));
+                .andExpect(jsonPath("$.data.open").value(false));
         mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

@@ -2,6 +2,10 @@ package ai.openagent.bootstrap.agent.controller;
 
 import ai.openagent.bootstrap.agent.service.AgentFileService;
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.agent.controller.vo.UploadedFilesVO;
+import ai.openagent.bootstrap.agent.controller.vo.WorkspaceFilesVO;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -12,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,10 +45,10 @@ public class AgentFileController {
      * 列出 workspace 文件（sessionId 作用域过滤）
      */
     @GetMapping("/api/agents/{agentId}/files")
-    public Map<String, List<AgentFileService.WorkspaceFileEntry>> listFiles(
+    public Result<WorkspaceFilesVO> listFiles(
             @PathVariable String agentId, @RequestParam(required = false) String sessionId) {
         agentService.requireAccess(agentId);
-        return Map.of("files", agentFileService.listFiles(agentId, sessionId));
+        return Results.success(new WorkspaceFilesVO(agentFileService.listFiles(agentId, sessionId)));
     }
 
     /**
@@ -55,7 +58,7 @@ public class AgentFileController {
      * @return {"files": [{path, size}]}，path 为 agent 相对路径
      */
     @PostMapping("/api/agents/{agentId}/files")
-    public Map<String, List<AgentFileService.UploadedFileEntry>> uploadFiles(
+    public Result<UploadedFilesVO> uploadFiles(
             @PathVariable String agentId,
             @RequestParam(required = false) String sessionId,
             @RequestParam("file") List<MultipartFile> files) throws IOException {
@@ -68,7 +71,7 @@ public class AgentFileController {
             }
             uploads.add(new AgentFileService.UploadFile(filename, file.getBytes()));
         }
-        return Map.of("files", agentFileService.saveUploads(agentId, sessionId, uploads));
+        return Results.success(new UploadedFilesVO(agentFileService.saveUploads(agentId, sessionId, uploads)));
     }
 
     /**
@@ -136,5 +139,4 @@ public class AgentFileController {
 
     private static final java.util.Set<String> TEXT_EXTENSIONS = java.util.Set.of(
             "txt", "md", "markdown", "py", "java", "js", "ts", "tsx", "jsx", "json",
-            "yml", "yaml", "xml", "csv", "log", "sh", "html", "htm", "css", "sql", "toml");
-}
+            "yml", "yaml", "xml", "csv", "log", "sh", "html", "htm", "css", "sql", "toml");}

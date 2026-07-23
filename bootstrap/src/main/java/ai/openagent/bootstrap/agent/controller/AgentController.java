@@ -3,10 +3,13 @@ package ai.openagent.bootstrap.agent.controller;
 import ai.openagent.bootstrap.agent.controller.request.AgentCreateRequest;
 import ai.openagent.bootstrap.agent.controller.request.AgentUpdateRequest;
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
+import ai.openagent.bootstrap.agent.controller.vo.AgentDetailVO;
+import ai.openagent.bootstrap.agent.controller.vo.AgentListVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
 import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.framework.convention.Result;
+import ai.openagent.framework.web.Results;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -34,16 +37,16 @@ public class AgentController {
      * 查询智能体列表
      */
     @GetMapping("/api/agents")
-    public Map<String, List<AgentVO>> listAgents() {
-        return Map.of("agents", agentService.listAgents());
+    public Result<AgentListVO> listAgents() {
+        return Results.success(new AgentListVO(agentService.listAgents()));
     }
 
     /**
      * 查询单个智能体
      */
     @GetMapping("/api/agents/{id}")
-    public Map<String, AgentVO> getAgent(@PathVariable String id) {
-        return Map.of("agent", agentService.getAgent(id));
+    public Result<AgentDetailVO> getAgent(@PathVariable String id) {
+        return Results.success(new AgentDetailVO(agentService.getAgent(id)));
     }
 
     /**
@@ -51,10 +54,10 @@ public class AgentController {
      * name 必填校验，model/systemPrompt 缺省回落 ModelSettings
      */
     @PostMapping("/api/agents")
-    public ResponseEntity<Map<String, AgentVO>> createAgent(@RequestBody @Valid AgentCreateRequest request) {
+    public ResponseEntity<Result<AgentDetailVO>> createAgent(@RequestBody @Valid AgentCreateRequest request) {
         AgentVO agent = agentService.createAgent(
                 request.name(), request.description(), request.model(), request.systemPrompt());
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("agent", agent));
+        return ResponseEntity.status(HttpStatus.CREATED).body(Results.success(new AgentDetailVO(agent)));
     }
 
     /**
@@ -62,9 +65,9 @@ public class AgentController {
      * 种子默认 agent 拒绝删除（400）；workspace 目录保留
      */
     @DeleteMapping("/api/agents/{id}")
-    public Map<String, Boolean> deleteAgent(@PathVariable String id) {
+    public Result<Void> deleteAgent(@PathVariable String id) {
         agentService.deleteAgent(id);
-        return Map.of("ok", true);
+        return Results.success();
     }
 
     /**
