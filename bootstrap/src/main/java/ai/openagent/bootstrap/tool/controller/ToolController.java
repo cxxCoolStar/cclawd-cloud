@@ -6,8 +6,6 @@ import ai.openagent.bootstrap.tool.controller.vo.RegisteredToolsVO;
 import ai.openagent.bootstrap.tool.controller.vo.ToolsConfigVO;
 import ai.openagent.bootstrap.tool.service.ToolService;
 import ai.openagent.framework.convention.Result;
-import ai.openagent.framework.errorcode.BaseErrorCode;
-import ai.openagent.framework.exception.ClientException;
 import ai.openagent.framework.web.Results;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +63,7 @@ public class ToolController {
      */
     @GetMapping("/api/tools")
     public ToolsConfigVO getTools() {
-        return ToolsConfigVO.empty();
+        return toolService.getTools();
     }
 
     /**
@@ -73,8 +71,7 @@ public class ToolController {
      */
     @PutMapping("/api/tools")
     public Result<Void> putTools() {
-        throw new ClientException(
-                "feature not available: tool provider configuration is planned for V8",
-                BaseErrorCode.CLIENT_ERROR);
+        toolService.configureTools();
+        return Results.success();
     }
 }

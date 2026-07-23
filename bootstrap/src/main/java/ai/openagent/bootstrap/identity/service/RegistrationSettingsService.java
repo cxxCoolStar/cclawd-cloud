@@ -1,5 +1,7 @@
 package ai.openagent.bootstrap.identity.service;
 
+import ai.openagent.bootstrap.identity.controller.vo.RegistrationStatusVO;
+
 /**
  * 注册开关服务
  *
@@ -19,4 +21,8 @@ public interface RegistrationSettingsService {
      * 设置是否开放注册（持久化，立即生效）
      */
     void setOpen(boolean open);
+
+    RegistrationStatusVO registrationStatus();
+
+    RegistrationStatusVO updateRegistration(boolean open);
 }

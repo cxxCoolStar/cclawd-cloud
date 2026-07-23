@@ -8,6 +8,7 @@ import ai.openagent.bootstrap.tool.CatalogToolRegistry;
 import ai.openagent.bootstrap.tool.ToolCatalog;
 import ai.openagent.bootstrap.tool.controller.vo.AgentToolVO;
 import ai.openagent.bootstrap.tool.controller.vo.RegisteredToolVO;
+import ai.openagent.bootstrap.tool.controller.vo.ToolsConfigVO;
 import ai.openagent.bootstrap.tool.service.ToolService;
 import ai.openagent.framework.errorcode.BaseErrorCode;
 import ai.openagent.framework.exception.ClientException;
@@ -85,7 +86,18 @@ public class ToolServiceImpl implements ToolService {
                 .toList();
     }
 
-    private static String sourceName(ToolDescriptor.Source source) {
+
+    @Override
+    public ToolsConfigVO getTools() {
+        return ToolsConfigVO.empty();
+    }
+
+    @Override
+    public void configureTools() {
+        throw new ClientException(
+                "feature not available: tool provider configuration is planned for V8",
+                BaseErrorCode.CLIENT_ERROR);
+    }    private static String sourceName(ToolDescriptor.Source source) {
         return switch (source) {
             case BUILTIN -> "builtin";
             case MCP -> "mcp";

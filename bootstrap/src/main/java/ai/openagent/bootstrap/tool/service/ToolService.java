@@ -2,6 +2,7 @@ package ai.openagent.bootstrap.tool.service;
 
 import ai.openagent.bootstrap.tool.controller.vo.AgentToolVO;
 import ai.openagent.bootstrap.tool.controller.vo.RegisteredToolVO;
+import ai.openagent.bootstrap.tool.controller.vo.ToolsConfigVO;
 import java.util.List;
 
 /**
@@ -23,4 +24,8 @@ public interface ToolService {
      * live registry 视图：模型当前实际可见的工具（前端 registered 契约）
      */
     List<RegisteredToolVO> listRegisteredTools(String agentId);
+
+    ToolsConfigVO getTools();
+
+    void configureTools();
 }

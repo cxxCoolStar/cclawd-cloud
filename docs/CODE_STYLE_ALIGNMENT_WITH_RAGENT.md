@@ -51,6 +51,29 @@ Allowed exceptions:
 
 Avoid returning anonymous `Map` payloads from controllers. Add a `VO` instead,
 even for small response envelopes.
+Controllers should be thin transport adapters, matching the ragent style:
+
+- A normal query method should usually contain one statement:
+  `return Results.success(domainService.query(request));`
+- A normal command method should usually contain two statements:
+  `domainService.execute(id, request);` followed by `return Results.success();`.
+- Passing HTTP parameters to a service and wrapping the service result are controller
+  responsibilities. Authorization, validation beyond request binding, default-value
+  resolution, persistence access, configuration merging, domain branching, lifecycle
+  orchestration, runtime coordination, and VO construction or mapping belong in services.
+- Controllers must depend on service interfaces, not service implementations,
+  repositories, mappers, database records/DOs, runtime managers, or domain infrastructure.
+- Request-to-domain or domain-to-VO conversion should be owned by the service when it
+  requires field mapping, collection transforms, masking, or business defaults. A controller
+  may pass a request object unchanged or pass simple bound parameters directly.
+- Longer methods are allowed only when the HTTP protocol itself requires controller-level
+  handling, such as streaming/SSE, multipart transport, redirects, status/header control,
+  cookies, or directly copying a file to `HttpServletResponse`. Even in these exceptions,
+  domain lookup and business decisions remain in services.
+
+Controller brevity is a design constraint, not merely a formatting preference. If a normal
+JSON endpoint needs more than the one-line query or two-line command shape, first extract the
+logic into the domain service instead of adding private helper methods to the controller.
 
 ## DTO Naming
 

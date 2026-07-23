@@ -54,6 +54,17 @@ class CodeStyleArchitectureTest {
             .resideInAPackage("..persistence..");
 
     /**
+     * All Controller classes, including legacy root-package controllers, must not bypass
+     * service boundaries through persistence or service implementation dependencies.
+     */
+    @ArchTest
+    static final ArchRule controller_classes_do_not_depend_on_persistence_or_service_impl = noClasses()
+            .that()
+            .haveSimpleNameEndingWith("Controller")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..persistence..", "..service.impl..");
+    /**
      * controller 包下的类命名必须以 Controller 结尾
      */
     @ArchTest

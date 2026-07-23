@@ -1,30 +1,20 @@
 package ai.openagent.bootstrap.channel;
 
-import ai.openagent.bootstrap.persistence.ChannelRepository;
-import ai.openagent.framework.identity.RequestContext;
+import ai.openagent.bootstrap.channel.controller.vo.ChannelOverviewVO;
+import ai.openagent.bootstrap.channel.service.ChannelOverviewService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Compact channel overview used by the top-level channels page. */
 @RestController
 @RequiredArgsConstructor
 public class ChannelOverviewController {
 
-    private final ChannelRepository channelRepository;
-    private final ChannelRuntimeManager runtimeManager;
+    private final ChannelOverviewService channelOverviewService;
 
     @GetMapping("/api/channels")
-    public List<ChannelInfo> list() {
-        return channelRepository.listBindingsByUser(RequestContext.requireUserId()).stream()
-                .map(binding -> new ChannelInfo(
-                        binding.channelType(),
-                        binding.displayName(),
-                        binding.enabled(),
-                        runtimeManager.status(binding.channelType(), binding.accountId())))
-                .toList();
+    public List<ChannelOverviewVO> list() {
+        return channelOverviewService.list();
     }
-
-    public record ChannelInfo(String type, String botUsername, boolean enabled, String status) {}
 }

@@ -3,7 +3,6 @@ package ai.openagent.bootstrap.identity.controller;
 import ai.openagent.bootstrap.identity.controller.request.RegistrationOpenRequest;
 import ai.openagent.bootstrap.identity.controller.vo.RegistrationStatusVO;
 import ai.openagent.bootstrap.identity.service.RegistrationSettingsService;
-import ai.openagent.bootstrap.identity.service.impl.UserAdminServiceImpl;
 import ai.openagent.framework.convention.Result;
 import ai.openagent.framework.web.Results;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +30,7 @@ public class RegistrationAdminController {
      */
     @GetMapping("/api/admin/registration")
     public Result<RegistrationStatusVO> getRegistration() {
-        UserAdminServiceImpl.requireSuperAdmin();
-        return Results.success(new RegistrationStatusVO(registrationSettingsService.isOpen()));
+        return Results.success(registrationSettingsService.registrationStatus());
     }
 
     /**
@@ -40,8 +38,6 @@ public class RegistrationAdminController {
      */
     @PutMapping("/api/admin/registration")
     public Result<RegistrationStatusVO> setRegistration(@RequestBody RegistrationOpenRequest request) {
-        UserAdminServiceImpl.requireSuperAdmin();
-        registrationSettingsService.setOpen(Boolean.TRUE.equals(request.open()));
-        return Results.success(new RegistrationStatusVO(registrationSettingsService.isOpen()));
+        return Results.success(registrationSettingsService.updateRegistration(Boolean.TRUE.equals(request.open())));
     }
 }

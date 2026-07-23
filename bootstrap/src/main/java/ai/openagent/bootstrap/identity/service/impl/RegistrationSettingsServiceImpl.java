@@ -1,5 +1,6 @@
 package ai.openagent.bootstrap.identity.service.impl;
 
+import ai.openagent.bootstrap.identity.controller.vo.RegistrationStatusVO;
 import ai.openagent.bootstrap.identity.service.RegistrationSettingsService;
 import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.status.config.PlatformProperties;
@@ -34,5 +35,17 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
     public void setOpen(boolean open) {
         // 注册开关为平台级配置，恒写 system scope（调用入口已有 super_admin 闸门）
         configRepository.upsert(ConfigRepository.SCOPE_SYSTEM, "", KEY, Boolean.toString(open));
+    }
+    @Override
+    public RegistrationStatusVO registrationStatus() {
+        UserAdminServiceImpl.requireSuperAdmin();
+        return new RegistrationStatusVO(isOpen());
+    }
+
+    @Override
+    public RegistrationStatusVO updateRegistration(boolean open) {
+        UserAdminServiceImpl.requireSuperAdmin();
+        setOpen(open);
+        return new RegistrationStatusVO(isOpen());
     }
 }
