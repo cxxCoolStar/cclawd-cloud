@@ -13,10 +13,14 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
+
 /**
  * 代码风格守护规则（参考 ragent 风格约定）
  *
@@ -28,6 +32,23 @@ import org.junit.jupiter.api.Test;
  */
 @AnalyzeClasses(packages = "ai.openagent", importOptions = ImportOption.DoNotIncludeTests.class)
 class CodeStyleArchitectureTest {
+
+    private static final Set<String> LEGACY_JDBC_REPOSITORIES = Set.of(
+            "AgentMcpServerRepository",
+            "AgentRunRepository",
+            "AgentToolRepository",
+            "ApiKeyRepository",
+            "AuthSessionRepository",
+            "ChannelBindingLookupRepository",
+            "ChannelDispatchRepository",
+            "ChannelMessageRepository",
+            "ChannelRepository",
+            "ChannelStaleDispatchRepository",
+            "ChatSessionRepository",
+            "ConfigRepository",
+            "ProviderRepository",
+            "ToolExecutionRepository",
+            "UserRepository");
 
     /**
      * service 及以下不得使用 Web 层异常，业务代码应抛三层异常（Client/Service/Remote）
@@ -146,6 +167,28 @@ class CodeStyleArchitectureTest {
             .should()
             .beAssignableTo(BaseMapper.class)
             .allowEmptyShould(true);
+
+    @Test
+    void persistence_package_does_not_add_new_jdbc_repositories() throws IOException {
+        Path moduleRoot = Files.isDirectory(Path.of("src", "main", "java"))
+                ? Path.of("")
+                : Path.of("bootstrap");
+        Path persistencePackage = moduleRoot.resolve(Path.of(
+                "src", "main", "java", "ai", "openagent", "bootstrap", "persistence"));
+        Set<String> repositories;
+        try (var sources = Files.list(persistencePackage)) {
+            repositories = sources
+                    .map(path -> path.getFileName().toString())
+                    .filter(name -> name.endsWith("Repository.java"))
+                    .map(name -> name.substring(0, name.length() - ".java".length()))
+                    .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+        }
+
+        assertThat(repositories)
+                .as("Legacy JdbcTemplate repositories are a shrinking whitelist; add new persistence through domain DO + Mapper packages.")
+                .containsExactlyInAnyOrderElementsOf(LEGACY_JDBC_REPOSITORIES);
+    }
+
     /**
      * 既有 Controller 的原始 Map 响应白名单。迁移接口时只允许从这里删除，
      * 新增 public Map 返回方法会被 controllers_do_not_add_new_map_returning_methods 拦住。

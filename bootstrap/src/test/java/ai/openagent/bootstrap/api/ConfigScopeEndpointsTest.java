@@ -99,7 +99,7 @@ class ConfigScopeEndpointsTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("agent").path("id").asText();
+                .path("data").path("agent").path("id").asText();
     }
 
     @Test
@@ -140,7 +140,7 @@ class ConfigScopeEndpointsTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true));
+                .andExpect(jsonPath("$.success").value(true));
 
         // 用户 B 的合并视图：maxTokens 取 user 覆盖、model 继承 system；
         // 打码回写保护跨 scope 生效——密钥仍继承 system 原值

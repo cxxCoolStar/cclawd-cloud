@@ -1,5 +1,7 @@
 package ai.openagent.bootstrap.persistence;
 
+import ai.openagent.bootstrap.agent.dao.entity.AgentDO;
+import ai.openagent.bootstrap.agent.dao.mapper.AgentMapper;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.tool.ToolCatalog;
@@ -41,7 +43,7 @@ public class DataSeeder implements ApplicationRunner {
 
     private final UserRepository userRepository;
     private final ProviderRepository providerRepository;
-    private final AgentRepository agentRepository;
+    private final AgentMapper agentMapper;
     private final AgentToolRepository agentToolRepository;
     private final AgentRunRepository agentRunRepository;
     private final ModelSettings modelSettings;
@@ -115,19 +117,21 @@ public class DataSeeder implements ApplicationRunner {
      * 见 {@link #seedDefaultProvider}）
      */
     private void seedDefaultAgent(long now) {
-        if (agentRepository.exists(DEFAULT_AGENT_ID)) {
+        if (agentMapper.selectById(DEFAULT_AGENT_ID) != null) {
             return;
         }
         String systemPrompt = resolveSystemPrompt();
-        agentRepository.insert(
-                DEFAULT_AGENT_ID,
-                IdentityConstant.LOCAL_USER_ID,
-                "OpenAgent",
-                "Default local chatbot",
-                DEFAULT_PROVIDER_ID,
-                modelSettings.name(),
-                systemPrompt,
-                now);
+        AgentDO agent = new AgentDO();
+        agent.setId(DEFAULT_AGENT_ID);
+        agent.setUserId(IdentityConstant.LOCAL_USER_ID);
+        agent.setName("OpenAgent");
+        agent.setDescription("Default local chatbot");
+        agent.setProviderId(DEFAULT_PROVIDER_ID);
+        agent.setModel(modelSettings.name());
+        agent.setSystemPrompt(systemPrompt);
+        agent.setCreatedAt(now);
+        agent.setUpdatedAt(now);
+        agentMapper.insert(agent);
     }
 
     /**

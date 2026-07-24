@@ -28,11 +28,11 @@ class ConfigScopeTest {
     private static final String USER_ID = "user-1";
 
     private final InMemoryConfigRepository repository = new InMemoryConfigRepository();
-    private final InMemoryAgentRepository agentRepository = new InMemoryAgentRepository();
+    private final InMemoryAgentService agentService = new InMemoryAgentService();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ConfigService service = new ConfigService(
             repository,
-            agentRepository,
+            agentService,
             objectMapper,
             new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
             new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),
@@ -78,7 +78,7 @@ class ConfigScopeTest {
 
     @Test
     void skillEnabledResolvesAgentThenOwnerUserThenSystem() {
-        agentRepository.add("agt-1", USER_ID);
+        agentService.add("agt-1", USER_ID);
         asAdmin();
         service.patchSkillEntries(null, Map.of("web-search", new SkillEntry(true, null, null)));
 
@@ -195,8 +195,8 @@ class ConfigScopeTest {
 
     @Test
     void agentEntriesVisibilityIsScopedToOwner() {
-        agentRepository.add("agt-mine", USER_ID);
-        agentRepository.add("agt-foreign", "user-2");
+        agentService.add("agt-mine", USER_ID);
+        agentService.add("agt-foreign", "user-2");
         repository.upsert(
                 ConfigRepository.SCOPE_AGENT,
                 "agt-mine",

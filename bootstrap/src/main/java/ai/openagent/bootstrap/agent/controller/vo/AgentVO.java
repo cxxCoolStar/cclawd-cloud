@@ -1,6 +1,6 @@
 package ai.openagent.bootstrap.agent.controller.vo;
 
-import ai.openagent.bootstrap.persistence.AgentRecord;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 
 /**
  * 智能体视图对象
@@ -38,7 +38,7 @@ public record AgentVO(
     /**
      * 由持久化记录装配
      */
-    public static AgentVO from(AgentRecord agent) {
+    public static AgentVO from(AgentBO agent) {
         return new AgentVO(
                 agent.id(),
                 agent.name(),

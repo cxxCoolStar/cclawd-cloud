@@ -1,6 +1,6 @@
-package ai.openagent.bootstrap.persistence;
+package ai.openagent.bootstrap.agent.service.bo;
 
-public record AgentRecord(
+public record AgentBO(
         String id,
         String userId,
         String name,

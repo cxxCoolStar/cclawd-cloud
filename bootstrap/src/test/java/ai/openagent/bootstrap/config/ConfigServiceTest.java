@@ -27,7 +27,7 @@ class ConfigServiceTest {
     private final InMemoryConfigRepository repository = new InMemoryConfigRepository();
     private final ConfigService service = new ConfigService(
             repository,
-            new InMemoryAgentRepository(),
+            new InMemoryAgentService(),
             new ObjectMapper(),
             new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
             new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),

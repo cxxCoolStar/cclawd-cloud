@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ai.openagent.agent.AgentRunStatus;
 import ai.openagent.bootstrap.OpenAgentApplication;
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.identity.IdentityConstant;
-import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.AgentRunRecord;
 import ai.openagent.bootstrap.persistence.AgentRunRepository;
 import ai.openagent.bootstrap.persistence.AgentToolRepository;
@@ -62,7 +62,7 @@ class AgentLifecycleEndpointsTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private AgentRepository agentRepository;
+    private AgentService agentService;
 
     @Autowired
     private ProviderRepository providerRepository;
@@ -94,7 +94,7 @@ class AgentLifecycleEndpointsTest {
         JsonNode agent = objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("agent");
         String id = agent.path("id").asText();
         assertTrue(id.startsWith("agt_"), "id 应为 agt_ 前缀随机 hex");
-        assertTrue(agentRepository.findById(id).isPresent());
+        assertTrue(agentService.findById(id).isPresent());
         // 内置工具默认配置已补种（与 DataSeeder 同源）
         assertTrue(!agentToolRepository.listByAgent(id).isEmpty());
 
@@ -134,7 +134,7 @@ class AgentLifecycleEndpointsTest {
                 .andExpect(jsonPath("$.code").value("0"));
 
         // 级联清理：agents / sessions / messages / events / runs / tools / configs 键
-        assertTrue(agentRepository.findById(id).isEmpty());
+        assertTrue(agentService.findById(id).isEmpty());
         assertTrue(sessionRepository
                 .listMessages(IdentityConstant.LOCAL_USER_ID, id, sessionId).isEmpty());
         assertTrue(sessionRepository
@@ -146,7 +146,7 @@ class AgentLifecycleEndpointsTest {
         assertTrue(agentToolRepository.listByAgent(id).isEmpty());
         assertTrue(configRepository.get(ConfigRepository.SCOPE_AGENT, id, skillKey).isEmpty());
         // 默认 agent 及其数据不受影响
-        assertTrue(agentRepository.exists(DataSeeder.DEFAULT_AGENT_ID));
+        assertTrue(agentService.findById(DataSeeder.DEFAULT_AGENT_ID).isPresent());
     }
 
     @Test
@@ -171,10 +171,10 @@ class AgentLifecycleEndpointsTest {
         assertEquals("https://api.deepseek.com", provider.apiBase());
         assertEquals("deepseek-v4-pro", provider.model());
         assertEquals("deepseek-v4-pro",
-                agentRepository.findById(DataSeeder.DEFAULT_AGENT_ID).orElseThrow().model());
+                agentService.findById(DataSeeder.DEFAULT_AGENT_ID).orElseThrow().model());
         // V9 M2：全新部署 onboard 建号，首个业务 agent 归属新建账号
         String ownerId = userRepository.findByUsername("alice").orElseThrow().id();
-        assertTrue(agentRepository.listByUser(ownerId).stream()
+        assertTrue(agentService.listByUser(ownerId).stream()
                 .anyMatch(agent -> agent.name().equals(agentName)));
     }
 
@@ -191,7 +191,7 @@ class AgentLifecycleEndpointsTest {
         assertEquals(before,
                 providerRepository.findById(DataSeeder.DEFAULT_PROVIDER_ID).orElseThrow().apiKey());
         assertEquals(1,
-                agentRepository.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
+                agentService.listByUser(IdentityConstant.LOCAL_USER_ID).stream()
                         .filter(agent -> agent.id().equals(DataSeeder.DEFAULT_AGENT_ID))
                         .count());
     }

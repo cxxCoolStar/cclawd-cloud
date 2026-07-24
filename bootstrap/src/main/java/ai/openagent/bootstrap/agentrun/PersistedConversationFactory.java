@@ -7,10 +7,10 @@ import ai.openagent.agent.context.ContextCompactor;
 import ai.openagent.agent.context.ConversationSummarizer;
 import ai.openagent.agent.tool.ToolResult;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
+import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 import ai.openagent.bootstrap.memory.MemoryService;
-import ai.openagent.bootstrap.persistence.AgentRecord;
 import ai.openagent.bootstrap.skill.SkillService;
-import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.ChatMessageRecord;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.ProviderRecord;
@@ -60,7 +60,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PersistedConversationFactory implements AgentConversationFactory {
 
-    private final AgentRepository agentRepository;
+    private final AgentService agentService;
     private final ProviderRepository providerRepository;
     private final ChatSessionRepository sessionRepository;
     private final ToolProperties toolProperties;
@@ -72,7 +72,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
 
     @Override
     public AgentConversation open(AgentRunCommand command) {
-        AgentRecord agent = agentRepository.findById(command.agentId())
+        AgentBO agent = agentService.findById(command.agentId())
                 .orElseThrow(() -> new ClientException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
         ProviderRecord provider = providerRepository.findById(agent.providerId())
                 .orElseThrow(() -> new ServiceException(
@@ -101,7 +101,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
      *
      * <p>MEMORY.md 和 USER.md 随每轮请求注入；记忆功能关闭或文件为空时不拼接</p>
      */
-    private String buildSystemPrompt(AgentRecord agent, ai.openagent.agent.AgentConversationScope scope) {
+    private String buildSystemPrompt(AgentBO agent, ai.openagent.agent.AgentConversationScope scope) {
         String base = agent.systemPrompt();
         StringBuilder prompt = new StringBuilder(base);
         if (memoryService.enabled()) {
@@ -178,7 +178,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
     private final class PersistedConversation implements AgentConversation {
 
         private final AgentRunCommand command;
-        private final AgentRecord agent;
+        private final AgentBO agent;
         private final ProviderRecord provider;
         private final List<ModelMessage> messages;
         private final Path agentHome;
@@ -187,7 +187,7 @@ public class PersistedConversationFactory implements AgentConversationFactory {
 
         private PersistedConversation(
                 AgentRunCommand command,
-                AgentRecord agent,
+                AgentBO agent,
                 ProviderRecord provider,
                 List<ModelMessage> messages,
                 Path agentHome,

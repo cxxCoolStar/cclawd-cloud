@@ -74,8 +74,8 @@ class ChatFlowTest {
 
         mockMvc.perform(get("/api/agents"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agents[0].id").value("default"))
-                .andExpect(jsonPath("$.agents[0].model").value("test-model"));
+                .andExpect(jsonPath("$.data.agents[0].id").value("default"))
+                .andExpect(jsonPath("$.data.agents[0].model").value("test-model"));
 
         MvcResult pending = mockMvc.perform(post("/api/chat/stream")
                         .contentType(MediaType.APPLICATION_JSON)

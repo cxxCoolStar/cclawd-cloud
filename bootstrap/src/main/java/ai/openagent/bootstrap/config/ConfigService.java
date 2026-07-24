@@ -1,8 +1,8 @@
 package ai.openagent.bootstrap.config;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
-import ai.openagent.bootstrap.persistence.AgentRecord;
-import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.ConfigRepository;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
 import ai.openagent.framework.errorcode.BaseErrorCode;
@@ -93,7 +93,7 @@ public class ConfigService {
     private static final TypeReference<Map<String, SkillEntry>> SKILL_ENTRIES_TYPE = new TypeReference<>() {};
 
     private final ConfigRepository configRepository;
-    private final AgentRepository agentRepository;
+    private final AgentService agentService;
     private final ObjectMapper objectMapper;
     private final ModelSettings modelSettings;
     private final AgentProperties agentProperties;
@@ -194,7 +194,7 @@ public class ConfigService {
         if (enabled != null) {
             return enabled;
         }
-        String ownerId = agentRepository.findById(agentId).map(AgentRecord::userId).orElse(null);
+        String ownerId = agentService.findById(agentId).map(AgentBO::userId).orElse(null);
         if (ownerId != null) {
             enabled = enabledOf(readEntries(ConfigRepository.SCOPE_USER, ownerId, KEY_SKILLS_ENTRIES), name);
             if (enabled != null) {
@@ -433,8 +433,8 @@ public class ConfigService {
         if (identity.isEmpty() || identity.get().isPlatformAdmin()) {
             return null;
         }
-        return agentRepository.listByUser(identity.get().userId()).stream()
-                .map(AgentRecord::id)
+        return agentService.listByUser(identity.get().userId()).stream()
+                .map(AgentBO::id)
                 .collect(Collectors.toSet());
     }
 

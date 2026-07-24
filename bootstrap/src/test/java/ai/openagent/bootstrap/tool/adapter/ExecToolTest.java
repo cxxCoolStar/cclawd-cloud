@@ -10,7 +10,7 @@ import ai.openagent.agent.tool.ToolExecutionContext;
 import ai.openagent.agent.tool.ToolResult;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.config.ConfigService;
-import ai.openagent.bootstrap.config.InMemoryAgentRepository;
+import ai.openagent.bootstrap.config.InMemoryAgentService;
 import ai.openagent.bootstrap.config.InMemoryConfigRepository;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.sandbox.DockerCli;
@@ -65,7 +65,7 @@ class ExecToolTest {
     private static ConfigService configService() {
         return new ConfigService(
                 new InMemoryConfigRepository(),
-                new InMemoryAgentRepository(),
+                new InMemoryAgentService(),
                 new ObjectMapper(),
                 new ModelSettings("kimi", "https://api.example", "test-key", "test-model", 0.6, 4096, null),
                 new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),

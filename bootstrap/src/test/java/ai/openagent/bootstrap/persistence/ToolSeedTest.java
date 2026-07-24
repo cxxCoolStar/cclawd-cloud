@@ -1,6 +1,7 @@
 package ai.openagent.bootstrap.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.openagent.bootstrap.OpenAgentApplication;
@@ -40,12 +41,14 @@ class ToolSeedTest {
 
         Set<String> enabled = toolRepository.listEnabledToolNames(DataSeeder.DEFAULT_AGENT_ID).stream()
                 .collect(Collectors.toSet());
-        assertEquals(Set.of("list_dir", "read_file", "memory_search", "load_skill"), enabled);
+        assertEquals(
+                ToolCatalog.BUILTIN_TOOLS.stream().map(ToolCatalog::name).collect(Collectors.toSet()),
+                enabled);
 
         // 2. 用户显式启用高风险工具后再次种子（模拟应用重启）：不得被覆盖
-        toolRepository.upsert(DataSeeder.DEFAULT_AGENT_ID, "write_file", true, "{}");
+        toolRepository.upsert(DataSeeder.DEFAULT_AGENT_ID, "write_file", false, "{}");
         dataSeeder.seed();
-        assertTrue(
+        assertFalse(
                 toolRepository.find(DataSeeder.DEFAULT_AGENT_ID, "write_file").orElseThrow().enabled(),
                 "补种不得覆盖用户显式启停");
 

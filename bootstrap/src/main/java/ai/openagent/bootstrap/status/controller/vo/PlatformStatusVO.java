@@ -1,6 +1,6 @@
 package ai.openagent.bootstrap.status.controller.vo;
 
-import ai.openagent.bootstrap.persistence.AgentRecord;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 import ai.openagent.bootstrap.status.PlatformCapabilities;
 import java.util.List;
 
@@ -51,7 +51,7 @@ public record PlatformStatusVO(
         /**
          * 由持久化记录装配
          */
-        public static AgentStatusVO from(AgentRecord agent) {
+        public static AgentStatusVO from(AgentBO agent) {
             return new AgentStatusVO(agent.id(), agent.name(), agent.model(), "");
         }
     }

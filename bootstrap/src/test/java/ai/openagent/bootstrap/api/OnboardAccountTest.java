@@ -73,7 +73,7 @@ class OnboardAccountTest {
         // 首个业务 agent 归属新账号
         mockMvc.perform(get("/api/agents").cookie(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agents[*].name", hasItem("first-bot")));
+                .andExpect(jsonPath("$.data.agents[*].name", hasItem("first-bot")));
 
         // 重复 onboard 幂等：不再建号（第二组凭据无法登录）
         mockMvc.perform(post("/api/onboard")

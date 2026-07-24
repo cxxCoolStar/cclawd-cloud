@@ -109,9 +109,9 @@ class AgentConfigEndpointsTest {
 
         mockMvc.perform(get("/api/agents/default"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agent.name").value("Renamed Agent"))
-                .andExpect(jsonPath("$.agent.description").value("new desc"))
-                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5-turbo"));
+                .andExpect(jsonPath("$.data.agent.name").value("Renamed Agent"))
+                .andExpect(jsonPath("$.data.agent.description").value("new desc"))
+                .andExpect(jsonPath("$.data.agent.model").value("kimi-k2.5-turbo"));
 
         // 未出现的字段不动（promptMode 等无后端语义的字段忽略）
         mockMvc.perform(put("/api/agents/default")
@@ -120,8 +120,8 @@ class AgentConfigEndpointsTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/agents/default"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agent.name").value("Renamed Agent"))
-                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5-pro"));
+                .andExpect(jsonPath("$.data.agent.name").value("Renamed Agent"))
+                .andExpect(jsonPath("$.data.agent.model").value("kimi-k2.5-pro"));
 
         // model 空串 = 清除覆盖，回退种子默认值（openagent.model.name）
         mockMvc.perform(put("/api/agents/default")
@@ -130,7 +130,7 @@ class AgentConfigEndpointsTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/agents/default"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agent.model").value("kimi-k2.5"));
+                .andExpect(jsonPath("$.data.agent.model").value("kimi-k2.5"));
     }
 
     @Test

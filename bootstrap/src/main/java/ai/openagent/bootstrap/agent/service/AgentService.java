@@ -2,9 +2,10 @@ package ai.openagent.bootstrap.agent.service;
 
 import ai.openagent.bootstrap.agent.controller.vo.AgentConfigVO;
 import ai.openagent.bootstrap.agent.controller.vo.AgentVO;
-import ai.openagent.bootstrap.persistence.AgentRecord;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 智能体服务接口
@@ -18,7 +19,11 @@ public interface AgentService {
      *
      * @return 校验通过后的 agent 记录
      */
-    AgentRecord requireAccess(String id);
+    AgentBO requireAccess(String id);
+
+    Optional<AgentBO> findById(String id);
+
+    List<AgentBO> listByUser(String userId);
 
     /**
      * 查询当前用户的智能体列表（API Key 绑定子集时按子集过滤）

@@ -2,9 +2,9 @@ package ai.openagent.bootstrap.memory;
 
 import ai.openagent.agent.AgentConversationScope;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
+import ai.openagent.bootstrap.agent.service.bo.AgentBO;
 import ai.openagent.bootstrap.memory.config.MemoryProperties;
-import ai.openagent.bootstrap.persistence.AgentRecord;
-import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.ChatMessageRecord;
 import ai.openagent.bootstrap.persistence.ChatSessionRepository;
 import ai.openagent.bootstrap.persistence.ProviderRecord;
@@ -50,7 +50,7 @@ public class AutoPersistMemoryService {
 
     private final MemoryProperties memoryProperties;
     private final ChatSessionRepository chatSessionRepository;
-    private final AgentRepository agentRepository;
+    private final AgentService agentService;
     private final ProviderRepository providerRepository;
     private final LLMService llmService;
     private final MemoryService memoryService;
@@ -59,14 +59,14 @@ public class AutoPersistMemoryService {
     public AutoPersistMemoryService(
             MemoryProperties memoryProperties,
             ChatSessionRepository chatSessionRepository,
-            AgentRepository agentRepository,
+            AgentService agentService,
             ProviderRepository providerRepository,
             LLMService llmService,
             MemoryService memoryService,
             ObjectMapper objectMapper) {
         this.memoryProperties = memoryProperties;
         this.chatSessionRepository = chatSessionRepository;
-        this.agentRepository = agentRepository;
+        this.agentService = agentService;
         this.providerRepository = providerRepository;
         this.llmService = llmService;
         this.memoryService = memoryService;
@@ -99,7 +99,7 @@ public class AutoPersistMemoryService {
             return;
         }
         try {
-            AgentRecord agent = agentRepository.findById(agentId)
+            AgentBO agent = agentService.findById(agentId)
                     .orElseThrow(() -> new ServiceException("agent not found", BaseErrorCode.RESOURCE_NOT_FOUND));
             ProviderRecord provider = providerRepository.findById(agent.providerId())
                     .orElseThrow(() -> new ServiceException("provider not found", BaseErrorCode.SERVICE_UNAVAILABLE_ERROR));

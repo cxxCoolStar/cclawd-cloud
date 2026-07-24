@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import ai.openagent.bootstrap.agentrun.config.AgentProperties;
 import ai.openagent.bootstrap.config.ConfigService;
 import ai.openagent.bootstrap.config.ConfigService.SkillEntry;
-import ai.openagent.bootstrap.config.InMemoryAgentRepository;
+import ai.openagent.bootstrap.config.InMemoryAgentService;
 import ai.openagent.bootstrap.config.InMemoryConfigRepository;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.sandbox.config.SandboxProperties;
@@ -63,7 +63,7 @@ class SkillServiceTest {
     private ConfigService configService() {
         return new ConfigService(
                 new InMemoryConfigRepository(),
-                new InMemoryAgentRepository(),
+                new InMemoryAgentService(),
                 new ObjectMapper(),
                 new ModelSettings("kimi", "https://api.example", "sk-1234567890abcd", "kimi-k2.5", 0.6, 4096, null),
                 new AgentProperties(8, Duration.ofMinutes(10), 80000, 20, 2048),

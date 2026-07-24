@@ -1,9 +1,9 @@
 package ai.openagent.bootstrap.status.service.impl;
 
+import ai.openagent.bootstrap.agent.service.AgentService;
 import ai.openagent.bootstrap.config.ModelSettings;
 import ai.openagent.bootstrap.identity.IdentityConstant;
 import ai.openagent.bootstrap.identity.service.RegistrationSettingsService;
-import ai.openagent.bootstrap.persistence.AgentRepository;
 import ai.openagent.bootstrap.persistence.DataSeeder;
 import ai.openagent.bootstrap.persistence.ProviderRepository;
 import ai.openagent.bootstrap.status.PlatformCapabilities;
@@ -27,7 +27,7 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
     private final Instant startedAt = Instant.now();
     private final int port;
     private final PlatformProperties platformProperties;
-    private final AgentRepository agentRepository;
+    private final AgentService agentService;
     private final ProviderRepository providerRepository;
     private final ModelSettings modelSettings;
     private final RegistrationSettingsService registrationSettingsService;
@@ -35,13 +35,13 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
     public PlatformStatusServiceImpl(
             @Value("${server.port:18953}") int port,
             PlatformProperties platformProperties,
-            AgentRepository agentRepository,
+            AgentService agentService,
             ProviderRepository providerRepository,
             ModelSettings modelSettings,
             RegistrationSettingsService registrationSettingsService) {
         this.port = port;
         this.platformProperties = platformProperties;
-        this.agentRepository = agentRepository;
+        this.agentService = agentService;
         this.providerRepository = providerRepository;
         this.modelSettings = modelSettings;
         this.registrationSettingsService = registrationSettingsService;
@@ -56,7 +56,7 @@ public class PlatformStatusServiceImpl implements PlatformStatusService {
                 .filter(id -> !id.isBlank())
                 .orElse(IdentityConstant.LOCAL_USER_ID);
         List<PlatformStatusVO.AgentStatusVO> agents =
-                agentRepository.listByUser(userId).stream()
+                agentService.listByUser(userId).stream()
                         .map(PlatformStatusVO.AgentStatusVO::from)
                         .toList();
         // V8 M3：env 或 DB（onboard 写入）任一侧配好 apiKey 即视为已初始化
